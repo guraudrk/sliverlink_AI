@@ -16,6 +16,7 @@
 - `.env.local` / `.env.example` — 환경변수 (`.env.local`은 Git 업로드 금지, 이미 `.gitignore` 적용됨)
 - `package.json` — Zod / Vitest / Playwright 의존성 및 스크립트 추가 대상
 - `README.md` — 6.0에서 실행/연동 방법 정리 대상
+- `docs/work-log.md` — 작업(테스크/슬라이스) 완료 시마다 누적되는 작업 로그
 
 ## Notes
 - 이 저장소의 구현 범위는 "웹 입력 → 검증 → Make Webhook 호출"까지다. GPT 해석, Airtable(`care_tasks`, `message_logs`) 기록은 Make.com 시나리오 책임이며 이 코드베이스에서 직접 호출하지 않는다.
@@ -24,6 +25,7 @@
 - 구현 진입 전 `node_modules/next/dist/docs/`에서 Next.js 16.2.9 Route Handler 관련 문서를 확인한다 (AGENTS.md 지침).
 - 하위 테스크 단위로 구현 후 해당 테스크를 체크하고, 관련 테스트를 실행해 통과를 확인한다.
 - 작업 하나가 끝날 때마다 이 파일에서 해당 항목의 `[ ]`를 `[x]`로 바꾼다.
+- 작업 하나가 끝날 때마다 `docs/work-log.md`에 새 섹션(목표/내용/검증/변경 파일/커밋 여부)을 추가한다.
 
 ## 작업 목록 (Tasks)
 
@@ -33,12 +35,12 @@
   - [ ] 0.3 이후 모든 작업은 이 브랜치에서 진행
 
 - [ ] 1.0 프로젝트 환경변수와 하네스 구조 설정
-  - [ ] 1.1 `zod`를 `package.json` 직접 의존성으로 추가
-  - [ ] 1.2 `vitest`(+ 필요 시 `jsdom`, `@vitejs/plugin-react`) 설치, `vitest.config.ts` 작성, `package.json`에 `test` 스크립트 추가
-  - [ ] 1.3 `@playwright/test` 설치, `playwright.config.ts` 작성(baseURL: 로컬 dev 서버), `package.json`에 `test:e2e` 스크립트 추가
-  - [ ] 1.4 `src/lib/silverlink/env.ts` 구현: `server-only` 가드, `MAKE_WEBHOOK_URL` 필수값 검증(fail-fast), `SILVERLINK_DRY_RUN` boolean 파싱(기본값 `true`)
+  - [x] 1.1 `zod`를 `package.json` 직접 의존성으로 추가
+  - [x] 1.2 `vitest`(+ `jsdom`, `@vitejs/plugin-react`) 설치, `vitest.config.ts` 작성(e2e 디렉터리 제외), `package.json`에 `test` 스크립트 추가
+  - [ ] 1.3 `@playwright/test` 설치, `playwright.config.ts` 작성(baseURL: 로컬 dev 서버), `package.json`에 `test:e2e` 스크립트 추가 (`playwright` 패키지/`test:e2e` 스크립트는 있으나 config 미작성 — 다음 슬라이스에서 진행)
+  - [x] 1.4 `src/lib/silverlink/env.ts` 구현 — `getSilverLinkEnv()`로 `MAKE_WEBHOOK_URL`/`SILVERLINK_DRY_RUN`(기본값 `true`) 파싱. **변경**: fail-fast로 즉시 throw하지 않고 값을 그대로 반환하도록 단순화 (Slice 2 요구사항 #6 "URL 없으면 500 응답"을 만족하려면 import 시점에 throw하면 안 되고, 호출 시점에 route.ts/make-client.ts가 분기 처리해야 함). `server-only` 패키지는 미설치 — env.ts/make-client.ts가 API Route에서만 import되어 클라이언트 번들에 포함되지 않음을 코드 구조로 보장
   - [ ] 1.5 `.env.example`에 `MAKE_WEBHOOK_URL`, `SILVERLINK_DRY_RUN` 항목과 설명 주석 정리 (값은 마스킹)
-  - [ ] 1.6 `.gitignore`의 `.env*` 규칙으로 `.env.local`이 추적되지 않는지 재확인
+  - [x] 1.6 `.gitignore`의 `.env*` 규칙으로 `.env.local`이 추적되지 않는지 재확인 (`.env.local`, `.env*.local` 규칙 존재, `git status`에 잡히지 않음 확인)
 
 - [ ] 2.0 입력 스키마와 payload 생성 로직 구현
   - [x] 2.1 `src/lib/silverlink/schema.ts`: 사용자 입력 스키마 정의 (`sender_name`, `target_person`, `message` 필수/trim/빈 문자열 금지) — `target_person`은 `"아버지 테스트" | "어머니 테스트"` enum으로 구현 (최대 길이 제한은 이번 슬라이스 범위에서 제외, 필요 시 추후 추가)
@@ -48,14 +50,14 @@
   - [x] 2.5 `time.ts`: Asia/Seoul 기준 `today_date`(`YYYY-MM-DD`) 생성 함수 작성 — `Intl.DateTimeFormat(timeZone: "Asia/Seoul")` 사용으로 서버 로컬 타임존 무관하게 동작
   - [x] 2.6 `src/lib/silverlink/payload.ts`: `buildSilverLinkPayload(input, now?)` 구현 — 입력 검증 + 시간 생성 + `source_channel: "web"` 고정값을 합쳐 payload 생성, `now` 주입 가능
 
-- [ ] 3.0 서버 API Route와 Make Webhook 클라이언트 구현
-  - [ ] 3.1 `src/lib/silverlink/make-client.ts`: `fetch` 기반 POST 호출 함수 작성 (`MAKE_WEBHOOK_URL`, 최종 payload)
-  - [ ] 3.2 `make-client.ts`: 타임아웃 처리(`AbortController`) 및 네트워크/HTTP 오류 핸들링
-  - [ ] 3.3 `make-client.ts`: `SILVERLINK_DRY_RUN=true`일 때 실제 호출 생략, 구조화된 로그 + 모의 성공 응답 반환 분기 작성
-  - [ ] 3.4 `make-client.ts`: 호출 결과를 일관된 타입(성공/실패 + 메시지)으로 반환
-  - [ ] 3.5 `src/app/api/create-task/route.ts`: `POST` 핸들러 작성 — 요청 바디를 2.1 스키마로 파싱, 실패 시 400 + 필드별 에러 응답
-  - [ ] 3.6 `route.ts`: 성공 시 2.0의 payload 변환 → 3.1~3.4 make-client 호출 → 결과 응답
-  - [ ] 3.7 `route.ts`: make-client 실패 시 5xx + 안전한 에러 메시지(내부 URL/스택 비노출) 응답
+- [x] 3.0 서버 API Route와 Make Webhook 클라이언트 구현
+  - [x] 3.1 `src/lib/silverlink/make-client.ts`: `fetch` 기반 POST 호출 함수 작성 (`MAKE_WEBHOOK_URL`, 최종 payload)
+  - [x] 3.2 `make-client.ts`: 타임아웃 처리(`AbortController`, 10초) 및 네트워크/HTTP 오류 핸들링
+  - [x] 3.3 `make-client.ts`: `SILVERLINK_DRY_RUN=true`일 때 실제 호출 생략, 구조화된 로그 + 모의 성공 응답 반환 분기 작성
+  - [x] 3.4 `make-client.ts`: 호출 결과를 일관된 타입(`MakeWebhookResult` 판별 유니언: dryRun 성공/실제 성공/url 누락/호출 실패)으로 반환
+  - [x] 3.5 `src/app/api/create-task/route.ts`: `POST` 핸들러 작성 — 요청 바디를 `buildSilverLinkPayload`(2.0의 입력 스키마 사용)로 파싱, 실패 시 400 + 필드별 에러(`issues`) 응답
+  - [x] 3.6 `route.ts`: 성공 시 2.0의 payload 변환 → 3.1~3.4 make-client 호출 → 결과 응답 (`{ ok: true, dryRun: true, payload }` 또는 `{ ok: true, dryRun: false }`)
+  - [x] 3.7 `route.ts`: make-client 실패 시 안전한 에러 메시지(내부 URL/스택 비노출) 응답 — `MAKE_WEBHOOK_URL` 누락은 500, 실제 호출 실패는 502로 구분
 
 - [ ] 4.0 웹 입력 폼 UI 구현
   - [ ] 4.1 `src/components/task-request-form.tsx`: `sender_name`, `target_person`, `message` 입력 필드 UI 작성
