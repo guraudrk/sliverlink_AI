@@ -1,0 +1,67 @@
+[
+  {
+    "id": "task_001",
+    "task_title": "혈압약 복용",
+    "task_type": "medication",
+    "target_person": "아버지 테스트",
+    "task_datetime": "2026-06-24T09:00:00+09:00",
+    "status": "scheduled",
+    "priority": "high",
+    "confirmation_message": "아버지, 혈압약 드실 시간이에요.",
+    "parent_notified": false,
+    "notification_status": "none",
+    "source_channel": "web"
+  },
+  {
+    "id": "task_002",
+    "task_title": "점심 식사 확인",
+    "task_type": "meal_check",
+    "target_person": "어머니 테스트",
+    "task_datetime": "2026-06-24T12:00:00+09:00",
+    "status": "scheduled",
+    "priority": "medium",
+    "confirmation_message": "어머니, 점심 식사 하셨는지 확인해주세요.",
+    "parent_notified": false,
+    "notification_status": "none",
+    "source_channel": "web"
+  },
+  {
+    "id": "task_003",
+    "task_title": "저녁 산책",
+    "task_type": "exercise",
+    "target_person": "아버지 테스트",
+    "task_datetime": "2026-06-25T18:00:00+09:00",
+    "status": "scheduled",
+    "priority": "low",
+    "confirmation_message": "아버지, 저녁 산책하실 시간이에요.",
+    "parent_notified": false,
+    "notification_status": "none",
+    "source_channel": "web"
+  },
+  {
+    "id": "task_004",
+    "task_title": "영양제 복용",
+    "task_type": "medication",
+    "target_person": "어머니 테스트",
+    "task_datetime": "2026-06-24T08:00:00+09:00",
+    "status": "scheduled",
+    "priority": "medium",
+    "confirmation_message": "어머니, 영양제 드실 시간이에요.",
+    "parent_notified": true,
+    "notification_status": "sent",
+    "source_channel": "web"
+  },
+  {
+    "id": "task_005",
+    "task_title": "병원 방문 확인",
+    "task_type": "hospital_visit",
+    "target_person": "아버지 테스트",
+    "task_datetime": "2026-06-23T10:00:00+09:00",
+    "status": "completed",
+    "priority": "high",
+    "confirmation_message": "아버지, 병원 다녀오신 것 확인했어요.",
+    "parent_notified": true,
+    "notification_status": "sent",
+    "source_channel": "web"
+  }
+]

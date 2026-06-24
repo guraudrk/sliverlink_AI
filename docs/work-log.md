@@ -9,6 +9,172 @@
 
 # 2026-06-24
 
+## Day 5: Code-first Notification Preparation Engine
+
+**목표**: Day 5 하루 전체(Slice 1~6)를 한 번에 정리한다 — 왜 이렇게 접근했는지, 무엇을 만들었고 무엇을 일부러 안 만들었는지, 어떻게 검증했는지.
+
+**1. 왜 Make 사용을 최소화했는가**: Make.com은 시나리오 실행(operation) 단위로 사용량이 제한/과금되는 구조라, 개발 중 같은 로직을 반복 호출하며 테스트하면 크레딧이 빠르게 소진된다. Make 시나리오 내부 분기 로직은 유닛 테스트도 못 만들고 버전 관리(diff/코드리뷰)도 안 되니, "판단"(누구에게 언제 무슨 메시지를 보낼지, `care_tasks`를 어떻게 바꿀지)은 전부 Next.js 코드로 옮겨 Vitest로 검증하고, Make는 향후 "실행"(실제 발송/실제 쓰기) 단계에만 최소한으로 남기기로 했다.
+
+**2. 만든 것**:
+- 로컬 fixture 데이터 — `data/fixtures/care-tasks.day5.json` (실제 어르신 데이터 아님, 5건: 지금 발송 대상 2건/미래 1건/이미발송 1건/완료 1건)
+- due task 판단 로직 — `isDueTask(task, now)`
+- outbound 메시지 후보 생성 — `buildOutboundMessage(task)`
+- care_tasks update patch 미리보기 — `prepareNotification`의 `taskUpdatePatch`(`parent_notified: true`, `notification_status: "prepared"`)
+- Dry Run API — `GET /api/notifications/prepare`
+- 알림 준비 미리보기 UI — `/notifications` (`NotificationPreviewPanel`)
+
+**3. 안 만든 것 (의도적으로 범위 밖)**:
+- 실제 카카오톡 발송
+- 실제 Airtable 업데이트(읽기/쓰기 모두)
+- Make `due_task_checker` 시나리오(자동 스케줄링/실행)
+
+**4. 테스트**:
+- Vitest: 35/35 통과 (Day4 15 + Day5 20 — due-task 6 / message-builder 4 / notification-engine 7 / fixture 3)
+- `npm run build`: 프로덕션 빌드 통과 (Slice 6에서 Turbopack × zod `.datetime()` 충돌 버그를 발견하고 `TARGET_PERSON_OPTIONS`를 별도 모듈로 분리해 해결한 뒤 확인됨)
+
+**5. AI 활용 팁**:
+- 외부 자동화(Make 등)의 크레딧/사용량이 제한적일 때는, 처음부터 실제 연동을 붙이지 말고 **"코드 우선 + Dry Run 하네스"**로 로직을 먼저 검증하는 게 비용도 아끼고 디버깅도 빠르다 — 실패해도 Vitest 한 줄 메시지로 바로 원인을 알 수 있고, Make 실행 이력(History)을 뒤져볼 필요가 없다.
+- **순수 로직(판단/생성 함수)과 외부 어댑터(Make/Airtable/Kakao 호출)를 처음부터 분리**해두면, 나중에 어댑터만 실제 구현으로 갈아끼우면 되고, 순수 로직에 짜둔 테스트는 그대로 재사용할 수 있다. 이번에도 `isDueTask`/`buildOutboundMessage`/`prepareNotification`은 외부 호출이 전혀 없는 순수 함수라, Make/Airtable 어댑터가 나중에 들어와도 이 함수들과 테스트는 거의 안 바뀔 것으로 예상된다.
+
+**변경 파일**: Day 5 전체 변경 파일은 위 Slice 1~6 각 항목을 참고 (`data/fixtures/care-tasks.day5.json`, `src/lib/silverlink/notifications/**`, `src/lib/silverlink/target-person.ts`, `src/app/api/notifications/prepare/route.ts`, `src/app/notifications/page.tsx`, `src/components/notification-preview-panel.tsx`, `docs/PRD-notification-engine-code-first.md`, `tasks/tasks-notification-engine.md`)
+
+**커밋**: 이번 작업에서 진행
+
+---
+
+## Day 5 Slice 6: 테스트 보강 + 프로덕션 빌드 버그 발견/해결 (Turbopack × zod `.datetime()`)
+
+**목표**: Day5에서 추가한 due task 판단/메시지 생성/알림 준비 로직의 테스트를 보강하고, `npm test`와 `npm run build`가 모두 통과하는 것을 성공 기준으로 확인한다.
+
+**내용 1 — 테스트 보강**:
+- `src/lib/silverlink/notifications/__tests__/fixture.test.ts`(신규): `loadCareTaskFixtures()`가 `data/fixtures/care-tasks.day5.json` 5건을 `careTaskSchema`로 정확히 로드하는지, `task_004`(이미 발송)/`task_005`(완료) 플래그가 의도대로 들어있는지 검증. 지금까지 fixture 자체는 간접적으로만(다른 테스트의 베이스 객체로) 검증됐는데, "JSON 파일을 누군가 잘못 고치면 어디서 깨지는가"에 대한 직접적인 안전망이 없었어서 추가.
+- `src/lib/silverlink/notifications/__tests__/message-builder.test.ts`에 2케이스 추가: `confirmation_message`가 빈 문자열(`""`)일 때도 fallback이 동작하는지(스키마는 `min(1)`이라 빈 문자열을 막지만, 함수 자체는 방어적으로 동작해야 한다고 판단), 다른 `target_person`(어머니 테스트)에서도 문구가 정확히 바뀌는지.
+- 결과: `npm test` 35/35 (Day4 15 + Day5 due-task 6 + message-builder 4 + notification-engine 7 + fixture 3).
+
+**내용 2 — `npm run build` 실패 발견과 원인 추적**: 테스트는 다 통과했는데 `npm run build`(프로덕션 빌드, Turbopack)가 `ReferenceError: Cannot access 'am' before initialization`로 깨졌다. 에러 메시지가 압축된 변수명(`am`, `Module.af`)이라 코드를 직접 읽어서는 원인을 알 수 없어서, **`git stash`로 Day5 변경 전/후를 오가며 라우트와 모듈을 하나씩 빼고 다시 빌드해보는 식으로 범위를 좁혔다**:
+1. Day4 커밋 시점(`git stash`로 Day5 전체 숨김)으로는 빌드 성공 → Day5에서 생긴 문제 확정.
+2. `/notifications` 페이지/컴포넌트만 빼고 API 라우트는 남겨도 여전히 실패 → 문제는 API 라우트 쪽.
+3. API 라우트 내용을 빈 핸들러로 바꿔도(아무 import도 없이) 성공 → "두 번째 라우트가 존재하는 것 자체"는 원인이 아님.
+4. API 라우트에서 평범한 `z.object({...})`만 써도 성공 → "zod를 쓰는 것 자체"도 원인이 아님.
+5. API 라우트가 `src/lib/silverlink/notifications/schema.ts`(`careTaskSchema`)를 import하면 다시 실패. 그 파일은 `target_person` enum을 만들기 위해 Day4의 `src/lib/silverlink/schema.ts`에서 `TARGET_PERSON_OPTIONS`를 가져오고 있었는데, **그 파일에는 `requested_at` 검증용 `z.string().datetime({ offset: true })`도 같이 있었다.** 결국 "두 번째 라우트가 Day4의 `.datetime()` 검증 코드를 같이 끌고 들어가는 것"이 트리거였다 — Turbopack이 두 라우트의 공통 의존성(zod의 datetime 정규식 생성 코드)을 하나의 공유 청크로 묶는데, 그 청크 내부 모듈 평가 순서에 TDZ(아직 초기화 안 된 변수 접근) 버그가 있던 것으로 보인다(zod v4 내부 구현과 Turbopack의 청크 분리 방식이 만나서 생긴 문제로 판단, 우리 비즈니스 로직의 버그는 아님).
+
+**해결**: `TARGET_PERSON_OPTIONS`를 `src/lib/silverlink/target-person.ts`라는 그 값만 담긴 단독 모듈로 분리했다. `src/lib/silverlink/schema.ts`는 거기서 값을 가져와 그대로 재수출(`export { TARGET_PERSON_OPTIONS }`)해서 기존 사용처(`task-request-form.tsx` 등)는 코드를 한 글자도 안 고쳐도 되게 했고, `notifications/schema.ts`는 `target-person.ts`를 직접 가져오도록 바꿨다. 이제 두 라우트의 공유 그래프에 `.datetime()` 코드가 더 이상 섞이지 않아 빌드가 통과한다.
+
+**검증**: `npm run build` 성공(`/`, `/notifications` 정적 / `/api/create-task`, `/api/notifications/prepare` 동적으로 라우트 목록에 정상 표시), `tsc --noEmit`/`eslint .` 0 에러, `npm test` 재실행 35/35(회귀 없음).
+
+**변경 파일**: `src/lib/silverlink/notifications/__tests__/fixture.test.ts`(신규), `src/lib/silverlink/notifications/__tests__/message-builder.test.ts`(2케이스 추가), `src/lib/silverlink/target-person.ts`(신규), `src/lib/silverlink/schema.ts`(`TARGET_PERSON_OPTIONS`를 재수출로 변경), `src/lib/silverlink/notifications/schema.ts`(import 경로를 `target-person.ts`로 변경), `tasks/tasks-notification-engine.md`(6.0 갱신)
+
+**🤖 AI 활용 팁**: "테스트는 통과하는데 빌드는 실패한다"는 신호는 매우 중요하다 — Vitest는 각 모듈을 개별적으로(혹은 가벼운 번들링으로) 실행하지만, `next build`는 전체 앱을 실제 배포 형태로 번들링하면서 "어떤 모듈을 누구와 공유 청크로 묶을지"까지 결정한다. 그래서 "단위 테스트만으로는 절대 못 잡는, 번들링 단계에서만 드러나는 버그"가 따로 존재한다. 이번처럼 에러 메시지가 압축된 변수명이라 단서가 거의 없을 때는, 코드를 추측하지 말고 **"있던 걸 하나씩 빼면서 재현 여부를 확인"**하는 이분 탐색(bisection)이 가장 빠르다 — `git stash`(전체 되돌리기)와 파일을 임시로 다른 곳으로 옮기는 방법을 섞어서, "정확히 무엇이 있어야 재현되는가"를 5번의 빌드로 좁혔다. 이런 상황에서는 "왜 이게 안 되지"를 코드 리딩으로 풀려고 하기보다, 빠르게 반복 가능한 최소 재현 환경을 먼저 만드는 게 시간을 아낀다.
+
+**커밋**: 아직 안 함 (사용자 요청 시 진행)
+
+---
+
+## Day 5 Slice 5: 알림 준비 미리보기 UI 구현 (`/notifications`)
+
+**목표**: Slice 4에서 만든 Dry Run API를 사람이 클릭해서 직접 눈으로 확인할 수 있는 화면을 만든다. "Dry Run/Preview"라는 게 화면에서도 명확히 드러나야 하고, 발송/적용 버튼은 아예 없어야 한다.
+
+**내용**:
+- `src/app/notifications/page.tsx` + `src/components/notification-preview-panel.tsx`: Day4 `page.tsx`/`task-request-form.tsx`의 레이아웃·색상(`slate-50` 배경, `blue-600` 버튼, `rounded-3xl`/`ring-slate-200` 카드)을 그대로 재사용해 같은 제품의 화면처럼 보이게 했다.
+- API 응답(`GET /api/notifications/prepare`)에는 원래 `task_title`이 없었는데, UI에서 "업무 제목을 보여줘"라는 요구사항이 있어 `prepareNotification`의 반환 타입에 `taskTitle` 필드를 추가했다 — PRD/이전 슬라이스 설계 시점에는 "UI가 정확히 뭘 보여줄지"까지 확정하지 않았어서, UI를 만들면서 API 쪽 스키마가 한 번 더 손을 봐야 했다. UI 요구사항이 API 응답 설계에 거꾸로 영향을 주는 흔한 패턴.
+- 상단에 amber 색상 고정 배너로 "Dry Run / Preview 모드, 실제 발송/저장 없음"을 항상 보이게 했다(버튼을 누르기 전에도 보임) — "결과가 나온 뒤에야 미리보기라고 알려주면 늦다"고 판단해서 로딩 전부터 노출.
+- 응답 JSON을 그대로 `<pre>`로 보여주는 대신(Day4의 응답 미리보기 패턴), 카드 형태로 가공해서 보여줬다 — 이 화면은 보호자/관리자가 "누구한테 무슨 말이 나갈지"를 직관적으로 확인하는 용도라, 원본 JSON보다 사람이 읽기 편한 표현이 더 적합하다고 판단(Day4의 디버깅용 `<pre>`와 이 화면의 목적이 다름).
+- 발송/적용 버튼은 처음부터 만들지 않았다 — "버튼을 비활성화해서 못 누르게" 하는 게 아니라 "그 기능 자체가 코드에 존재하지 않게" 만드는 쪽이 더 안전하다고 판단(실수로 활성화될 여지 자체를 차단).
+
+**검증**: `tsc --noEmit`/`eslint` 0 에러, `npm run test` 30/30(타입 변경에 따라 `notification-engine.test.ts`의 `toEqual` 기대값에 `taskTitle` 추가). 임시 포트(3011)에서 dev 서버를 띄우고 Playwright로 실제 브라우저 시나리오를 검증 — 배너 노출 확인 → 버튼 클릭 → "총 2건의 알림 후보를 찾았어요" 표시 → 카드 제목/메시지/배지 정상 → 페이지가 발생시킨 네트워크 요청 중 `localhost:3011`(자기 자신) 외 외부 호출이 0건임을 코드로 직접 확인(`page.on("request", ...)`로 전체 요청 수집).
+
+**변경 파일**: `src/app/notifications/page.tsx`(신규), `src/components/notification-preview-panel.tsx`(신규), `src/lib/silverlink/notifications/notification-engine.ts`(`taskTitle` 필드 추가), `src/lib/silverlink/notifications/__tests__/notification-engine.test.ts`(기대값 갱신), `tasks/tasks-notification-engine.md`(5.0 체크 완료)
+
+**🤖 AI 활용 팁**: "실제 외부 호출이 없는지 확인해줘"를 사람이 네트워크 탭을 눈으로 보는 대신, Playwright의 `page.on("request", ...)`로 그 페이지가 브라우저에서 실제로 발생시킨 모든 요청 URL을 코드로 수집해서 "이 목록에 우리 서버 말고 다른 도메인이 있는지"를 자동으로 확인했다. 이렇게 하면 "안전하다고 말은 했는데 실제로 확인은 안 한" 상태를 피할 수 있고, 나중에 진짜 Kakao/Airtable 연동이 들어왔을 때도 같은 검증 코드를 재사용해서 "의도한 호출만 나가는지" 회귀 테스트로 쓸 수 있다.
+
+**커밋**: 아직 안 함 (사용자 요청 시 진행)
+
+---
+
+## Day 5 Slice 4: Dry Run API Route 구현 (`GET /api/notifications/prepare`)
+
+**목표**: 지금까지 만든 fixture(1.0)·due 판단(2.0)·알림 준비(3.0) 로직을 브라우저/HTTP 클라이언트에서 호출할 수 있는 API로 묶는다. 이 단계에서도 Make/Airtable 호출이나 실제 발송은 절대 없다.
+
+**내용**:
+- `src/lib/silverlink/notifications/fixture.ts`: `data/fixtures/care-tasks.day5.json`을 `resolveJsonModule`(이미 `tsconfig.json`에 활성화돼 있던 옵션)로 직접 `import`하고, `careTaskSchema.array().parse()`로 검증해 타입이 보장된 `CareTask[]`를 반환하는 `loadCareTaskFixtures()`를 만들었다. `fs.readFileSync`로 직접 읽는 방법도 있었지만, 이 fixture는 빌드 시점에 고정된 테스트 데이터라 정적 import가 더 단순하고 타입 안전하다고 판단.
+- `src/app/api/notifications/prepare/route.ts`: `GET` 핸들러에서 `loadCareTaskFixtures()` → `prepareNotifications(tasks, new Date())` → `{ ok: true, dryRun: true, count, candidates }` 응답. Day4 `create-task/route.ts`의 `jsonResponse` 헬퍼(charset=utf-8 명시)를 그대로 복사해 재사용 — 아직 두 라우트뿐이라 공유 유틸로 추출하진 않았다(YAGNI, 세 번째 라우트가 생기면 그때 묶는 게 낫다고 판단).
+- Next.js 공식 문서(`15-route-handlers.md`)를 먼저 확인한 결과, `GET` Route Handler는 기본적으로 캐시되지 않고 매 요청마다 새로 실행된다는 걸 확인했다 — 이 라우트는 `new Date()`로 "지금"을 매번 새로 계산해야 하므로 별도 설정 없이도 의도대로 동작한다.
+
+**검증**: `tsc --noEmit`/`eslint` 0 에러, `npm run test` 30/30 통과(회귀 없음). 임시로 `npm run dev -- --port 3010`을 띄우고 `curl http://localhost:3010/api/notifications/prepare`로 직접 호출 — 응답이 `count:2`, `task_001`/`task_002`만 후보로 포함되고 `task_003`(미래)/`task_004`(이미발송)/`task_005`(완료)는 빠진 것을 확인. 호출 시점이 한국 시각 오후라 Slice 2/3의 테스트(`FIXED_NOW`=09:00)에서는 `task_002`가 제외였는데 실제 호출에서는 포함된 것도 확인 — "기준 시각이 달라지면 결과가 달라지는" 의도된 동작이 실제로도 똑같이 재현됨.
+
+**변경 파일**: `src/lib/silverlink/notifications/fixture.ts`(신규), `src/app/api/notifications/prepare/route.ts`(신규), `tasks/tasks-notification-engine.md`(4.0 체크 완료, Relevant Files 보강)
+
+**🤖 AI 활용 팁**: 새 라우트를 만들기 전에 "이거 캐시되면 어떻게 되지?"를 먼저 공식 문서로 확인해두면, 나중에 "어 왜 결과가 안 바뀌지?" 하는 디버깅을 미리 차단할 수 있다. AGENTS.md가 강제한 "구현 전 공식 문서 확인" 규칙이 이번엔 실질적인 버그(정적 캐싱으로 due task가 갱신 안 되는 문제)를 예방했다.
+
+**커밋**: 아직 안 함 (사용자 요청 시 진행)
+
+---
+
+## Day 5 Slice 3: 알림 준비 엔진 구현 (`buildOutboundMessage`, `prepareNotification(s)`)
+
+**목표**: due task 1건을 "어르신께 보낼 메시지 초안"과 "care_tasks에 적용할 patch 미리보기"로 변환하는 로직을 구현한다. 여기까지도 Make/Airtable 호출은 없고, 실제 발송이 아니라 "준비(prepared)" 상태까지만 만든다.
+
+**내용**:
+- `src/lib/silverlink/notifications/message-builder.ts`: `buildOutboundMessage(task)` — `confirmation_message`가 있으면 그대로 쓰고, 없으면 `"{target_person}, {task_title} 확인해주세요."` 형태로 fallback 문구를 만든다. 이를 위해 `careTaskSchema.confirmation_message`를 필수에서 `optional()`로 바꿨다 — 실제로 GPT가 모든 task에 대해 확인 문구를 만들어주지 않을 수도 있다는 걸 감안한 변경.
+- `src/lib/silverlink/notifications/notification-engine.ts`: `prepareNotification(task, now)` — 내부에서 `isDueTask`를 다시 호출해 due가 아니면 `null`을 반환한다(중복 코드처럼 보이지만, "이 함수에 어떤 task를 넘기든 안전하다"는 보장을 함수 자신이 갖게 하는 게 호출하는 쪽에서 매번 due 체크를 깜빡할 위험보다 낫다고 판단). due면 `outboundLogCandidate`(`status:"prepared"`)와 `taskUpdatePatch`(`notification_status:"prepared"`)를 만든다 — 두 군데 모두 `"prepared"`로만 표시하고 `"sent"`는 절대 쓰지 않는다(실제 발송 전이라는 걸 코드 레벨에서도 명확히 구분). `last_notification_at`은 새로 시간 포맷팅 코드를 만들지 않고 Day4의 `getRequestedAt(now)`를 그대로 재사용해 Asia/Seoul `+09:00` ISO 문자열로 통일했다.
+- `prepareNotifications(tasks, now)`: 여러 task에 `prepareNotification`을 적용하고 `null`(미래/완료/이미발송)을 필터링해 due task 후보만 남긴다.
+
+**검증**: `npm run test` 30/30 통과(message-builder 2케이스, notification-engine 7케이스 신규), `tsc --noEmit`/`eslint` 0 에러. 이번에도 vitest 첫 실행은 "Cannot read properties of undefined (reading 'config')"로 콜드 스타트 플레이크가 발생했고 재실행하면 통과함(Slice 2와 동일 현상, 코드 문제 아님 — 반복 확인됨).
+
+**변경 파일**: `src/lib/silverlink/notifications/message-builder.ts`(신규), `src/lib/silverlink/notifications/notification-engine.ts`(신규), `src/lib/silverlink/notifications/schema.ts`(`confirmation_message` optional로 수정), `src/lib/silverlink/notifications/__tests__/message-builder.test.ts`(신규), `src/lib/silverlink/notifications/__tests__/notification-engine.test.ts`(신규), `tasks/tasks-notification-engine.md`(1.0/3.0 체크 완료, Relevant Files 실제 경로로 정리)
+
+**🤖 AI 활용 팁**: 처음 PRD를 쓸 때 가정한 함수/필드명(`buildPatchPreview`, `notified_at`, `reason`)과, 나중에 사용자가 구체적인 프롬프트로 준 실제 스펙(`prepareNotification`, `taskUpdatePatch.last_notification_at`)이 또 달랐다. 이번엔 PRD를 억지로 고치지 않고 "실제 요구사항이 PRD보다 더 구체적이고 최신이면 실제 요구사항을 따른다"는 우선순위를 그대로 적용했다 — PRD는 방향을 맞추는 문서이지, 나중에 바뀌면 안 되는 계약서가 아니라는 걸 Day5에서 두 번째로 확인.
+
+**커밋**: 아직 안 함 (사용자 요청 시 진행)
+
+---
+
+## Day 5 Slice 2: due task 판단 로직 구현 (`isDueTask`)
+
+**목표**: "due task 판단" 로직을 Make/Airtable 없이 코드 + 로컬 fixture만으로 구현하고 Vitest로 검증한다 (`docs/PRD-notification-engine-code-first.md` 3~6장).
+
+**내용**:
+- `src/lib/silverlink/notifications/schema.ts`: `careTaskSchema`/`CareTask` 타입을 PRD 5장의 추상적 가정이 아니라, 실제로 만든 `data/fixtures/care-tasks.day5.json`의 필드(`task_title`, `task_datetime`, `notification_status` 등)에 맞춰 정의. `target_person`은 Day4 `schema.ts`의 `TARGET_PERSON_OPTIONS`를 그대로 재사용해 "아버지 테스트"/"어머니 테스트" 두 값만 허용하도록 통일.
+- `src/lib/silverlink/notifications/due-task.ts`: `isDueTask(task, now)` 구현 — `status === "scheduled"`, `parent_notified === false`, `task_datetime` 존재, `task_datetime <= now` 4가지를 모두 만족해야 true. `task_datetime`이 ISO 8601(+09:00 offset)이라 `new Date()`로 절대 시각 비교만 하면 되고, Day4 `time.ts`처럼 서버 타임존을 신경 쓸 필요가 없었다 — "문자열을 만들 때"와 "이미 만들어진 시각을 비교할 때"는 타임존 안전장치가 필요한 지점이 다르다는 걸 다시 확인.
+- `due-task.ts`: 여러 task를 한 번에 걸러 정렬하는 `findDueTasks` 목록 함수는 이번 슬라이스에서 만들지 않았다 — 사용자가 "due task detection only"로 범위를 명시했고, 단일 판단 함수(`isDueTask`)만으로 4가지 조건을 전부 테스트할 수 있어 목록 처리는 다음 슬라이스(outbound 메시지 생성과 묶일 가능성)로 미뤘다 (YAGNI).
+
+**검증**: `npm run test` 21/21 통과(신규 6케이스 포함: 이전/같음 → due, completed/이미발송/미래/누락 → 제외), `tsc --noEmit`/`eslint` 0 에러. 첫 실행 시 vitest가 "Cannot read properties of undefined (reading 'config')"로 3개 파일 모두 실패했는데, 재실행하니 전부 통과함 — vitest v4 콜드 스타트 시 발생하는 일시적 현상으로 판단(코드 문제 아님).
+
+**변경 파일**: `src/lib/silverlink/notifications/schema.ts`(신규), `src/lib/silverlink/notifications/due-task.ts`(신규), `src/lib/silverlink/notifications/__tests__/due-task.test.ts`(신규), `tasks/tasks-notification-engine.md`(2.0 체크 완료)
+
+**🤖 AI 활용 팁**: PRD를 쓸 때 가정했던 데이터 모델(`due_at`, `category`)과, 사용자가 나중에 직접 준 실제 fixture 필드명(`task_datetime`, `task_type`)이 달랐다. PRD는 "방향을 맞추는 문서"이고 실제 스키마는 fixture가 나온 시점에 다시 확정하는 게 자연스럽다 — PRD 초안의 필드명에 억지로 맞추기보다, 실제 데이터가 나오면 그걸 기준으로 타입을 다시 쓰는 편이 코드와 문서의 불일치를 줄인다.
+
+**커밋**: 아직 안 함 (사용자 요청 시 진행)
+
+---
+
+## 개념 정리: `isDueTask`의 4단계 판단 로직
+
+**계기**: Slice 2 구현 직후, `isDueTask`가 정확히 어떤 순서로 어떤 기준을 보는지 자세히 설명해달라는 요청이 있어 정리해둠.
+
+```ts
+export function isDueTask(task: CareTask, now: Date): boolean {
+  if (task.status !== "scheduled") return false;
+  if (task.parent_notified) return false;
+  if (!task.task_datetime) return false;
+
+  return new Date(task.task_datetime) <= now;
+}
+```
+
+4개의 체크리스트를 위에서부터 순서대로 통과해야 `true`가 나온다(하나라도 걸리면 즉시 `false`로 종료 — early return).
+
+1. **`status !== "scheduled"` → 탈락.** 이미 `"completed"`(끝난 일)면 다시 알릴 필요가 없다.
+2. **`parent_notified` → 탈락.** 이미 한 번 알림을 보냈다는 뜻. 같은 일로 두 번 알리면 중복 발송이 되므로 이 플래그가 1차 방어선 역할을 한다.
+3. **`task_datetime` 없음 → 탈락.** "언제 알려야 하는지" 자체가 없으면 비교할 기준이 없으니 안전하게 제외.
+4. **`task_datetime <= now`.** 앞 3개를 통과했을 때만 시간을 비교한다. `task_datetime`이 `+09:00` offset이 포함된 ISO 문자열이라 `new Date(...)`로 변환하면 서버의 로컬 타임존과 무관하게 항상 같은 절대 시각으로 비교된다 — `time.ts`가 "지금 몇 시인지 문자열을 만드는" 역할인 것과 달리, 여기는 "이미 만들어진 두 시각을 비교만 하는" 역할이라 타임존 보정이 필요한 지점이 다르다.
+
+`data/fixtures/care-tasks.day5.json`의 5개 항목을 `now = 2026-06-24 09:00 KST`로 대입하면: `task_001`(복약, 09:00)만 4조건을 모두 통과해 `true`, `task_002`(점심확인, 12:00)는 아직 시간이 안 돼 `false`, `task_003`(산책, 내일)은 미래라 `false`, `task_004`는 ②에서, `task_005`는 ①에서 바로 탈락한다.
+
+**🤖 AI 활용 팁**: "구현해줘"만 요청하면 코드만 받고 끝나는데, 구현 직후에 "이 로직 자세히 설명해줘"라고 한 번 더 물어보면 AI가 자기가 쓴 분기 순서(early return 순서, 경계값 처리 등)를 다시 점검하면서 설명하게 된다. 이 과정에서 "왜 ③이 ④보다 먼저 체크되어야 하는지" 같은, 코드만 보고는 바로 안 보이는 설계 의도가 드러난다. 코드 리뷰 대신 "설명시키기"로 검증하는 것도 방법이다.
+
+---
+
 ## README/PRD 문서화 정리 + 숨어있던 `.gitignore` 버그 발견 (task 6.0 마무리)
 
 **목표**: 지금까지 구현한 내용을 기준으로 `README.md`를 정리하고, `docs/PRD-web-input.md`에 구현 완료/다음 단계 범위를 명시한다.

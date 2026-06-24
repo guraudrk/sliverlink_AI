@@ -121,3 +121,11 @@ npm run dev
 - `source_channel`을 `"web"` 외에 `"kakao"` 등으로 확장해 멀티채널 입력 지원 (현재 구조가 이를 염두에 두고 설계됨)
 - 웹 폼 사용자 인증/권한 분리 검토
 - E2E 테스트에 실패 케이스(웹훅 호출 실패 등) 시나리오 추가
+
+## 12. Day 5 Notification Preparation Engine
+
+- Make credits를 아끼기 위해 로컬 fixture와 Dry Run API 기반으로 구현
+- 실제 발송 전 알림 후보를 미리 검증
+- 향후 Airtable/Make/Kakao adapter로 확장 예정
+
+자세한 설계는 [`docs/PRD-notification-engine-code-first.md`](docs/PRD-notification-engine-code-first.md), 구현 과정은 [`docs/work-log.md`](docs/work-log.md)의 "Day 5" 섹션을 참고하세요. 미리보기 화면은 `npm run dev` 실행 후 http://localhost:3000/notifications 에서 확인할 수 있습니다.

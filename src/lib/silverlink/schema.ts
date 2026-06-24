@@ -1,6 +1,7 @@
 import { z } from "zod";
+import { TARGET_PERSON_OPTIONS } from "./target-person";
 
-export const TARGET_PERSON_OPTIONS = ["아버지 테스트", "어머니 테스트"] as const;
+export { TARGET_PERSON_OPTIONS };
 
 export const taskRequestInputSchema = z.object({
   sender_name: z.string().trim().min(1, "sender_name은 비어 있을 수 없습니다."),
