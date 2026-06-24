@@ -1,0 +1,65 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+
+export default async function DashboardPage() {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase.auth.getUser();
+
+  if (!data.user) {
+    redirect("/login");
+  }
+
+  async function logout() {
+    "use server";
+    const supabase = await createSupabaseServerClient();
+    await supabase.auth.signOut();
+    redirect("/login");
+  }
+
+  return (
+    <div className="flex flex-1 flex-col items-center bg-slate-50 px-4 py-10 sm:py-16">
+      <div className="w-full max-w-xl space-y-6">
+        <div className="flex items-center justify-between gap-4 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 sm:p-8">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-widest text-blue-600">SilverLink AI</p>
+            <h1 className="mt-1 text-2xl font-bold text-slate-900">안녕하세요</h1>
+            <p className="mt-1 text-slate-500">{data.user.email}</p>
+          </div>
+          <form action={logout}>
+            <button
+              type="submit"
+              className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+            >
+              로그아웃
+            </button>
+          </form>
+        </div>
+
+        <nav className="grid gap-3 sm:grid-cols-3">
+          <Link
+            href="/parents"
+            className="rounded-2xl bg-white p-5 text-center shadow-sm ring-1 ring-slate-200 transition-colors hover:ring-blue-300"
+          >
+            <p className="font-semibold text-slate-800">부모님 관리</p>
+            <p className="mt-1 text-sm text-slate-500">등록 · 조회</p>
+          </Link>
+          <Link
+            href="/dashboard/create-task"
+            className="rounded-2xl bg-white p-5 text-center shadow-sm ring-1 ring-slate-200 transition-colors hover:ring-blue-300"
+          >
+            <p className="font-semibold text-slate-800">새 일정 만들기</p>
+            <p className="mt-1 text-sm text-slate-500">요청 작성</p>
+          </Link>
+          <Link
+            href="/notifications"
+            className="rounded-2xl bg-white p-5 text-center shadow-sm ring-1 ring-slate-200 transition-colors hover:ring-blue-300"
+          >
+            <p className="font-semibold text-slate-800">알림 미리보기</p>
+            <p className="mt-1 text-sm text-slate-500">발송 전 확인</p>
+          </Link>
+        </nav>
+      </div>
+    </div>
+  );
+}

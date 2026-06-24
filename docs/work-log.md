@@ -9,6 +9,55 @@
 
 # 2026-06-24
 
+## Day 6+7 Slice 2: 회원가입/로그인 + 보호 라우트 (`(auth)`, `(protected)`)
+
+**목표**: Supabase Auth 기반 이메일/비밀번호 회원가입·로그인을 만들고, `/dashboard`를 로그인한 사용자만 볼 수 있게 막는다.
+
+**내용**:
+- **라우트 그룹 구조**: Next.js App Router의 라우트 그룹(괄호 폴더, URL에 영향 없음)을 사용해 `src/app/(auth)/login/page.tsx`·`src/app/(auth)/signup/page.tsx`(공개), `src/app/(protected)/dashboard/page.tsx`(보호)로 분리했다. `(auth)`는 별도 레이아웃 없이 루트 레이아웃을 그대로 쓰고, `(protected)/layout.tsx`가 이 그룹 전체에 대한 인증 가드 역할을 한다.
+- **인증 가드 방식 결정**: Slice 1에서 발견한 "Next.js 16 공식 문서가 `middleware.ts` 대신 `proxy.ts`를 쓴다"는 의문을 이번에 굳이 풀지 않고, 대신 공식 문서가 같이 소개하는 **"Server Component에서 직접 체크"** 패턴을 썼다 — `(protected)/layout.tsx`에서 `supabase.auth.getUser()`로 세션을 확인하고 없으면 `redirect("/login")`. 보호해야 할 페이지가 `/dashboard` 하나뿐인 지금 단계에는 이게 가장 단순하고 확실한 방법이었다. 다만 Next.js 문서 자체가 "레이아웃은 같은 레이아웃 하위 자식 라우트 이동 시 재실행되지 않을 수 있다"고 경고하므로, `/parents`·`/dashboard/create-task`가 추가되는 다음 슬라이스에서 이 한계가 실제로 문제가 되는지 다시 확인해야 한다(오픈 이슈로 남김).
+- `src/components/auth/login-form.tsx`/`signup-form.tsx`: Day4 `task-request-form.tsx`의 시각 톤(Pretendard, slate/blue, rounded-3xl 카드, role="status"/"alert" 상태 배너)을 그대로 재사용했다. 디자인을 짜기 전에 "2026년 SaaS 로그인/가입 페이지 트렌드"를 검색해 참고했는데, 핵심은 "전략적 미니멀리즘"(화면의 모든 요소가 사용자의 목표에 직접 기여해야 한다, 불필요한 장식 제거) — 그래서 단일 컬럼, 넉넉한 여백, 카드 하나, 버튼 하나로 화면을 최대한 비웠다.
+- `(protected)/dashboard/page.tsx`: 로그인한 사용자의 이메일을 표시하고, `/parents`·`/dashboard/create-task`·`/notifications` 3개 링크 카드를 보여준다. 로그아웃은 별도 파일을 만들지 않고, **Server Component 안에 인라인 Server Action**(`"use server"`로 함수 본문에 직접 표시)을 정의해 `<form action={logout}>`으로 연결했다 — Next.js 공식 문서가 소개하는 패턴이고, 로그아웃처럼 그 페이지에서만 쓰는 단발성 동작을 별도 `actions.ts` 파일로 빼는 것보다 더 단순했다.
+- 요구사항에는 없었지만, 회원가입/로그인 폼이 의미 있게 동작하려면 로그아웃이 꼭 필요해서(로그인 후 나갈 방법이 없으면 테스트조차 할 수 없음) 이번 슬라이스에 같이 포함시켰다.
+
+**검증**:
+- `tsc --noEmit`/`eslint` 0 에러, `npm run test` 35/35(회귀 없음), `npm run build` 성공 — `/dashboard`가 `cookies()` 사용으로 자동으로 동적(ƒ) 라우트로 잡히고, `/login`/`/signup`은 정적(○)으로 잡힘.
+- 임시 포트(3012)에서 Playwright 스크립트로 실제 동작 확인:
+  - 비로그인 상태로 `/dashboard` 접근 → `/login`으로 redirect **확인됨**
+  - 회원가입(테스트 이메일) → 성공 메시지 정상 표시 **확인됨**
+  - 로그인 시도 → 400 에러로 거부, 화면에 에러 메시지 정상 표시 **확인됨** — 단, 원인을 파보니 이건 버그가 아니라 **연결된 Supabase 프로젝트가 "이메일 확인(email confirmation)"을 요구**하고 있어서, 막 가입한 미확인 계정은 로그인 자체가 정상적으로 거부된 것이었다(Supabase의 의도된 보안 동작).
+  - 로그인 성공 → 대시보드 → 로그아웃까지 이어지는 "행복한 경로"는 이번엔 끝까지 확인하지 못했다 — service role key를 안 쓰기로 했으니 관리자 API로 테스트 계정을 강제 확인 처리할 수도 없었고, 테스트 이메일의 받은편지함에 접근할 수도 없었다. 사용자가 Supabase 대시보드에서 테스트 계정을 한 번 수동 확인하거나, 개발 단계에서 "Confirm email" 옵션을 꺼두면 나머지 플로우를 곧바로 이어서 검증할 수 있다.
+- 처음 회원가입 테스트는 `@example.com` 도메인으로 시도했다가 Supabase가 `"Email address ... is invalid"`로 거부했다 — Supabase가 알려진 placeholder 도메인을 막아두는 것으로 보이며, `@gmail.com` 형태의 실제 존재하는 도메인(받는 사람이 실재하지 않아도 도메인 자체가 유효하면 통과)으로 바꾸자 정상적으로 가입됐다.
+
+**변경 파일**: `src/app/(auth)/login/page.tsx`(신규), `src/app/(auth)/signup/page.tsx`(신규), `src/components/auth/login-form.tsx`(신규), `src/components/auth/signup-form.tsx`(신규), `src/app/(protected)/layout.tsx`(신규), `src/app/(protected)/dashboard/page.tsx`(신규), `tasks/tasks-member-parent-scoped-mvp.md`(3.0/4.0 갱신, 보류 항목 명시)
+
+**🤖 AI 활용 팁**: "로그인 실패"가 화면에 보였을 때 바로 "코드가 틀렸나?"로 의심하지 않고, 에러 응답(400)과 메시지를 먼저 끝까지 읽고 원인을 추적한 게 도움이 됐다 — 이번 경우는 코드 버그가 아니라 "Supabase 프로젝트 설정(이메일 확인 필수)"이라는, 코드 밖의 원인이었다. 인증/외부 서비스 연동을 검증할 때는 "내가 통제할 수 없는 설정값"이 항상 있을 수 있다는 걸 염두에 두고, 실패를 일으킨 게 내 코드인지 그 서비스의 정책인지부터 구분하는 게 먼저다.
+
+**커밋**: 아직 안 함 (사용자 요청 시 진행)
+
+---
+
+## Day 6+7 Slice 1: Supabase 클라이언트 구성 (`browser.ts`/`server.ts`)
+
+**목표**: Next.js App Router에서 클라이언트/서버 양쪽에서 쓸 Supabase 클라이언트를 `@supabase/ssr` 기반으로 만든다. 이번 슬라이스는 "연결 통로"만 만드는 단계라 아직 회원가입/로그인/DB 연동은 없다.
+
+**내용**:
+- `@supabase/ssr`, `@supabase/supabase-js` 설치.
+- `src/lib/supabase/browser.ts`: `createSupabaseBrowserClient()` — 클라이언트 컴포넌트에서 호출할 브라우저 클라이언트. `createBrowserClient(url, anonKey)`만 호출.
+- `src/lib/supabase/server.ts`: `createSupabaseServerClient()` — 서버 컴포넌트/Route Handler에서 호출할 서버 클라이언트. `next/headers`의 `cookies()`(Next.js 16에서는 비동기라 `await` 필요)로 쿠키를 읽고 쓰는 `getAll`/`setAll`을 `createServerClient`에 연결.
+- 두 파일 모두 **`NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY`만 사용하고, `SUPABASE_SERVICE_ROLE_KEY`는 어디에도 참조하지 않음** — grep으로 직접 확인.
+- 구현 전 Next.js 공식 인증 가이드(`node_modules/next/dist/docs/01-app/02-guides/authentication.md`)를 확인했는데, 뜻밖의 발견이 있었다: 이 문서가 인증 가드 예시 코드에서 파일명을 **`proxy.ts`**로 쓰고 있고, "Middleware"는 "구버전(v15.5.6) 링크"로만 언급한다 — 즉 Next.js 16에서는 기존에 알던 `middleware.ts`가 `proxy.ts`라는 새 파일 컨벤션으로 바뀌었을 가능성이 높다. 이번 슬라이스는 클라이언트 생성까지만이라 영향 없지만, **다음 슬라이스(4.0 보호 라우트)에서 반드시 이 부분을 다시 확인해야 한다** — AGENTS.md가 경고한 "학습 데이터와 다른 breaking change"의 실제 사례.
+
+**검증**: `tsc --noEmit`/`eslint` 0 에러, `npm run test` 35/35(회귀 없음), `npm run build` 성공(기존 4개 라우트 그대로 유지) — 새 파일이 아직 어디서도 import되지 않아서 `.env.local`에 Supabase 키가 없어도 빌드/테스트에 영향 없음을 확인.
+
+**변경 파일**: `src/lib/supabase/browser.ts`(신규), `src/lib/supabase/server.ts`(신규), `package.json`/`package-lock.json`(`@supabase/ssr`, `@supabase/supabase-js` 추가), `tasks/tasks-member-parent-scoped-mvp.md`(1.6 체크)
+
+**🤖 AI 활용 팁**: 새 인증/SDK 코드를 쓰기 전에 "공식 문서를 먼저 읽으라"는 규칙을 지키면, 코드를 다 쓰고 나서 막히는 게 아니라 **구현하기 전에** "어, 이 버전은 파일명이 다르네"를 미리 알게 된다. 이번엔 아직 영향 없는 슬라이스였지만, 다음 슬라이스에서 `middleware.ts`를 추측만으로 만들었다면 동작 안 하는 코드를 만들고 나서야 원인을 찾았을 것이다.
+
+**커밋**: 아직 안 함 (사용자 요청 시 진행)
+
+---
+
 ## Day 5: Code-first Notification Preparation Engine
 
 **목표**: Day 5 하루 전체(Slice 1~6)를 한 번에 정리한다 — 왜 이렇게 접근했는지, 무엇을 만들었고 무엇을 일부러 안 만들었는지, 어떻게 검증했는지.
