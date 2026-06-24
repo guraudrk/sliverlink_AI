@@ -29,20 +29,20 @@
 
 ## 작업 목록 (Tasks)
 
-- [ ] 0.0 기능 브랜치 생성
-  - [ ] 0.1 `main` 기준 최신 상태 확인 (`git status`, `git pull` 필요 시)
-  - [ ] 0.2 기능 브랜치 생성 (예: `feature/web-input-channel`)
-  - [ ] 0.3 이후 모든 작업은 이 브랜치에서 진행
+- [x] 0.0 기능 브랜치 생성
+  - [x] 0.1 `main` 기준 최신 상태 확인
+  - [x] 0.2 기능 브랜치 생성 (`feature/web-input-channel`)
+  - [x] 0.3 Slice 1~2까지 이 브랜치에서 진행 후 `main`에 fast-forward 병합. 이후로는 사용자 결정에 따라 **`main`에서 직접 작업**하는 방식으로 전환 (Slice 3부터)
 
-- [ ] 1.0 프로젝트 환경변수와 하네스 구조 설정
+- [x] 1.0 프로젝트 환경변수와 하네스 구조 설정
   - [x] 1.1 `zod`를 `package.json` 직접 의존성으로 추가
   - [x] 1.2 `vitest`(+ `jsdom`, `@vitejs/plugin-react`) 설치, `vitest.config.ts` 작성(e2e 디렉터리 제외), `package.json`에 `test` 스크립트 추가
-  - [ ] 1.3 `@playwright/test` 설치, `playwright.config.ts` 작성(baseURL: 로컬 dev 서버), `package.json`에 `test:e2e` 스크립트 추가 (`playwright` 패키지/`test:e2e` 스크립트는 있으나 config 미작성 — 다음 슬라이스에서 진행)
+  - [x] 1.3 `@playwright/test` 설치(기존 `playwright` 패키지와 버전 정렬), `playwright.config.ts` 작성(`testDir: ./tests/e2e`, `baseURL: http://localhost:3000`, `webServer`로 dev 서버 자동 기동/재사용), `package.json`의 기존 `test:e2e` 스크립트 그대로 사용
   - [x] 1.4 `src/lib/silverlink/env.ts` 구현 — `getSilverLinkEnv()`로 `MAKE_WEBHOOK_URL`/`SILVERLINK_DRY_RUN`(기본값 `true`) 파싱. **변경**: fail-fast로 즉시 throw하지 않고 값을 그대로 반환하도록 단순화 (Slice 2 요구사항 #6 "URL 없으면 500 응답"을 만족하려면 import 시점에 throw하면 안 되고, 호출 시점에 route.ts/make-client.ts가 분기 처리해야 함). `server-only` 패키지는 미설치 — env.ts/make-client.ts가 API Route에서만 import되어 클라이언트 번들에 포함되지 않음을 코드 구조로 보장
-  - [ ] 1.5 `.env.example`에 `MAKE_WEBHOOK_URL`, `SILVERLINK_DRY_RUN` 항목과 설명 주석 정리 (값은 마스킹)
+  - [x] 1.5 `.env.example`에 `MAKE_WEBHOOK_URL`, `SILVERLINK_DRY_RUN` 항목과 설명 주석 정리 (값은 마스킹). `.env*` 규칙에 걸려 git에서 제외되고 있던 것을 발견해 `.gitignore`에 `!.env.example` 예외 추가
   - [x] 1.6 `.gitignore`의 `.env*` 규칙으로 `.env.local`이 추적되지 않는지 재확인 (`.env.local`, `.env*.local` 규칙 존재, `git status`에 잡히지 않음 확인)
 
-- [ ] 2.0 입력 스키마와 payload 생성 로직 구현
+- [x] 2.0 입력 스키마와 payload 생성 로직 구현
   - [x] 2.1 `src/lib/silverlink/schema.ts`: 사용자 입력 스키마 정의 (`sender_name`, `target_person`, `message` 필수/trim/빈 문자열 금지) — `target_person`은 `"아버지 테스트" | "어머니 테스트"` enum으로 구현 (최대 길이 제한은 이번 슬라이스 범위에서 제외, 필요 시 추후 추가)
   - [x] 2.2 `schema.ts`: 최종 payload 스키마 정의 (`source_channel` literal `"web"`, `requested_at` ISO datetime(+09:00 offset), `today_date` `YYYY-MM-DD`) — kakao 확장용 union화는 이번 슬라이스에서 보류 (YAGNI, 필요 시점에 추가)
   - [x] 2.3 `schema.ts`: `z.infer`로 `TaskRequestInput`, `TaskRequestPayload` 타입 export
@@ -66,17 +66,17 @@
   - [x] 4.4 성공 시 `message` 필드 초기화 (`sender_name`/`target_person`은 연속 입력 편의를 위해 유지)
   - [x] 4.5 `src/app/page.tsx`에 폼 컴포넌트 연결 — 추가로 응답 payload 미리보기, 최근 보낸 요청(localStorage 최대 3개, `useSyncExternalStore`로 동기화) 구현
 
-- [ ] 5.0 단위 테스트와 E2E 테스트 구현
+- [x] 5.0 단위 테스트와 E2E 테스트 구현
   - [x] 5.1 `src/lib/silverlink/__tests__/schema.test.ts`: 유효 입력 통과, 필수값 누락/빈 문자열 실패 케이스
   - [x] 5.2 `src/lib/silverlink/__tests__/payload.test.ts`: 변환 결과에 `source_channel: "web"`, `requested_at`, `today_date`가 올바르게 포함되는지 검증
-  - [ ] 5.3 `npm run test` 전체 통과 확인
-  - [ ] 5.4 `tests/e2e/create-task.spec.ts`: `SILVERLINK_DRY_RUN=true` 환경에서 폼 작성 → 제출 → 성공 메시지 확인 플로우 작성
-  - [ ] 5.5 `create-task.spec.ts`: 필수 필드 누락 시 에러 메시지 노출 플로우 작성
-  - [ ] 5.6 `npm run test:e2e` 전체 통과 확인
+  - [x] 5.3 `npm run test` 전체 통과 확인 (15/15)
+  - [x] 5.4 `tests/e2e/create-task.spec.ts`: `SILVERLINK_DRY_RUN=true`(`.env.local` 기본값) 환경에서 폼 작성 → 제출 → 성공 메시지 확인 플로우 작성
+  - [x] 5.5 `create-task.spec.ts`: 빈 `message` 제출 시 클라이언트 검증 에러 노출 플로우 작성
+  - [x] 5.6 `npm run test:e2e` 전체 통과 확인 (5/5) — dev 서버가 이미 떠 있을 때(재사용)와 없을 때(자동 기동) 둘 다 확인
 
-- [ ] 6.0 실제 Make 연동 및 README 정리
-  - [ ] 6.1 브라우저 네트워크 탭/번들에서 `MAKE_WEBHOOK_URL` 노출 여부 점검
-  - [ ] 6.2 `SILVERLINK_DRY_RUN=false` + 테스트용 Webhook URL로 실제 호출 1회 점검 (Make 수신 여부만 확인, GPT/Airtable 이후 단계는 범위 밖)
-  - [ ] 6.3 `README.md`에 실행 방법(`npm run dev`), 테스트 실행 방법(`test`, `test:e2e`), 환경변수 설정 안내 추가
-  - [ ] 6.4 `docs/PRD-web-input.md` 10장(DoD)·11장(리스크) 체크리스트 최종 갱신
-  - [ ] 6.5 기능 브랜치 커밋/푸시 및 필요 시 PR 생성 안내
+- [x] 6.0 실제 Make 연동 및 README 정리
+  - [x] 6.1 브라우저 네트워크 탭/번들에서 `MAKE_WEBHOOK_URL` 노출 여부 점검 (`.next/static` grep으로 재확인 완료)
+  - [x] 6.2 `SILVERLINK_DRY_RUN=false`로 실제 Webhook 호출 점검 — Make 시나리오 트리거 → GPT 파싱 → Airtable `care_tasks`/`message_logs` 기록까지 확인됨
+  - [x] 6.3 `README.md`에 프로젝트 개요/완성 기능/기술스택/아키텍처/실행 방법/환경변수/Dry Run/실제 연동/테스트/미구현 기능/향후 계획 정리
+  - [x] 6.4 `docs/PRD-web-input.md` 10장(DoD)·11장(리스크) 체크리스트 갱신 + "구현 완료 범위"/"다음 단계로 분리한 범위" 섹션 추가
+  - [ ] 6.5 PR 생성 (현재는 `main`에서 직접 작업하기로 함 — 기능 브랜치/PR 불필요, 사용자 결정에 따라 보류)
