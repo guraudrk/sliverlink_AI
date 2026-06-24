@@ -4,6 +4,22 @@
 
 ---
 
+## 2026-06-24 — Slice 2 검증: 4개 항목 오류 점검 후 커밋
+
+**목표**: Slice 2(POST /api/create-task) 구현이 끝난 뒤, 아래 4가지에 오류가 없는지 확인하고 문제 없으면 지금까지 작업을 커밋.
+
+**점검 항목 및 결과**:
+1. `message`가 비어 있으면 400 반환 — 다른 필드는 정상값으로 두고 단독 테스트, `too_small` 이슈로 400 확인. **문제 없음**.
+2. `target_person`이 허용값이 아니면 400 반환 — 다른 필드는 정상값으로 두고 단독 테스트, `invalid_value` 이슈로 400 확인. **문제 없음**.
+3. `SILVERLINK_DRY_RUN=true`이면 Make 미호출 — `make-client.ts`에서 `dryRun` 분기가 `fetch` 호출보다 먼저 실행되어 구조적으로 호출 불가함을 코드로 확인 + 실제 `.env.local`(DRY_RUN=true) 서버로 호출해 `{ ok:true, dryRun:true, payload }` 응답 재확인. **문제 없음**.
+4. `MAKE_WEBHOOK_URL`이 프론트에 노출되지 않음 — `NEXT_PUBLIC_` 접두사 미사용, `env.ts`/`make-client.ts`는 `route.ts`(서버 전용 API Route)에서만 import, `"use client"` 컴포넌트 자체가 아직 없음, 빌드된 `.next/static`·`.next/dev/static`(브라우저로 서빙되는 정적 자산)을 grep해도 webhook URL 문자열/변수명이 전혀 없음. **문제 없음**.
+
+**결론**: 4개 항목 모두 오류 없음 확인 → Slice 2 변경사항 전체를 커밋.
+
+**커밋**: `06be733` ("Implement Slice 2: POST /api/create-task route handler with Make webhook dry-run support") — `route.ts`/`env.ts`/`make-client.ts`(charset 수정 포함), `vitest.config.ts`(신규), `docs/work-log.md`(신규), `tasks-web-input.md` 체크박스 갱신.
+
+---
+
 ## 2026-06-24 — Slice 2 후속 수정: API 응답 charset 누락으로 한글 깨짐
 
 **증상**: 사용자가 Windows PowerShell `Invoke-RestMethod`로 `/api/create-task`를 호출했을 때 응답의 한글(`sender_name`, `target_person`, `message` 등)이 `ê¹ìë` 식으로 깨져서 출력됨.
