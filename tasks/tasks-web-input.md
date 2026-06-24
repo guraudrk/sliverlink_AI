@@ -59,12 +59,12 @@
   - [x] 3.6 `route.ts`: 성공 시 2.0의 payload 변환 → 3.1~3.4 make-client 호출 → 결과 응답 (`{ ok: true, dryRun: true, payload }` 또는 `{ ok: true, dryRun: false }`)
   - [x] 3.7 `route.ts`: make-client 실패 시 안전한 에러 메시지(내부 URL/스택 비노출) 응답 — `MAKE_WEBHOOK_URL` 누락은 500, 실제 호출 실패는 502로 구분
 
-- [ ] 4.0 웹 입력 폼 UI 구현
-  - [ ] 4.1 `src/components/task-request-form.tsx`: `sender_name`, `target_person`, `message` 입력 필드 UI 작성
-  - [ ] 4.2 2.1 스키마를 이용한 제출 전 클라이언트 검증 및 필드별 에러 표시
-  - [ ] 4.3 제출 중 로딩 상태, 성공/실패 피드백 UI 처리
-  - [ ] 4.4 성공 시 폼 초기화
-  - [ ] 4.5 `src/app/page.tsx`(또는 적절한 페이지)에 폼 컴포넌트 연결
+- [x] 4.0 웹 입력 폼 UI 구현
+  - [x] 4.1 `src/components/task-request-form.tsx`: `sender_name`(텍스트, 기본값 "자녀 테스트"), `target_person`(select, "아버지 테스트"/"어머니 테스트"), `message`(textarea) 입력 필드 UI 작성
+  - [x] 4.2 `message`가 빈 값이면 제출 차단 + 인라인 에러 표시 (사용자 시나리오상 `sender_name`은 기본값으로 항상 채워져 있고 `target_person`은 select로 항상 유효값이라 클라이언트 검증은 `message`만 필요)
+  - [x] 4.3 제출 중 버튼 비활성화("전달하는 중...") + 성공(초록)/실패(빨강) 상태 배너(아이콘+텍스트, 색상에만 의존하지 않음) 처리
+  - [x] 4.4 성공 시 `message` 필드 초기화 (`sender_name`/`target_person`은 연속 입력 편의를 위해 유지)
+  - [x] 4.5 `src/app/page.tsx`에 폼 컴포넌트 연결 — 추가로 응답 payload 미리보기, 최근 보낸 요청(localStorage 최대 3개, `useSyncExternalStore`로 동기화) 구현
 
 - [ ] 5.0 단위 테스트와 E2E 테스트 구현
   - [x] 5.1 `src/lib/silverlink/__tests__/schema.test.ts`: 유효 입력 통과, 필수값 누락/빈 문자열 실패 케이스
