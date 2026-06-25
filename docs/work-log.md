@@ -9,6 +9,31 @@
 
 # 2026-06-25
 
+## Day 10 Slice 1~6: 자녀 대시보드와 응답 모니터링
+
+**목표**: Day8(발송 큐)/Day9(어르신 링크 응답)로 쌓인 데이터를, 자녀가 한눈에 볼 수 있는 화면으로 모은다.
+
+**만든 것**:
+- `/dashboard/tasks`: 전체 일정 + 매칭되는 `notification_queue` 채널/상태 배지. `help_requested`는 빨간색 "긴급" 톤이 아니라 호박색 배지 + "직접 연락해 확인해 주세요" 안내 문구로만 강조(마스터플랜의 "실제 응급 신고로 오해되지 않게" 원칙)
+- `/dashboard/responses`: `message_logs` 중 `direction === 'parent_response'`만 모은 최신순 응답 기록
+- `/dashboard/parents/[parentId]`: 부모님 한 분의 일정+응답을 모아보는 화면. `/parents` 목록 각 항목에 "현황 보기" 링크를 추가해 거기서 진입
+- 새 `GET /api/notification-queue`, `GET /api/message-logs` 엔드포인트(둘 다 로그인 필수). `listNotificationQueue`는 Day8에서 만들어두고 안 썼던 함수를 이번에 처음 사용함
+- 대시보드 허브에 위 두 화면으로 가는 링크 2개 추가
+
+**의도적으로 안 만든 것**: 마스터플랜이 언급한 `/dashboard/calls`는 만들지 않았다 — `care_call_schedules`/`call_attempts` 테이블이 아직 없어서(Day11 범위) 지금 만들면 빈 화면뿐이다. `/dashboard/parents/[parentId]`도 별도 단일 조회 API를 새로 만들지 않고 기존 `/api/parents`/`/api/care-tasks`/`/api/message-logs`를 클라이언트에서 `parent_id`로 필터링하는 방식을 택했다(현재 데이터량에서는 전용 엔드포인트가 과한 설계라고 판단, RLS가 이미 본인 데이터만 내려주므로 보안 문제는 없음).
+
+**사용자가 헤맨 점**: `/dashboard/parents/[parentId]`는 동적 라우트라 `parentId` 없이 `/dashboard/parents`로만 접속하면 404가 뜬다(상위 경로에 별도 index 페이지를 안 만들었기 때문 — 의도된 동작이지 버그 아님). 처음엔 "[id]는 어디서 찾아?"라고 물었고, 직접 URL에 ID를 넣어보려다 404를 본 뒤에야 "`/parents` 목록의 각 항목에 있는 '현황 보기' 링크를 클릭해야 한다"는 진입 경로를 안내받아 정상적으로 화면을 봤다. → 동적 라우트 페이지를 만들 때는 "이 페이지에 어떻게 도달하는가"(진입 링크)를 같이 만들어 두지 않으면, 기능은 정상이어도 사용자가 못 찾아서 막힌 것처럼 보일 수 있다는 교훈.
+
+**검증**: `npx vitest run` 61/61, `npm run build` 통과(신규 라우트 5개 정상 생성). **실제 수동 테스트도 최종 확인 완료**: 세 화면 모두 정상 동작 확인. 특히 `/dashboard/parents/[id]`에서 "어머니 테스트" 분의 일정이 "완료" 배지로, 그 아래 응답 기록에 어르신이 `/r/[token]`에서 누른 "완료했어요"가 정확히 연결되어 표시되는 것까지 사용자가 직접 확인 — Day9에서 만든 링크 응답이 Day10 대시보드에 제대로 흘러들어온다는 것을 보여준 케이스.
+
+**🤖 AI 활용 팁**: 새 대시보드 화면을 만들 때 "필요한 데이터를 보여주는 전용 API를 매번 새로 만들 것인가, 이미 있는 목록 API를 클라이언트에서 필터링할 것인가"는 데이터량과 RLS 여부로 빠르게 결정할 수 있다 — 지금처럼 회원당 데이터가 적고 RLS가 이미 격리를 보장하면, 전용 엔드포인트 없이 기존 목록을 재사용하는 쪽이 더 적은 코드로 같은 안전성을 낸다.
+
+**변경 파일**: `tasks/tasks-day10-child-dashboard.md`(신규), `src/lib/supabase/care-tasks-repo.ts`, `src/lib/supabase/message-logs-repo.ts`(신규), `src/app/api/notification-queue/route.ts`(신규), `src/app/api/message-logs/route.ts`(신규), `src/app/(protected)/dashboard/tasks/page.tsx`(신규), `src/app/(protected)/dashboard/responses/page.tsx`(신규), `src/app/(protected)/dashboard/parents/[parentId]/page.tsx`(신규), `src/app/(protected)/dashboard/page.tsx`, `src/components/parents/parent-profile-list.tsx`
+
+**커밋**: 아직 안 함(사용자 요청 시 진행)
+
+---
+
 ## Day 9 Slice 1~5: 어르신 링크 응답 (`/r/[token]`)
 
 **목표**: Day8에서 만든 `notification_queue`의 `response_token`을, 실제로 "어르신이 로그인 없이 눌러서 응답"할 수 있는 화면과 API로 연결한다.

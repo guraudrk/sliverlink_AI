@@ -42,15 +42,18 @@ export type CareTaskSummary = {
   target_person: string | null;
   original_request: string | null;
   status: string;
+  priority: string | null;
+  completed_at: string | null;
+  notification_status: string | null;
   created_at: string;
 };
 
-// /delivery-preview에서 "어떤 일정에 대한 알림을 보낼지" 선택하는 드롭다운용 목록. RLS가 owner_user_id로
+// /delivery-preview의 드롭다운, /dashboard/tasks의 일정 목록 둘 다 이 함수를 쓴다. RLS가 owner_user_id로
 // 이미 필터링해주므로 별도 조건 없이 전체 조회한다.
 export async function listCareTasks(supabase: SupabaseClient): Promise<CareTaskSummary[]> {
   const { data, error } = await supabase
     .from("care_tasks")
-    .select("id, parent_id, target_person, original_request, status, created_at")
+    .select("id, parent_id, target_person, original_request, status, priority, completed_at, notification_status, created_at")
     .order("created_at", { ascending: false });
 
   if (error) throw error;

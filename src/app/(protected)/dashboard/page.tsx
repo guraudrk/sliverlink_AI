@@ -58,6 +58,20 @@ export default async function DashboardPage() {
             <p className="font-semibold text-slate-800">알림 미리보기</p>
             <p className="mt-1 text-sm text-slate-500">발송 전 확인</p>
           </Link>
+          <Link
+            href="/dashboard/tasks"
+            className="rounded-2xl bg-white p-5 text-center shadow-sm ring-1 ring-slate-200 transition-colors hover:ring-blue-300"
+          >
+            <p className="font-semibold text-slate-800">오늘의 일정</p>
+            <p className="mt-1 text-sm text-slate-500">전체 현황</p>
+          </Link>
+          <Link
+            href="/dashboard/responses"
+            className="rounded-2xl bg-white p-5 text-center shadow-sm ring-1 ring-slate-200 transition-colors hover:ring-blue-300"
+          >
+            <p className="font-semibold text-slate-800">어르신 응답 기록</p>
+            <p className="mt-1 text-sm text-slate-500">링크 응답 모아보기</p>
+          </Link>
         </nav>
       </div>
     </div>

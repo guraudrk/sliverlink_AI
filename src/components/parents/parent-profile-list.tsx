@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ParentProfile } from "@/lib/supabase/parent-profiles-repo";
 
 const NOTIFICATION_PREFERENCE_LABELS: Record<string, string> = {
@@ -37,7 +38,7 @@ export function ParentProfileList({
   return (
     <ul className="space-y-3">
       {profiles.map((profile) => (
-        <li key={profile.id}>
+        <li key={profile.id} className="relative">
           <button
             type="button"
             onClick={() => onSelect(profile)}
@@ -62,6 +63,12 @@ export function ParentProfileList({
               <p className="mt-2 text-sm text-slate-600">{profile.care_context}</p>
             ) : null}
           </button>
+          <Link
+            href={`/dashboard/parents/${profile.id}`}
+            className="absolute right-5 bottom-4 text-xs font-semibold text-slate-400 underline-offset-2 hover:text-blue-500 hover:underline"
+          >
+            현황 보기
+          </Link>
         </li>
       ))}
     </ul>
