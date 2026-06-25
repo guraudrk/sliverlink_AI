@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { taskRequestInputSchema, taskRequestPayloadSchema } from "../schema";
 
+const VALID_TARGET_PERSON_ID = "11111111-1111-4111-8111-111111111111";
+
 describe("taskRequestInputSchema", () => {
   const validInput = {
     sender_name: "김자녀",
-    target_person: "아버지 테스트",
+    target_person_id: VALID_TARGET_PERSON_ID,
+    target_person: "아버지 A",
     message: "오늘 병원 방문 일정 확인 부탁드려요.",
   };
 
@@ -28,13 +31,18 @@ describe("taskRequestInputSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("target_person이 허용된 값이면 통과한다", () => {
+  it("target_person은 더 이상 고정값으로 제한되지 않는다 (등록된 부모님 이름이면 통과)", () => {
     const result = taskRequestInputSchema.safeParse({ ...validInput, target_person: "어머니 테스트" });
     expect(result.success).toBe(true);
   });
 
-  it("target_person이 허용되지 않은 값이면 실패한다", () => {
-    const result = taskRequestInputSchema.safeParse({ ...validInput, target_person: "삼촌 테스트" });
+  it("target_person이 빈 문자열이면 실패한다", () => {
+    const result = taskRequestInputSchema.safeParse({ ...validInput, target_person: "" });
+    expect(result.success).toBe(false);
+  });
+
+  it("target_person_id가 UUID 형식이 아니면 실패한다", () => {
+    const result = taskRequestInputSchema.safeParse({ ...validInput, target_person_id: "not-a-uuid" });
     expect(result.success).toBe(false);
   });
 });
@@ -42,7 +50,8 @@ describe("taskRequestInputSchema", () => {
 describe("taskRequestPayloadSchema", () => {
   const validPayload = {
     sender_name: "김자녀",
-    target_person: "아버지 테스트",
+    target_person_id: VALID_TARGET_PERSON_ID,
+    target_person: "아버지 A",
     message: "오늘 병원 방문 일정 확인 부탁드려요.",
     source_channel: "web",
     requested_at: "2026-06-23T00:30:00+09:00",

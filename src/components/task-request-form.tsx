@@ -1,13 +1,11 @@
 "use client";
 
 import { useState, useSyncExternalStore, type FormEvent, type SVGProps } from "react";
-import { TARGET_PERSON_OPTIONS } from "@/lib/silverlink/schema";
-
-type TargetPerson = (typeof TARGET_PERSON_OPTIONS)[number];
+import type { ParentProfile } from "@/lib/supabase/parent-profiles-repo";
 
 type RecentRequest = {
   sender_name: string;
-  target_person: TargetPerson;
+  target_person: string;
   message: string;
   requested_at: string;
 };
@@ -81,9 +79,13 @@ function formatTimestamp(value: string): string {
   }
 }
 
-export function TaskRequestForm() {
+function formatProfileLabel(profile: ParentProfile): string {
+  return profile.relationship ? `${profile.display_name} (${profile.relationship})` : profile.display_name;
+}
+
+export function TaskRequestForm({ parentProfiles }: { parentProfiles: ParentProfile[] }) {
   const [senderName, setSenderName] = useState("자녀 테스트");
-  const [targetPerson, setTargetPerson] = useState<TargetPerson>(TARGET_PERSON_OPTIONS[0]);
+  const [targetPersonId, setTargetPersonId] = useState(parentProfiles[0]?.id ?? "");
   const [message, setMessage] = useState("");
   const [messageError, setMessageError] = useState<string | null>(null);
   const [status, setStatus] = useState<SubmitStatus>("idle");
@@ -105,6 +107,11 @@ export function TaskRequestForm() {
       setMessageError("전달할 말씀을 입력해 주세요.");
       return;
     }
+    const selectedProfile = parentProfiles.find((profile) => profile.id === targetPersonId);
+    if (!selectedProfile) {
+      setMessageError("받는 분을 선택해 주세요.");
+      return;
+    }
     setMessageError(null);
     setStatus("submitting");
     setStatusMessage(null);
@@ -113,7 +120,12 @@ export function TaskRequestForm() {
       const res = await fetch("/api/create-task", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sender_name: senderName, target_person: targetPerson, message }),
+        body: JSON.stringify({
+          sender_name: senderName,
+          target_person_id: targetPersonId,
+          target_person: selectedProfile.display_name,
+          message,
+        }),
       });
       const data: ApiResponse = await res.json();
       setLastResponse(data);
@@ -132,7 +144,12 @@ export function TaskRequestForm() {
       );
 
       const requestedAt = (data.payload?.requested_at as string | undefined) ?? new Date().toISOString();
-      writeRecentRequest({ sender_name: senderName, target_person: targetPerson, message, requested_at: requestedAt });
+      writeRecentRequest({
+        sender_name: senderName,
+        target_person: selectedProfile.display_name,
+        message,
+        requested_at: requestedAt,
+      });
       setMessage("");
     } catch {
       setStatus("error");
@@ -172,13 +189,13 @@ export function TaskRequestForm() {
           <select
             id="target_person"
             name="target_person"
-            value={targetPerson}
-            onChange={(event) => setTargetPerson(event.target.value as TargetPerson)}
+            value={targetPersonId}
+            onChange={(event) => setTargetPersonId(event.target.value)}
             className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-lg text-slate-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
           >
-            {TARGET_PERSON_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {option}
+            {parentProfiles.map((profile) => (
+              <option key={profile.id} value={profile.id}>
+                {formatProfileLabel(profile)}
               </option>
             ))}
           </select>

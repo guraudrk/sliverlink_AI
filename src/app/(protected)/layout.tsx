@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { DashboardNavBar } from "@/components/app/dashboard-nav-bar";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {
@@ -9,5 +10,10 @@ export default async function ProtectedLayout({ children }: { children: React.Re
     redirect("/login");
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      <DashboardNavBar />
+      {children}
+    </>
+  );
 }

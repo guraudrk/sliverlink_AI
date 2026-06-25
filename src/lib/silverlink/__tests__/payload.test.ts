@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 import { buildSilverLinkPayload } from "../payload";
 
 const FIXED_NOW = new Date("2026-06-22T15:30:00Z"); // Asia/Seoul: 2026-06-23 00:30:00+09:00
+const VALID_TARGET_PERSON_ID = "11111111-1111-4111-8111-111111111111";
 
 const validInput = {
   sender_name: "김자녀",
-  target_person: "아버지 테스트",
+  target_person_id: VALID_TARGET_PERSON_ID,
+  target_person: "아버지 A",
   message: "오늘 병원 방문 일정 확인 부탁드려요.",
 };
 
@@ -15,7 +17,8 @@ describe("buildSilverLinkPayload", () => {
 
     expect(payload).toEqual({
       sender_name: "김자녀",
-      target_person: "아버지 테스트",
+      target_person_id: VALID_TARGET_PERSON_ID,
+      target_person: "아버지 A",
       message: "오늘 병원 방문 일정 확인 부탁드려요.",
       source_channel: "web",
       requested_at: "2026-06-23T00:30:00+09:00",
@@ -32,9 +35,9 @@ describe("buildSilverLinkPayload", () => {
     expect(() => buildSilverLinkPayload({ ...validInput, message: "" }, FIXED_NOW)).toThrow();
   });
 
-  it("target_person이 허용값이 아니면 실패한다", () => {
+  it("target_person_id가 UUID가 아니면 실패한다", () => {
     expect(() =>
-      buildSilverLinkPayload({ ...validInput, target_person: "삼촌 테스트" }, FIXED_NOW)
+      buildSilverLinkPayload({ ...validInput, target_person_id: "not-a-uuid" }, FIXED_NOW)
     ).toThrow();
   });
 

@@ -1,9 +1,10 @@
 import { ZodError } from "zod";
+import { getSilverLinkEnv } from "@/lib/silverlink/env";
 import { sendToMakeWebhook } from "@/lib/silverlink/make-client";
 import { buildSilverLinkPayload } from "@/lib/silverlink/payload";
+import { createCareTask, createMessageLog, isOwnParentProfile } from "@/lib/supabase/care-tasks-repo";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-// NextResponse.json()의 기본 Content-Type에는 charset이 없어, 일부 HTTP 클라이언트(예: Windows PowerShell
-// Invoke-RestMethod)가 UTF-8이 아닌 인코딩으로 잘못 디코딩해 한글이 깨진다. charset=utf-8을 명시해 방지한다.
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -12,6 +13,12 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 export async function POST(request: Request) {
+  const supabase = await createSupabaseServerClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) {
+    return jsonResponse({ ok: false, error: "unauthorized" }, 401);
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -29,17 +36,61 @@ export async function POST(request: Request) {
     throw error;
   }
 
-  const result = await sendToMakeWebhook(payload);
-
-  if (result.ok) {
-    return jsonResponse(
-      result.dryRun ? { ok: true, dryRun: true, payload: result.payload } : { ok: true, dryRun: false }
-    );
+  let owns: boolean;
+  try {
+    owns = await isOwnParentProfile(supabase, payload.target_person_id);
+  } catch {
+    return jsonResponse({ ok: false, error: "ownership_check_failed" }, 500);
+  }
+  if (!owns) {
+    // 존재하지 않는 id와 "남의 parent_profiles" id를 구분하지 않는다 — RLS가 이미 본인 소유 행만 보여주므로,
+    // 둘 다 그 회원 입장에서는 "내 것이 아닌 parent_id"로 동일하게 거부한다.
+    return jsonResponse({ ok: false, error: "parent_not_found" }, 403);
   }
 
-  if (result.error === "missing_webhook_url") {
-    return jsonResponse({ ok: false, error: "missing_webhook_url" }, 500);
+  let careTaskId: string;
+  let messageLogId: string;
+  try {
+    const careTask = await createCareTask(supabase, {
+      owner_user_id: userData.user.id,
+      parent_id: payload.target_person_id,
+      target_person: payload.target_person,
+      original_request: payload.message,
+      status: "scheduled",
+      priority: "normal",
+    });
+    careTaskId = careTask.id;
+
+    const messageLog = await createMessageLog(supabase, {
+      owner_user_id: userData.user.id,
+      parent_id: payload.target_person_id,
+      care_task_id: careTaskId,
+      direction: "inbound",
+      status: "received",
+      sender: payload.sender_name,
+      receiver: payload.target_person,
+      raw_message: payload.message,
+      source_channel: "web",
+    });
+    messageLogId = messageLog.id;
+  } catch {
+    return jsonResponse({ ok: false, error: "save_failed" }, 500);
   }
 
-  return jsonResponse({ ok: false, error: "webhook_request_failed" }, 502);
+  const { legacyMakeSyncEnabled } = getSilverLinkEnv();
+  let legacyMakeCalled = false;
+
+  if (legacyMakeSyncEnabled) {
+    // Make 호출이 실패해도 Supabase insert는 이미 성공했으므로, 응답을 막지 않고 legacyMakeCalled만 false로 둔다.
+    const result = await sendToMakeWebhook(payload);
+    legacyMakeCalled = result.ok && !result.dryRun;
+  }
+
+  return jsonResponse({
+    ok: true,
+    savedToSupabase: true,
+    legacyMakeCalled,
+    careTaskId,
+    messageLogId,
+  });
 }

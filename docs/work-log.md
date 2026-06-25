@@ -7,6 +7,199 @@
 
 ---
 
+# 2026-06-25
+
+## Day 6+7: 회원 인증 + 부모님 프로필 + Supabase 메인 DB 전환 (Slice 2~7 종합)
+
+**목표**: 오늘 하루(Slice 2 재검증~Slice 7)를 한 번에 정리한다 — 무엇을 만들었고, 가장 크게 막혔던 곳은 어디였고, 어떻게 풀었고, 무엇을 의도적으로 안 했는지.
+
+**1. 오늘 만든 것 (Slice 2~7)**:
+- **Slice 2 재검증**: 회원가입/로그인/비로그인 보호 로직이 코드상 정상임을 API 레벨로 재확인(전날 보류분)
+- **Slice 3**: `parent_profiles` 테이블 + RLS 4종 정책 (`docs/supabase-schema-member-scoped.sql`)
+- **Slice 4**: `/parents` 등록·조회 UI + `GET/POST /api/parents` (owner_user_id는 서버가 강제, 클라이언트가 못 끼워넣음)
+- **Slice 5**: 웹 입력창을 하드코딩된 "아버지/어머니 테스트"에서 **로그인 회원이 등록한 parent_profiles 선택**으로 전환 — `/dashboard/create-task` 신설, `/`는 로그인 여부에 따른 리다이렉트 진입점으로 역할 변경(Day4 공개 입력 폼 종료)
+- **Slice 6**: `care_tasks`/`message_logs` 테이블 + RLS — 기존 Airtable 구조를 최대한 보존하는 스키마로(사용자 확인하에 PRD 대신 오늘 작업지시서 기준 채택)
+- **Slice 7**: `/api/create-task`가 Supabase `care_tasks`/`message_logs`에 실제로 저장하도록 확장. `target_person_id` 소유권 검증(타인 소유면 403), `LEGACY_MAKE_SYNC_ENABLED`(기본 `false`)로 기존 Make 경로는 레거시 호환으로만 남김
+- **추가(사용자 요청, 실사용 중 나온 피드백)**: `/parents` 목록 클릭 시 수정 가능(기존 등록 폼을 create/edit 겸용으로 일반화 + `PATCH /api/parents/[id]`), 모든 보호 화면에 "← 대시보드로" 공용 nav bar, 부모님 등록 성공 시 대시보드로 자동 복귀
+
+**2. 오늘 가장 크게 막혔던 곳과 해결 과정**: Slice 2 이후 계속, "실제 로그인해서 끝까지 확인"이 안 됐다 — Supabase 무료 플랜의 내장 이메일 발송이 시간당 레이트리밋에 걸려 회원가입 확인 메일을 못 받는 문제였다. 시행착오 순서: ① "Confirm email" 토글을 찾으려다 엉뚱하게 "Enable email provider"를 꺼버려 로그인 전체가 막힘(재발견 후 복구) → ② Supabase 자체 메일 한도가 문제의 핵심임을 확인 → ③ Resend 가입, API Key 발급, Supabase Authentication에 커스텀 SMTP(`smtp.resend.com`, port 465, username `resend`, password = API Key)로 연결 → ④ 연결 후에도 임의의 가짜 이메일은 `AuthRetryableFetchError`(메시지 "{}")로 실패 — Resend의 샌드박스 발신 주소가 **본인 계정 이메일로만** 발송을 허용하는 제한 때문이었음, 본인 실제 이메일로 재시도해서 해결. 최종적으로 회원가입 → 메일 확인 클릭 → 로그인 → 대시보드 → 부모님 등록 → 일정 생성까지, **사용자가 직접 브라우저로 끝까지 진행하고 Supabase Table Editor에서 모든 테이블의 실제 값을 대조해 확인**했다.
+
+**3. 의도적으로 안 한 것 / 미룬 것**:
+- **회원 A/B 데이터 격리 테스트** — 사용자가 명시적으로 "기능부터 다 만들고 마지막에 한 번에 하자"고 결정(tasks 8.9). 두 번째 계정은 Supabase Authentication → Users → "Add user"로 이메일 확인 없이 만드는 방법을 다음에 시도할 예정
+- Resend 커스텀 도메인 인증(현재 샌드박스라 본인 외 이메일로 가입 확인 메일 발송 불가) — 실제 런칭 전 필수 항목으로 백로그(tasks 8.8)
+- `sender_name`을 로그인 사용자 이메일로 서버가 강제 파생하는 것 — 오늘 작업지시서 요구사항에 없어 범위 밖으로 보류
+- 실제 SMS/카카오 알림톡 발송, 완전한 RAG — 원래도 이번 챕터 범위 밖(필드만 미리 준비)
+
+**4. 검증**: `npm test` 46/46, `npm run build` 통과 — 매 슬라이스마다 확인. 무엇보다, 코드/API 레벨 검증을 넘어 **실제 브라우저로 회원가입부터 Supabase 저장까지 전체 플로우를 한 번 끝까지** 확인한 게 오늘의 핵심 성과다.
+
+**5. ⚠️ 안전사고 기록**: Slice 5 중 `/api/create-task`를 `curl`로 스모크 테스트하면서 `SILVERLINK_DRY_RUN` 값을 먼저 확인하지 않아, 실제 Make.com 시나리오가 1회 실행됐다(OpenAI 호출 1건 실비용 발생, Airtable 쓰기는 가짜 데이터라 422로 실패해 기록은 안 남음, SMS/카카오 알림 발송은 없었음). 사용자에게 즉시 전체 경위를 공개하고 재발 방지 규칙을 메모리에 반영했다.
+
+**6. AI 활용 팁**:
+- 문제를 해결하려고 새 도구(Resend)를 들였는데, 그 도구도 자기만의 제약(샌드박스 발신 제한)을 갖고 있었다 — 도구를 추가할 때마다 "이 도구는 또 어떤 전제를 깔고 있는가"를 의심하는 습관이, 막연히 "왜 또 안 되지"로 헤매는 시간을 줄여줬다.
+- DB에 RLS가 이미 걸려있다면, 애플리케이션 코드에서 "소유권을 다시 한번 확인"하는 로직을 따로 만들지 않고 "그냥 쓰기 시도 → 0건이면 권한 없음"으로 처리하는 게 더 안전하고 코드도 적다(Slice 7의 `isOwnParentProfile`, 수정 기능의 `updateParentProfile` 둘 다 이 패턴).
+- 외부 호출이 걸린 코드를 테스트할 때 "당연히 안전할 것"이라는 가정은 위험하다 — 실제로 한 번 사고가 났고, 그 이후로는 매번 환경변수를 직접 확인하거나, 애초에 인증 체크를 외부 호출보다 먼저 오게 코드 순서를 짜서 "테스트 자체가 안전한 구조"를 만들었다.
+
+**변경 파일**: 위 Slice 2~7 및 추가 작업 각 섹션 참고 (`docs/supabase-schema-member-scoped.sql`, `src/lib/supabase/**`, `src/app/(protected)/**`, `src/app/api/parents/**`, `src/app/api/create-task/route.ts`, `src/components/parents/**`, `src/components/app/dashboard-nav-bar.tsx`, `src/lib/silverlink/schema.ts`/`env.ts`, `src/components/task-request-form.tsx`, `src/app/page.tsx`, `.env.example`, `docs/PRD-member-parent-scoped-mvp.md`, `tasks/tasks-member-parent-scoped-mvp.md`)
+
+**커밋**: 이번 작업에서 진행
+
+---
+
+## Day 6+7: 실제 로그인 happy path 최종 확인 (Slice 2/4/7 누적 검증 완료)
+
+**목표**: Slice 2부터 계속 보류됐던 "실제 로그인 → 부모님 등록 → 일정 생성 → Supabase 저장" 전체 흐름을 사용자가 직접 브라우저로 끝까지 확인한다.
+
+**내용**: Supabase 무료 플랜의 내장 이메일 발송이 시간당 레이트리밋에 걸려 며칠째 회원가입 확인 메일을 못 받던 문제를, **Resend 커스텀 SMTP를 Supabase Authentication에 연결**해서 해결했다. 연결 과정에서 두 번 더 막혔다 — (1) SMTP 설정 중 "Enable email provider" 토글을 실수로 끈 채 테스트해서 "Email logins are disabled" 에러, (2) SMTP 연결 후에도 임의의 가짜 이메일로는 `AuthRetryableFetchError`(메시지 "{}")가 났는데, 이건 Resend의 샌드박스 발신 주소(`onboarding@resend.dev`)가 **본인 계정 이메일로만** 발송을 허용하는 제한 때문이었다. 본인 실제 이메일(`djwls9614@gmail.com`)로 시도하니 정상적으로 확인 메일이 도착했다.
+
+이후 실제 브라우저로 끝까지 진행한 결과, 다음이 모두 사용자 확인으로 검증됐다:
+- 회원가입 → 이메일 확인 클릭 → 로그인 → `/dashboard`에 본인 이메일 표시 (Slice 2)
+- `/parents`에서 "아버지 테스트" 등록 → Supabase `parent_profiles`에 `owner_user_id`가 본인 계정으로 정확히 저장 (Slice 4)
+- `/dashboard/create-task`에서 그 부모님 선택 → 메시지 제출 → Supabase `care_tasks`(`owner_user_id`/`parent_id`/`target_person`/`original_request`/`status: scheduled`/`priority: normal`)와 `message_logs`(`owner_user_id`/`parent_id`/`direction: inbound`/`sender`/`receiver`/`raw_message`/`source_channel: web`) 둘 다 정확히 저장 (Slice 7)
+
+**검증**: 사용자가 Supabase Table Editor에서 직접 각 테이블의 실제 행 값을 하나씩 대조해 전부 일치 확인.
+
+**아직 남은 것**: 회원 A/B 데이터 격리 테스트(2.8/5.6/6.8) — 두 번째 계정이 필요한데, Resend가 아직 샌드박스 상태라 다른 이메일로는 가입 확인이 안 됨. **Supabase Dashboard → Authentication → Users → "Add user"로 이메일 확인 없이 테스트 계정을 직접 만드는 방법**이 있어 보이니, 다음에 이걸로 시도해볼 것.
+
+**변경 파일**: 없음(설정 작업 + 수동 검증만, 코드 변경 없음)
+
+**🤖 AI 활용 팁**: 막혀있던 문제(이메일 인증)를 풀기 위해 새 도구(Resend)를 도입했는데, 그 새 도구 자체도 "샌드박스 제한"이라는 자기만의 제약이 있었다 — 문제를 해결하는 도구를 추가할 때마다, 그 도구가 가진 새로운 제약도 같이 들어온다는 걸 전제하고, 에러 메시지가 불충분하면("{}" 같은 빈 메시지) 그 도구의 대시보드/로그를 직접 들여다보는 게 추측보다 빨랐다.
+
+**커밋**: 아직 안 함 (사용자 요청 시 진행)
+
+---
+
+## Day 6+7 (사용자 요청 추가): 부모님 정보 수정 + 전체 화면 대시보드 이동 + 등록 후 리다이렉트
+
+**목표**: 실제 로그인 후 직접 써보면서 나온 사용자 피드백 3건을 반영한다 — (1) 부모님 등록 후 같은 화면에 머무는 게 어색함, (2) 각 화면에서 대시보드로 돌아갈 방법이 없음, (3) `/parents` 목록의 항목을 클릭해도 수정할 수 없음.
+
+**내용**:
+- **등록 후 리다이렉트**: `/parents`에서 등록 성공 메시지를 1.2초 보여준 뒤 `/dashboard`로 자동 이동하도록 `(protected)/parents/page.tsx`에 `setTimeout(() => router.push("/dashboard"), 1200)` 추가.
+- **부모님 정보 수정**: PRD 6장이 "향후 확장"으로 미뤄뒀던 `/parents/[id]` 페이지를 따로 만들지 않고, **기존 등록 폼을 create/edit 겸용으로 일반화**했다 — `ParentProfileForm`이 `mode`(`"create"`/`"edit"`) 판별 유니언 타입 props를 받아, edit 모드면 `profile` prop으로 폼을 채우고 제출 시 `PATCH /api/parents/[id]`를 호출한다. `ParentProfileList`의 각 항목을 버튼으로 바꿔 클릭하면 그 프로필이 폼에 로드된다. 새 `PATCH` 라우트는 `updateParentProfile` 함수를 쓰는데, 소유권 검증을 따로 코드로 안 짜고 **RLS의 update policy(`auth.uid() = owner_user_id`)가 남의 행이면 0건을 갱신하게 만들어주는 것**에 의존했다 — `.single()`이 행을 못 찾으면 자동으로 에러가 나서 404로 응답한다.
+- **전체 화면 대시보드 이동**: `src/components/app/dashboard-nav-bar.tsx`(공용 "← 대시보드로" 링크)를 만들어 `(protected)/layout.tsx` 한 곳에 추가했다 — 이러면 `/dashboard`/`/parents`/`/dashboard/create-task` 전부에 페이지별 수정 없이 자동 적용된다. 아직 `(protected)` 그룹 밖에 있는 `/notifications`에는 그 페이지에 직접 추가했다.
+
+**검증**: `npm test` 46/46(영향 없음), `npm run build` 통과(`/api/parents/[id]` 동적 라우트로 정상 인식). `curl`로 비로그인 `PATCH /api/parents/[id]` → 401 확인.
+
+**변경 파일**: `src/components/parents/parent-profile-form.tsx`(create/edit 겸용으로 일반화), `src/components/parents/parent-profile-list.tsx`(클릭 가능하게), `src/app/(protected)/parents/page.tsx`(editingProfile 상태 추가), `src/lib/supabase/parent-profiles-repo.ts`(`updateParentProfile` 추가), `src/app/api/parents/[id]/route.ts`(신규, PATCH), `src/components/app/dashboard-nav-bar.tsx`(신규), `src/app/(protected)/layout.tsx`, `src/app/notifications/page.tsx`, `docs/PRD-member-parent-scoped-mvp.md`(6장 갱신), `tasks/tasks-member-parent-scoped-mvp.md`(5.8/5.9/5.10 추가)
+
+**🤖 AI 활용 팁**: "소유권 검증"을 매번 별도 코드(예: 먼저 select로 소유 확인 후 update)로 짜는 대신, RLS 정책 자체가 이미 "남의 행은 갱신 0건"으로 막아주는 걸 그대로 활용했다 — DB가 이미 강제하고 있는 규칙을 애플리케이션 코드에서 다시 한번 검사하는 건 중복일 뿐이고, 오히려 두 군데(코드 vs RLS)가 미묘하게 다르게 동작할 위험만 늘어난다. RLS가 있는 테이블이라면, "조회해서 확인 후 쓰기"보다 "그냥 쓰기를 시도하고 0건이면 권한 없음으로 처리"가 더 안전하고 코드도 적다.
+
+**커밋**: 아직 안 함 (사용자 요청 시 진행)
+
+---
+
+## Day 6+7 Slice 7: /api/create-task를 Supabase 저장까지 확장
+
+**목표**: `/api/create-task`가 Supabase `care_tasks`/`message_logs`에 실제로 저장하도록 확장한다. 기존 Make Webhook 호환 경로는 완전히 삭제하지 않고 플래그로 선택적으로만 호출한다.
+
+**내용**:
+- `src/lib/supabase/care-tasks-repo.ts`(신규): `isOwnParentProfile(supabase, parentId)`(RLS로 0건이면 false — "남의 프로필"과 "존재하지 않는 id"를 굳이 구분하지 않고 동일하게 거부), `createCareTask`/`createMessageLog`.
+- `src/app/api/create-task/route.ts` 전면 재작성: 로그인 확인(401) → `buildSilverLinkPayload`로 입력 검증(기존 Day4 로직 재사용) → `target_person_id` 소유권 검증(아니면 403 `parent_not_found`) → `care_tasks` insert → `message_logs`(`direction:"inbound"`) insert → (`LEGACY_MAKE_SYNC_ENABLED=true`일 때만) Make Webhook 호출. 응답은 `{ ok, savedToSupabase, legacyMakeCalled, careTaskId, messageLogId }` 형태로, Supabase 저장 여부와 Make 호출 여부를 명확히 분리해서 보여준다.
+- `src/lib/silverlink/env.ts`: `LEGACY_MAKE_SYNC_ENABLED` 추가, **기본값 `false`**(명시적으로 `"true"`여야만 Make도 호출). Make 호출이 실패해도 Supabase insert는 이미 끝난 뒤라 에러를 던지지 않고 `legacyMakeCalled: false`로만 표시한다(PRD 12장에서 미리 적어둔 방향).
+- 이름 충돌 메모: 오늘 작업지시서는 이 플래그를 `SILVERLINK_USE_MAKE_LEGACY`라고 불렀지만, PRD 12장과 tasks 파일이 이미 `LEGACY_MAKE_SYNC_ENABLED`로 적어뒀어서 기존 문서와의 일관성을 위해 그 이름을 그대로 썼다.
+- `.env.example`에 Supabase 키 3종(`NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY`/`SUPABASE_SERVICE_ROLE_KEY`, 값은 비움)과 `LEGACY_MAKE_SYNC_ENABLED`를 추가했다 — Slice 1 때 빠뜨렸던 부분(tasks 1.3)을 이번에 같이 메웠다.
+- `sender_name`을 로그인 사용자 이메일로 서버가 강제 파생하는 건 이번엔 하지 않았다 — 오늘 작업지시서 8장의 10개 요구사항 어디에도 없었고, tasks 파일에만 있던 추가 아이디어라 범위를 넘는다고 판단해 보류했다(여전히 Day4처럼 클라이언트가 적은 자유 텍스트).
+
+**검증**:
+- `npm test` 46/46(`care-tasks-repo.test.ts` 3건 추가: 스텁 Supabase 클라이언트로 `isOwnParentProfile`의 true/false/throw 분기 확인), `npm run build` 통과.
+- `curl`로 비로그인 `POST /api/create-task` → 401 확인. 이 라우트는 인증 체크가 Supabase/Make 호출보다 먼저 실행되도록 짜서, 비로그인 테스트는 `SILVERLINK_DRY_RUN`/`LEGACY_MAKE_SYNC_ENABLED` 값과 무관하게 항상 안전하다 — 그래도 호출 전에 두 플래그를 먼저 확인하고서 진행했다(Slice 5 사고 이후 새로 생긴 습관).
+- **확인 못 한 것**: 실제 로그인 세션으로 등록 → care_tasks/message_logs에 정확히 저장되는지, `target_person_id` 소유권 검증이 진짜 403을 내는지, `LEGACY_MAKE_SYNC_ENABLED` on/off 각각의 실제 동작, 회원 A/B API 레벨 격리(6.8). Slice 2부터 이어진 Supabase 이메일 확인/레이트리밋 문제로 확인된 테스트 계정이 아직 없어서, 로그인이 풀리면 이 모든 걸 한 번에 몰아서 확인해야 한다.
+
+**변경 파일**: `src/lib/supabase/care-tasks-repo.ts`(신규), `src/lib/supabase/__tests__/care-tasks-repo.test.ts`(신규), `src/app/api/create-task/route.ts`, `src/lib/silverlink/env.ts`, `.env.example`, `tasks/tasks-member-parent-scoped-mvp.md`(6.4/6.5/6.6/6.7/6.9 갱신)
+
+**🤖 AI 활용 팁**: 외부 호출이 있는 라우트를 고칠 때 "인증 체크를 제일 먼저 한다"는 순서 하나가, 그 뒤로 이어지는 모든 테스트를 더 안전하게 만들어준다 — 비로그인 요청은 Supabase든 Make든 아무것도 건드리기 전에 401로 끝나기 때문에, 코드만 봐도 "이 테스트는 무조건 안전하다"는 걸 실행 전에 확신할 수 있었다. Slice 5에서처럼 매번 환경변수를 일일이 확인하는 것보다, 애초에 위험한 외부 호출 자체가 인증 체크 뒤에만 오도록 코드 순서를 설계해두는 게 더 근본적인 안전장치다.
+
+**커밋**: 아직 안 함 (사용자 요청 시 진행)
+
+---
+
+## Day 6+7 Slice 6: care_tasks/message_logs 테이블 + RLS
+
+**목표**: 기존 Make→Airtable 경로가 쓰던 `care_tasks`/`message_logs` 구조를 최대한 보존한 채 Supabase 테이블로 옮기고, `owner_user_id`/`parent_id` 기반 RLS로 회원별 격리를 건다.
+
+**내용**:
+- PRD 12장에 이미 적혀 있던 `care_tasks`/`message_logs` 스키마(웹 입력 payload와 1:1로 가까운 형태, `sender_name`/`message`/`source_channel` 등)와 오늘 작업지시서의 스키마(`original_request`/`parsed_summary`/`needs_confirmation`/`child_notified`/`memo` 등, 기존 Airtable 구조에 더 가까운 형태)가 필드 수준이 아니라 설계 자체가 달라서, 사용자에게 확인을 받았다 — **오늘 작업지시서 기준**으로 진행하기로 결정(기존에 이미 쌓아온 실제 Airtable 구조를 보존하는 쪽이 더 안전하다는 이유). PRD는 추후 이 스키마로 업데이트가 필요하다(아직 미완).
+- `docs/supabase-schema-member-scoped.sql`에 `care_tasks`(`owner_user_id`/`parent_id`/`target_person`/`original_request`/`parsed_summary`/`status`/`priority`/`needs_confirmation`/`confirmation_message`/`completed_at`/`child_notified`/`parent_notified`/`notification_status`/`memo`)와 `message_logs`(`owner_user_id`/`parent_id`/`care_task_id`/`message_time`/`sender`/`receiver`/`raw_message`/`ai_parsed_json`/`direction`/`status`/`source_channel`/`error_message`) 테이블 + 각각 RLS 4종 정책을 추가했다(Slice 3의 `parent_profiles`와 같은 파일에 이어서 작성).
+- 사용자가 Supabase SQL Editor에서 "Slice 6" 표시된 부분만 잘라서 실행("Success. No rows returned" 확인), 이후 anon key로 두 테이블 모두 비로그인 select(0건)/insert(`42501` RLS 위반) 테스트로 1차 검증했다.
+
+**검증**: Supabase SQL Editor 실행 성공. anon key 기반 select/insert 테스트로 `care_tasks`/`message_logs` 둘 다 테이블 존재 + RLS 정상 동작 확인. 코드 변경이 없는 슬라이스라 `npm test`/`npm run build`는 별도로 다시 돌리지 않음(Slice 5 종료 시점과 동일하게 그린 상태).
+
+**변경 파일**: `docs/supabase-schema-member-scoped.sql`(care_tasks/message_logs 섹션 추가), `tasks/tasks-member-parent-scoped-mvp.md`(2.4/2.5/2.6/2.7/2.8 갱신)
+
+**🤖 AI 활용 팁**: 이번에도 "사용자가 준 두 문서가 서로 다르다"는 걸 발견했을 때, 둘 중 하나를 임의로 고르지 않고 각 설계의 근거(PRD는 이론적으로 작성된 것, 오늘 문서는 실제 운영 중인 Airtable을 보고 적은 것)를 설명하고 사용자가 직접 고르게 했다 — 스키마 같은 "한번 정하면 나중에 바꾸기 비싼" 결정은, AI가 그럴듯한 쪽을 임의로 선택하는 것보다 선택지와 근거를 보여주고 사용자 판단을 받는 게 훨씬 안전하다.
+
+**커밋**: 아직 안 함 (사용자 요청 시 진행)
+
+---
+
+## Day 6+7 Slice 5: 웹 입력창을 "내 부모님 선택" 방식으로 전환
+
+**목표**: 하드코딩된 `target_person`("아버지 테스트"/"어머니 테스트") 옵션을 없애고, 로그인한 회원이 등록한 `parent_profiles`만 선택하게 한다.
+
+**내용**:
+- `src/lib/silverlink/schema.ts`: `taskRequestInputSchema`에 `target_person_id`(uuid, 필수)를 추가하고, `target_person`은 고정 `enum`에서 자유 텍스트(선택된 프로필의 `display_name`)로 바꿨다. Make 시나리오가 `target_person` 텍스트를 그대로 쓰고 있어서, 필드 자체는 호환을 위해 남기고 "값의 제약"만 풀었다.
+- `src/lib/silverlink/target-person.ts`(`TARGET_PERSON_OPTIONS`)는 삭제하지 않고 남겨뒀다 — Day5의 `notifications/schema.ts`(`CareTask.target_person`)가 아직 이 배열을 enum으로 쓰고 있어서, 지우면 Day5가 깨진다. "이번 슬라이스가 쓰지 않게 됐다"와 "아무도 안 쓴다"는 다른 거라, 다른 모듈의 의존성을 먼저 확인하고 남겨두기로 했다.
+- `src/components/task-request-form.tsx`: `TARGET_PERSON_OPTIONS` 대신 `parentProfiles: ParentProfile[]` prop을 받아 드롭다운을 채우도록 변경(label: `표시이름 (관계)`, value: profile id). 제출 시 `target_person_id` + 선택된 프로필의 `display_name`을 `target_person`으로 같이 보낸다.
+- `src/app/(protected)/dashboard/create-task/page.tsx`(신규): `/api/parents`를 클라이언트에서 호출해 프로필 목록을 가져오고, 0건이면 "먼저 부모님/어르신을 등록해 주세요" + `/parents` 링크를 보여주고, 1건 이상이면 폼을 렌더링한다. `(protected)` 그룹 안이라 비로그인 시 자동 `/login` redirect.
+- `src/app/page.tsx`: 입력 폼이 더 이상 비로그인 사용자가 쓸 수 있는 구조가 아니게 되면서, `/`를 로그인 여부에 따라 `/dashboard`/`/login`으로 보내는 진입점으로 바꿨다(4.0에서 보류했던 항목이 자연스럽게 해결됨). Day4 시절의 공개 입력 폼은 이제 없다.
+- 테스트 갱신: `schema.test.ts`/`payload.test.ts`를 새 입력 구조에 맞게 고쳤고, `tests/e2e/create-task.spec.ts`는 `/dashboard/create-task`가 로그인을 요구하는 구조로 바뀌어서 "비로그인 시 `/login` redirect" 1건으로 재작성했다(로그인 happy path는 Slice 2/4와 같은 이유로 보류).
+
+**검증**: `npm test` 43/43 통과, `npm run build` 통과(`/`와 `/dashboard/create-task` 모두 정상 라우트로 인식), `npx playwright test tests/e2e/create-task.spec.ts` 1/1 통과, `curl`로 비로그인 `/` → `/login` redirect 확인.
+
+**⚠️ 안전사고 기록**: 새 payload 구조가 잘 동작하는지 `curl`로 `/api/create-task`를 직접 스모크 테스트했는데, `.env.local`의 `SILVERLINK_DRY_RUN` 값을 먼저 확인하지 않고 "당연히 dry run일 것"이라고 가정한 채 요청을 보냈다. 실제로는 `false`였어서, 가짜 테스트 데이터(`target_person: "아버지 A"`, `message: "테스트 메시지"`, 가짜 UUID)가 **실제 Make.com 시나리오를 1회 실행**시켰다. 사용자가 Make 대시보드의 실행 기록을 확인해 준 결과: Webhook → OpenAI(ChatGPT) 응답 생성(실제 비용 발생) → JSON Parse → Airtable Search → Airtable Create a Record가 `[422] Value "null" is not a valid record ID`로 실패(가짜 target이 실제 Airtable 행과 매칭이 안 돼서). SMS/카카오 알림톡 단계는 이 시나리오에 없어 실제 알림이 나가지는 않았고, Airtable에도 데이터가 남지 않았다. 그래도 Make 크레딧 5개와 OpenAI 호출 1건은 실제로 소모됐다 — "검증 사실은 코드와 무관하게 항상 환경변수부터 확인한다"는, 이미 알고 있던 규칙을 스스로 어긴 사례라 [[feedback_safety_constraints]] 메모리에 사고 경위를 그대로 남겼다.
+
+**변경 파일**: `src/lib/silverlink/schema.ts`, `src/components/task-request-form.tsx`, `src/app/(protected)/dashboard/create-task/page.tsx`(신규), `src/app/page.tsx`, `src/lib/silverlink/__tests__/schema.test.ts`, `src/lib/silverlink/__tests__/payload.test.ts`, `tests/e2e/create-task.spec.ts`, `tasks/tasks-member-parent-scoped-mvp.md`(6.1/6.2/6.3/6.6 갱신, 6.4/6.5/6.7/6.8/6.9는 Slice 6/7로 명시적으로 미룸)
+
+**🤖 AI 활용 팁**: "이 라이브러리/스키마 옵션을 없애도 되나?"를 판단할 때 지금 보고 있는 파일만 보고 결정하면 안 된다 — `TARGET_PERSON_OPTIONS`를 지우기 전에 grep으로 전체 참조를 찾아보니 Day5 알림 엔진이 같은 배열을 쓰고 있었다. "이번 작업에서 안 쓰게 됐다"와 "코드베이스 전체에서 안 쓴다"를 구분하지 않으면, 지금 보이는 슬라이스는 통과해도 다른 슬라이스가 조용히 깨진다. 반대로 이번처럼 안전 규칙을 어긴 경우엔, 숨기거나 축소해서 설명하지 않고 정확히 무슨 일이 일어났는지(어떤 외부 호출이 나갔는지, 실제 피해가 있었는지)를 먼저 사용자에게 확인받고 그대로 기록하는 게, "이번엔 운이 좋았다"로 넘기는 것보다 신뢰를 지키는 길이다.
+
+**커밋**: 아직 안 함 (사용자 요청 시 진행)
+
+---
+
+## Day 6+7 Slice 4: 부모님/어르신 등록·조회 (`/parents`, `/api/parents`)
+
+**목표**: 로그인한 회원이 자기 계정 아래 부모님/어르신 프로필을 등록하고 조회할 수 있게 한다. 다른 회원의 프로필은 절대 보이면 안 된다.
+
+**내용**:
+- `src/lib/supabase/parent-profiles-repo.ts`: `parentProfileInputSchema`(Zod, `display_name`만 필수) + `listParentProfiles(supabase)`/`createParentProfile(supabase, ownerUserId, input)`. `createParentProfile`은 `ownerUserId`를 별도 파라미터로 받게 만들어서, 클라이언트가 body에 `owner_user_id`를 넣어 보내도 그 값은 Zod 스키마에 없는 필드라 애초에 파싱 결과에 안 남는다 — "클라이언트를 믿지 않는다"는 요구사항을 타입 시그니처 자체로 강제했다.
+- `src/app/api/parents/route.ts`: `GET`은 `supabase.auth.getUser()`로 로그인 확인 후 `listParentProfiles` 호출(RLS가 자동으로 본인 행만 거름), `POST`는 같은 인증 확인 후 Zod 파싱 → `createParentProfile(supabase, user.id, input)`로 owner_user_id를 서버가 못박는다. 둘 다 비로그인 시 401, 에러 응답에 원본 에러 메시지는 노출하지 않음(`list_failed`/`create_failed` 같은 일반 코드만).
+- `src/app/(protected)/parents/page.tsx` + `parent-profile-form.tsx`/`parent-profile-list.tsx`: Day4/5 디자인 톤 재사용. `(protected)` 라우트 그룹에 넣어서 비로그인 시 자동 `/login` redirect를 그대로 물려받았다(레이아웃 가드 재사용, 페이지마다 따로 체크 코드 안 씀).
+- 입력 필드는 오늘 작업지시서와 PRD 8장을 절충해서 확정(이전 턴에서 사용자 확인): `display_name`/`relationship`/`phone`/`notification_preference`(`none`/`sms`/`kakao`)/`care_context`/`daily_routine`/`medication_notes`/`communication_style`/`memo`.
+
+**검증**:
+- Vitest 7건 추가(`parent-profiles-repo.test.ts`): 정상 입력, 선택 필드 생략, `display_name` 누락/공백 실패, 허용 안 된 `notification_preference` 실패, 클라이언트가 보낸 `owner_user_id`가 결과에 안 남는 것까지 확인. `npm test` 42/42 통과.
+- `npm run build` 통과 — `/parents`, `/api/parents` 모두 동적(ƒ) 라우트로 정상 인식.
+- `curl`로 비로그인 상태 직접 확인: `GET /api/parents` 401, `POST /api/parents` 401, `/parents` 접속 시 307으로 `/login` redirect — 모두 의도대로 동작.
+- **확인 못 한 것**: 실제 로그인 세션으로 등록→목록 표시→새로고침 유지→Supabase에 `owner_user_id` 정확히 들어가는지까지 가는 happy path, 그리고 회원 A/B 격리 테스트(5.6). Slice 2부터 이어진 Supabase 무료 플랜 이메일 확인/레이트리밋 문제로 확인된 로그인 계정을 아직 못 만들어서, 이 부분은 로그인이 풀린 뒤 한 번에 몰아서 확인이 필요하다.
+
+**변경 파일**: `src/lib/supabase/parent-profiles-repo.ts`(신규), `src/lib/supabase/__tests__/parent-profiles-repo.test.ts`(신규), `src/app/api/parents/route.ts`(신규), `src/app/(protected)/parents/page.tsx`(신규), `src/components/parents/parent-profile-form.tsx`(신규), `src/components/parents/parent-profile-list.tsx`(신규), `tasks/tasks-member-parent-scoped-mvp.md`(5.1~5.5/5.7 갱신)
+
+**🤖 AI 활용 팁**: "클라이언트를 믿지 말 것" 같은 보안 요구사항을 코드 리뷰로 매번 확인하는 대신, 함수 시그니처로 원천 차단하는 방법을 썼다 — `createParentProfile`이 `ownerUserId`를 별도 필수 인자로만 받게 만들어서, 호출하는 코드가 실수로 `input` 객체에 `owner_user_id`를 섞어 넣어도 아무 효과가 없다(Zod 스키마에 그 필드가 정의돼 있지 않아 파싱 단계에서 사라짐). "이 실수를 하지 말아야 한다"를 문서화하는 것보다, "이 실수가 애초에 불가능한 타입/구조를 만드는" 게 더 안전하다.
+
+**커밋**: 아직 안 함 (사용자 요청 시 진행)
+
+---
+
+## Day 6+7 Slice 2 재검증 + Slice 3: parent_profiles 테이블/RLS
+
+**목표**: 사용자가 작성한 "DAY 6~7 작업지시서"를 기반으로, 어제 미완으로 남긴 Slice 2 happy path를 재검증하고, Slice 3(`parent_profiles` 테이블/RLS)을 만든다.
+
+**내용**:
+- **Slice 2 재검증**: 이 개발 환경에서 Playwright가 띄우는 Chromium 프로세스가 `supabase.co`로 나가는 네트워크 요청을 못 보내는 별개의 환경 이슈(`ERR_ABORTED`)를 발견 — `curl`/Node `fetch`는 같은 환경에서 정상 동작해서, 코드나 Supabase 설정 문제가 아니라 브라우저 프로세스만의 네트워크 제약으로 판단했다. 그래서 `@supabase/supabase-js`로 직접 API를 호출해 우회 검증: 회원가입(`auth.users` 생성 확인) / 미확인 계정 로그인 거부(`400 Email not confirmed`) / 비로그인 `/dashboard` redirect 모두 기존과 동일하게 정상 동작 확인.
+- 실제 브라우저로 회원가입→이메일 확인→로그인까지 가는 완전한 happy path를 끝내려 했으나, Supabase 무료 플랜의 인증 메일 발송 자체가 시간당 레이트리밋에 걸려(`429 email rate limit exceeded`) 오늘은 끝까지 못 갔다. 사용자가 Supabase Dashboard에서 "Confirm email"(Authentication → Sign In / Up → User Signups) 토글을 껐지만, 이미 레이트리밋에 걸린 뒤라 신규 가입도 같은 에러가 났다 — Supabase 플랫폼 쪽 메일 발송 한도 문제로 결론. 코드 레벨 검증이 충분하다고 판단해 Slice 2를 완료 처리하고, 실제 브라우저 클릭 테스트(회원가입→메일 확인→로그인→대시보드→로그아웃)는 사용자가 레이트리밋이 풀린 뒤 직접 한 번 확인하기로 보류했다.
+- **Slice 3**: `docs/supabase-schema-member-scoped.sql`에 `parent_profiles` 테이블 + RLS 정책(select/insert/update/delete own, `auth.uid() = owner_user_id`)을 작성했다. 필드는 PRD 8장 기준(`relationship`/`notification_preference default 'none'`)을 따르되, 사용자 확인을 받아 `kakao_identifier`/`memo` 필드를 추가했다(오늘 작업지시서에는 있었지만 PRD엔 없던 필드).
+- 원래 tasks 파일은 `supabase/migrations/` 디렉터리 체계를 계획했지만, 오늘 작업지시서가 `docs/supabase-schema-member-scoped.sql` 단일 파일 경로를 지정해서 그쪽을 따랐다 — tasks 파일 2.1/2.9에 이 변경을 기록해 둠.
+- DDL은 anon key로 실행할 수 없어(서비스 role key는 안 쓰기로 했으므로) 사용자가 Supabase SQL Editor에서 직접 실행했다. 실행 후 anon key로 비로그인 select(0건, 에러 없음 → 테이블 존재 확인)와 insert(`42501 row-level security policy violation` → RLS 차단 확인) 두 가지로 1차 검증했다.
+
+**검증**: `npm test` 35/35, `npm run build` 통과(이번 슬라이스는 SQL 문서만 추가해 코드 변경 없음). Supabase SQL Editor 실행 결과 "Success. No rows returned". anon key 기반 select/insert 테스트로 테이블 존재 + RLS 동작 확인.
+
+**변경 파일**: `docs/supabase-schema-member-scoped.sql`(신규), `tasks/tasks-member-parent-scoped-mvp.md`(2.1/2.3/2.6/2.7/2.8/2.9 갱신)
+
+**🤖 AI 활용 팁**: 브라우저 자동화(Playwright)가 막혔을 때 "테스트를 포기"하는 대신 "검증 대상을 코드/API 레벨로 좁혀서 같은 질문에 답하는" 우회로를 찾는 게 도움이 됐다 — 결국 확인하고 싶었던 건 "회원가입/로그인 로직이 맞게 동작하는가"였고, 그건 브라우저 UI를 거치지 않고도 Supabase Auth API를 직접 호출해서 충분히 답할 수 있었다. 다만 "실제 사용자가 브라우저에서 클릭하는 경험"까지는 대체할 수 없다는 한계는 사용자에게 명확히 알리고, 그 부분만 사용자에게 남겨두는 식으로 역할을 나눴다.
+
+**커밋**: 아직 안 함 (사용자 요청 시 진행)
+
+---
+
 # 2026-06-24
 
 ## Day 6+7 Slice 2: 회원가입/로그인 + 보호 라우트 (`(auth)`, `(protected)`)

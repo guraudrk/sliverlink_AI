@@ -1,13 +1,11 @@
 import { z } from "zod";
-import { TARGET_PERSON_OPTIONS } from "./target-person";
 
-export { TARGET_PERSON_OPTIONS };
-
+// target_person_id: 로그인한 회원이 등록한 parent_profiles 중 선택한 행의 id (Day6+7부터).
+// target_person: Make 시나리오 호환을 위해 유지하는 표시용 텍스트(선택된 프로필의 display_name) — 더 이상 고정 enum이 아니다.
 export const taskRequestInputSchema = z.object({
   sender_name: z.string().trim().min(1, "sender_name은 비어 있을 수 없습니다."),
-  target_person: z.enum(TARGET_PERSON_OPTIONS, {
-    message: `target_person은 ${TARGET_PERSON_OPTIONS.join(", ")} 중 하나여야 합니다.`,
-  }),
+  target_person_id: z.string().uuid("target_person_id는 올바른 UUID여야 합니다."),
+  target_person: z.string().trim().min(1, "target_person은 비어 있을 수 없습니다."),
   message: z.string().trim().min(1, "message는 비어 있을 수 없습니다."),
 });
 

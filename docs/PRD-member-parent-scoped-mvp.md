@@ -50,7 +50,7 @@
 - 실제 부모님/어르신 개인정보 사용 (테스트 계정 + 테스트 데이터만)
 - `notification_queue`/`delivery_attempts`/`response_events`/`rag_documents`/`rag_chunks` 등 향후 테이블 (Day8+)
 - 관리자 등 멀티 역할(role) 분기 로직
-- `/parents/[id]` 상세·수정 페이지 (향후 확장)
+- `/parents/[id]` **별도 페이지**는 여전히 안 만듦 — 다만 수정 자체는 `/parents` 목록에서 기존 등록 폼을 재사용해 구현됨(2026-06-25, 사용자 요청으로 범위 추가)
 - `/delivery-preview` 실제 구현 (라우트 존재만 인지)
 - 사용자 승인 없는 대규모 리팩토링, 사용자 승인 없는 `git push`
 
