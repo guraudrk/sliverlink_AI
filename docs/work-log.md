@@ -9,6 +9,33 @@
 
 # 2026-06-25
 
+## Day 8 Slice 1~5: notification_queue / delivery_attempts + MockDeliveryProvider + /delivery-preview
+
+**목표**: Day6+7에서 끝난 "Supabase에 일정 저장"을 넘어, "알림을 바로 보내지 않고 먼저 큐에 쌓고 발송 시도를 기록"하는 구조를 만든다. 사용자가 전달한 `docs/PRD-day8-to-mvp-master-plan.md`(Day8~15 전체 로드맵)의 Day8 부분만 떼어내 `tasks/tasks-day8-notification-queue.md`로 만들고, 그 계획대로 진행했다.
+
+**만든 것**:
+- `notification_queue`/`delivery_attempts` 테이블 + RLS 4정책씩 (`docs/supabase-schema-member-scoped.sql`에 이어서 작성, 사용자가 직접 SQL Editor에서 실행 — "Success" 확인)
+- `src/lib/silverlink/delivery/`: `schema.ts`(Zod, `DELIVERY_CHANNEL_OPTIONS`/`CALL_GOAL_OPTIONS`), `response-token.ts`(토큰 생성만, 검증은 Day9), `provider.ts`(`DeliveryProvider` 인터페이스), `mock-provider.ts`(`MockDeliveryProvider` — 실제 네트워크 호출 없음)
+- `src/lib/supabase/`: `notification-queue-repo.ts`, `delivery-attempts-repo.ts` 신설. `care-tasks-repo.ts`에 `getOwnCareTask`(소유권 검증+parent_id 조회를 한 쿼리로)와 `listCareTasks`(드롭다운용) 추가
+- `POST /api/delivery/preview`: 로그인 필수 → care_task 소유권 검증 → 큐 insert → Mock 발송 → 시도 insert
+- `GET /api/care-tasks`(계획에 없었지만 UI에 필요해서 추가) + `/delivery-preview` 페이지(`(protected)` 그룹, 큐/시도 결과를 응답 미리보기 패널로 표시)
+
+**설계 변경(계획 대비)**:
+- tasks 파일은 `isOwnCareTask`(boolean)를 가정했지만, `/api/delivery/preview`가 parent_id를 바로 써야 해서 `getOwnCareTask`가 행 자체(또는 null)를 반환하도록 바꿨다 — 같은 RLS 0건 체크 패턴을 유지하면서 쿼리 한 번을 아꼈다.
+- 실제 SMS/카카오/전화 Provider와 그 on/off 플래그(`ENABLE_REAL_CALLS` 류)는 이번에 만들지 않았다 — 아직 쓸 곳이 없는 플래그라서 Day12(실제 Provider 도입)로 미뤘다.
+
+**안 한 것(의도적)**: `response_token` 검증/응답 처리(Day9), 회원 A/B 격리 테스트(Day6+7에서 "모든 기능 다 만들고 마지막에 한 번에"로 결정된 것을 그대로 따름, 이번 두 테이블도 그 일괄 테스트에 포함).
+
+**검증**: `npx vitest run` 58/58(기존 46 + 신규 12: 스키마 7, Mock Provider 2, `getOwnCareTask` 3), `npm run build` 통과(`/api/care-tasks`, `/api/delivery/preview`, `/delivery-preview` 라우트 정상 생성). **실제 로그인 후 수동 검증도 최종 확인 완료(2026-06-25)**: `/delivery-preview`에서 일정 선택 → 채널 선택 → 미리보기 생성 → Supabase Table Editor에서 `notification_queue`/`delivery_attempts`에 정확히 저장된 것까지 사용자가 직접 확인.
+
+**🤖 AI 활용 팁**: 8단계짜리 긴 로드맵 문서를 받았을 때, 전체를 한 번에 실행 지시서로 쓰지 않고 "레퍼런스 문서(전체 로드맵 그대로 보관)"와 "이번 Day만 떼어낸 실행 체크리스트"로 분리해두면, 매 Day마다 전체 문서를 다시 안 봐도 되고 각 Day의 범위 경계(이번엔 안 하는 것)를 명확히 합의해둘 수 있다.
+
+**변경 파일**: `docs/PRD-day8-to-mvp-master-plan.md`(신규), `tasks/tasks-day8-notification-queue.md`(신규), `docs/supabase-schema-member-scoped.sql`, `src/lib/silverlink/delivery/*`(신규), `src/lib/supabase/notification-queue-repo.ts`/`delivery-attempts-repo.ts`(신규), `src/lib/supabase/care-tasks-repo.ts`, `src/app/api/delivery/preview/route.ts`(신규), `src/app/api/care-tasks/route.ts`(신규), `src/app/(protected)/delivery-preview/page.tsx`(신규), `src/components/delivery/delivery-preview-form.tsx`(신규)
+
+**커밋**: 아직 안 함(사용자 요청 시 진행)
+
+---
+
 ## Day 6+7: 회원 인증 + 부모님 프로필 + Supabase 메인 DB 전환 (Slice 2~7 종합)
 
 **목표**: 오늘 하루(Slice 2 재검증~Slice 7)를 한 번에 정리한다 — 무엇을 만들었고, 가장 크게 막혔던 곳은 어디였고, 어떻게 풀었고, 무엇을 의도적으로 안 했는지.

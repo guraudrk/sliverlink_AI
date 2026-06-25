@@ -123,6 +123,6 @@
   - [ ] 8.4 `docs/work-log.md`에 챕터 전체 요약 + 슬라이스별 기록 추가
   - [ ] 8.5 `README.md` 갱신: 인증/Supabase/부모님 프로필/레거시 Make 경로 설명 추가
   - [ ] 8.6 `docs/PRD-member-parent-scoped-mvp.md`에 "구현 완료 범위"/"다음 단계로 분리한 범위" 섹션 추가
-  - [ ] 8.7 향후 백로그 정리: `notification_queue`/`delivery_attempts`/`response_events`/`rag_documents`/`rag_chunks`, `/parents/[id]`, `/delivery-preview`, 멀티 역할(role)
+  - [ ] 8.7 향후 백로그 정리: `notification_queue`/`delivery_attempts`/`/delivery-preview`는 **Day8에서 구현 완료**(`tasks/tasks-day8-notification-queue.md` 참고) — 남은 백로그는 `response_events`/`rag_documents`/`rag_chunks`, `/parents/[id]` 별도 페이지, 멀티 역할(role)
   - [ ] 8.8 **🚨 실제 런칭 전 필수**: Resend SMTP가 지금 샌드박스 발신 주소(`onboarding@resend.dev`)라 본인 계정 이메일로만 발송 가능 — 실제 회원들의 다양한 이메일로 가입 확인 메일이 가게 하려면 Resend에서 **커스텀 도메인 인증**(DNS에 TXT/CNAME 추가) 먼저 완료하고, Supabase SMTP Settings의 Sender email을 그 도메인 주소로 교체해야 함. 미완료 상태로 런칭하면 본인 외 사용자는 회원가입 자체가 막힘
   - [ ] 8.9 **🚨 이번 챕터(Day6+7)의 모든 기능 구현이 끝나면 반드시**: 회원 A/B 데이터 격리 테스트(2.8/5.6/6.8)를 마무리할 것 — 사용자가 "기능부터 다 만들고 마지막에 한 번에 하자"고 명시적으로 결정함(2026-06-25). Supabase Dashboard → Authentication → Users → "Add user"로 이메일 확인 없이 두 번째 테스트 계정을 만들어서 진행 예정

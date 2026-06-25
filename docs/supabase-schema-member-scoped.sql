@@ -173,3 +173,107 @@ using (auth.uid() = owner_user_id);
 -- direction: 'inbound' | 'outbound'
 -- source_channel: 'web' | 'kakao' | 'sms' 등
 -- error_message: 발송/처리 실패 시 원인 기록
+
+-- =========================================================
+-- Day 8 Slice 1: notification_queue / delivery_attempts
+-- =========================================================
+-- 참고 문서: docs/PRD-day8-to-mvp-master-plan.md 4장, tasks/tasks-day8-notification-queue.md
+-- 이 챕터부터는 알림을 "바로 보내지 않고" 먼저 큐(notification_queue)에 쌓고, 발송 시도 기록은
+-- delivery_attempts에 남긴다. 이번 Slice는 실제 Provider 없이 MockDeliveryProvider만 붙는다.
+-- 기존 테이블들과 동일하게 CHECK 제약 없이 text로 두고, 값 검증은 TypeScript Zod 스키마
+-- (src/lib/silverlink/delivery/schema.ts)에서 담당한다.
+
+create table if not exists public.notification_queue (
+  id uuid primary key default gen_random_uuid(),
+  owner_user_id uuid not null references auth.users(id) on delete cascade,
+  parent_id uuid not null references public.parent_profiles(id) on delete cascade,
+  care_task_id uuid not null references public.care_tasks(id) on delete cascade,
+  channel text not null,
+  message_text text,
+  response_token text unique,
+  status text not null default 'pending',
+  scheduled_for timestamptz,
+  expires_at timestamptz,
+  call_script text,
+  call_goal text,
+  max_attempts integer,
+  preferred_call_window text,
+  created_at timestamptz not null default now()
+);
+
+alter table public.notification_queue enable row level security;
+
+create policy "notification_queue_select_own"
+on public.notification_queue
+for select
+using (auth.uid() = owner_user_id);
+
+create policy "notification_queue_insert_own"
+on public.notification_queue
+for insert
+with check (auth.uid() = owner_user_id);
+
+create policy "notification_queue_update_own"
+on public.notification_queue
+for update
+using (auth.uid() = owner_user_id)
+with check (auth.uid() = owner_user_id);
+
+create policy "notification_queue_delete_own"
+on public.notification_queue
+for delete
+using (auth.uid() = owner_user_id);
+
+create table if not exists public.delivery_attempts (
+  id uuid primary key default gen_random_uuid(),
+  owner_user_id uuid not null references auth.users(id) on delete cascade,
+  parent_id uuid not null references public.parent_profiles(id) on delete cascade,
+  queue_id uuid not null references public.notification_queue(id) on delete cascade,
+  provider text not null,
+  channel text not null,
+  request_payload jsonb,
+  response_payload jsonb,
+  status text not null default 'pending',
+  external_message_id text,
+  error_code text,
+  error_message text,
+  attempted_at timestamptz not null default now()
+);
+
+alter table public.delivery_attempts enable row level security;
+
+create policy "delivery_attempts_select_own"
+on public.delivery_attempts
+for select
+using (auth.uid() = owner_user_id);
+
+create policy "delivery_attempts_insert_own"
+on public.delivery_attempts
+for insert
+with check (auth.uid() = owner_user_id);
+
+create policy "delivery_attempts_update_own"
+on public.delivery_attempts
+for update
+using (auth.uid() = owner_user_id)
+with check (auth.uid() = owner_user_id);
+
+create policy "delivery_attempts_delete_own"
+on public.delivery_attempts
+for delete
+using (auth.uid() = owner_user_id);
+
+-- 필드 의미 (notification_queue)
+-- care_task_id: 이 알림이 어떤 care_task에 대한 것인지 (not null — Day8 범위에서는 항상 특정 일정에 대한 알림만 다룸)
+-- channel: 'link' | 'sms' | 'kakao_alimtalk' | 'voice_call' | 'web_push'
+-- response_token: 어르신이 누를 링크용 토큰. Day8에서는 생성만 하고, 실제 검증/응답 처리는 Day9(/r/[token])에서 구현
+-- status: 'pending' | 'prepared' | 'processing' | 'sent' | 'failed' | 'cancelled' | 'responded'
+-- call_script / call_goal / max_attempts / preferred_call_window: voice_call 채널 전용 확장 필드 (Day11~12에서 실제 사용)
+-- call_goal: 'reminder' | 'wellbeing_check' | 'medication_check' | 'meal_check' | 'emergency_check'
+
+-- 필드 의미 (delivery_attempts)
+-- queue_id: 어떤 notification_queue 행에 대한 발송 시도인지
+-- provider: 'mock' | 'twilio' | 'kakao_partner' | 'sms_provider' | 'vapi' | 'retell' (Day8에서는 'mock'만 실제 사용)
+-- request_payload / response_payload: Provider에 보낸 요청과 받은 응답을 그대로 보관(디버깅/감사용)
+-- status: 발송 시도 결과 ('sent' | 'failed' 등, 정확한 값 집합은 Provider 구현에 따름)
+-- external_message_id: 외부 Provider가 발급한 메시지/통화 ID (Mock에서는 가짜 값)
