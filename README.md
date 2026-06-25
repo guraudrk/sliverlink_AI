@@ -147,3 +147,13 @@ npm run dev
 - **회원가입 이메일 발송**: Supabase 기본 메일러의 시간당 발송 제한 문제를 Resend 커스텀 SMTP 연동으로 해결(실제 운영 전에는 Resend에서 커스텀 도메인 인증이 필요 — `tasks/tasks-member-parent-scoped-mvp.md`의 백로그 항목 참고)
 
 자세한 설계는 [`docs/PRD-member-parent-scoped-mvp.md`](docs/PRD-member-parent-scoped-mvp.md), 작업 단위 진행은 [`tasks/tasks-member-parent-scoped-mvp.md`](tasks/tasks-member-parent-scoped-mvp.md), 구현 과정은 [`docs/work-log.md`](docs/work-log.md)의 "Day 6+7" 섹션을 참고하세요. 미리보기는 `npm run dev` 실행 후 http://localhost:3000 (로그인 필요)에서 확인할 수 있습니다.
+
+## 14. Day 8+9 — 발송 큐 + 어르신 링크 응답 (Mock)
+
+Day 6+7에서는 "Supabase에 일정을 저장"하는 것까지만 했습니다. Day 8+9부터는 그 일정을 실제로 **알리고, 어르신이 로그인 없이 응답**할 수 있는 구조를 추가했습니다. 사용자가 전달한 Day8~15 전체 로드맵은 [`docs/PRD-day8-to-mvp-master-plan.md`](docs/PRD-day8-to-mvp-master-plan.md)에 레퍼런스로 보관하고, 이번엔 그중 Day 8/Day 9만 구현했습니다.
+
+- **Day 8 — 발송 큐와 시도 기록**: `notification_queue`(보낼 메시지/채널/토큰/상태)와 `delivery_attempts`(발송 시도 결과) 테이블을 추가하고, 실제 SMS/카카오/전화 Provider는 전혀 만들지 않은 채 **`MockDeliveryProvider`**(실제 네트워크 호출 없음)만 연결했습니다. `/delivery-preview`에서 등록된 일정 중 하나를 골라 "미리보기 생성"을 누르면 Mock 발송 결과가 큐/시도 기록으로 Supabase에 남습니다.
+- **Day 9 — 어르신 링크 응답(`/r/[token]`)**: 어르신은 회원가입을 하지 않으므로 완전히 익명(로그인 없음) 상태로 이 페이지에 접근합니다. 기존 RLS(`auth.uid() = owner_user_id`)는 익명에게는 항상 막히므로, 익명 select 정책을 새로 여는 대신 **토큰과 정확히 일치하는 한 건만 다루는 SQL 함수(`SECURITY DEFINER`) 2개**(`get_notification_by_token`, `respond_to_notification`)만 anon에 실행 권한을 열었습니다. 어르신이 "완료했어요/도움이 필요해요/나중에 다시 알려주세요/잘못 온 알림이에요" 중 하나를 누르면 큐 상태, 일정 상태, 메시지 기록이 한 트랜잭션으로 갱신됩니다.
+- **여전히 안 하는 것**: 실제 SMS/카카오 알림톡/전화 발송(플래그+Provider 도입은 Day 12 이후), 회원 A/B 데이터 격리 테스트(Day6+7부터 "모든 기능 다 만들고 마지막에 한 번에"로 미뤄둔 상태 유지).
+
+자세한 설계는 [`docs/PRD-day8-to-mvp-master-plan.md`](docs/PRD-day8-to-mvp-master-plan.md), 작업 단위 진행은 [`tasks/tasks-day8-notification-queue.md`](tasks/tasks-day8-notification-queue.md)/[`tasks/tasks-day9-link-response.md`](tasks/tasks-day9-link-response.md), 구현 과정은 [`docs/work-log.md`](docs/work-log.md)의 "Day 8"/"Day 9" 섹션을 참고하세요. 미리보기는 로그인 후 `/delivery-preview`, 어르신 화면은 거기서 생성된 `response_token`으로 `/r/[token]`에서 확인할 수 있습니다.
