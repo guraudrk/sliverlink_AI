@@ -9,6 +9,28 @@
 
 # 2026-06-25
 
+## Day 11 Slice 1~6: AI 비서 안부전화 Mock MVP (`/dashboard/calls`)
+
+**목표**: 실제 전화를 걸기 전에, "일정 기반으로 통화 스크립트를 만들고 → 전화를 걸고 → 어르신이 응답하고 → 그 결과가 일정 상태에 반영되는" 전체 흐름을 웹 화면 안에서 Mock으로 검증한다.
+
+**Day9와의 핵심 차이**: Day9의 `/r/[token]`은 실제 어르신(로그인 없는 익명)이 누르는 화면이라 SECURITY DEFINER SQL 함수가 필요했다. Day11의 "Mock 전화"는 **로그인한 자녀 본인이 화면에서 어르신 응답을 대신 시뮬레이션 버튼으로 누르는 것**이라, 호출자가 이미 인증된 회원이다. 그래서 새 SQL 함수 없이 기존과 같은 일반 RLS만으로 충분했다 — 같은 "어르신 응답"이라는 주제여도 누가 실제로 클릭하느냐에 따라 보안 설계가 완전히 달라진다는 걸 보여주는 케이스.
+
+**만든 것**:
+- `care_call_schedules`/`care_call_attempts` 테이블 + RLS 4정책씩(`care_call_schedules`는 테이블만 만들고 관리 UI는 안 만듦 — 반복 트리거는 실제 스케줄러가 필요해서 Day12 이후 범위)
+- `buildCallScript`: 실제 LLM을 호출하지 않는 키워드 기반 스크립트 생성기(약→medication_check, 식사→meal_check, 그 외 wellbeing_check) — Day5/Day8과 같은 "code-first" 원칙
+- `POST /api/care-calls/preview`(스크립트 생성+attempt 저장) → `POST /api/care-calls/[id]/start`(Mock 전화 실행, `answered`로 전환) → `POST /api/care-calls/[id]/respond`(완료/도움필요/무응답 중 하나로 마무리, 연결된 `care_tasks.status`도 같이 갱신)
+- `/dashboard/calls` 페이지: 일정 선택 → 미리보기 생성 → Mock 전화 실행 → 응답 시뮬레이션 → 지난 기록 목록(도움 요청은 Day10과 동일하게 호박색 강조, 응급처럼 보이지 않게)
+
+**검증**: `npx vitest run` 66/66(기존 61 + 신규 5), `npm run build` 통과(라우트 5개 정상 생성). **실제 수동 테스트도 최종 확인 완료**: SQL 실행부터 미리보기 생성 → Mock 전화 실행 → 응답 시뮬레이션까지 오류 없이 한 번에 정상 동작.
+
+**🤖 AI 활용 팁**: "어르신이 응답한다"처럼 표면적으로 같은 기능이라도, 실제로 그 클릭을 누가 하는지(익명 외부인 vs 로그인한 본인이 대신 시뮬레이션)에 따라 필요한 보안 메커니즘이 완전히 달라질 수 있다. 새 기능을 설계할 때 "이 요청을 실제로 누가 보내는가"를 먼저 명확히 하면 과한 보안장치(이번엔 불필요한 SQL 함수)를 미리 걷어낼 수 있다.
+
+**변경 파일**: `docs/supabase-schema-member-scoped.sql`, `tasks/tasks-day11-care-call-mock.md`(신규), `src/lib/silverlink/calls/*`(신규), `src/lib/supabase/parent-profiles-repo.ts`, `src/lib/supabase/care-tasks-repo.ts`, `src/lib/supabase/care-call-attempts-repo.ts`(신규), `src/app/api/care-calls/*`(신규), `src/app/(protected)/dashboard/calls/page.tsx`(신규), `src/components/calls/care-call-panel.tsx`(신규), `src/app/(protected)/dashboard/page.tsx`
+
+**커밋**: 아직 안 함(사용자 요청 시 진행)
+
+---
+
 ## Day 10 Slice 1~6: 자녀 대시보드와 응답 모니터링
 
 **목표**: Day8(발송 큐)/Day9(어르신 링크 응답)로 쌓인 데이터를, 자녀가 한눈에 볼 수 있는 화면으로 모은다.

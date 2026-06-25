@@ -389,3 +389,100 @@ grant execute on function public.respond_to_notification(text, text) to anon, au
 --   care_tasks.status를 'completed'|'help_requested'|'snoozed'로 매핑(wrong_target은 변경 없음) +
 --   child_notified=false(자녀에게 이 응답을 알릴 차례라는 표시) → message_logs에 direction='parent_response' 기록.
 --   반환값 ok=false의 error: 'invalid_action' | 'not_found' | 'expired' | 'already_responded'
+
+-- =========================================================
+-- Day 11: AI 비서 안부전화 Mock (care_call_schedules / care_call_attempts)
+-- =========================================================
+-- 참고 문서: docs/PRD-day8-to-mvp-master-plan.md 7장, tasks/tasks-day11-care-call-mock.md
+--
+-- Day9의 /r/[token]과 달리, 이번 "Mock 전화"는 로그인한 자녀 본인이 화면에서 어르신 응답을
+-- 시뮬레이션 버튼으로 대신 누르는 것이라 호출자가 항상 인증된 회원이다. 그래서 SECURITY DEFINER
+-- 함수 없이 기존과 동일한 RLS(auth.uid() = owner_user_id)만으로 충분하다.
+
+create table if not exists public.care_call_schedules (
+  id uuid primary key default gen_random_uuid(),
+  owner_user_id uuid not null references auth.users(id) on delete cascade,
+  parent_id uuid not null references public.parent_profiles(id) on delete cascade,
+  enabled boolean not null default true,
+  call_type text not null default 'wellbeing_check',
+  schedule_time text,
+  days_of_week text,
+  preferred_channel text not null default 'voice_call',
+  consent_status text not null default 'test_only',
+  created_at timestamptz not null default now()
+);
+
+alter table public.care_call_schedules enable row level security;
+
+create policy "care_call_schedules_select_own"
+on public.care_call_schedules
+for select
+using (auth.uid() = owner_user_id);
+
+create policy "care_call_schedules_insert_own"
+on public.care_call_schedules
+for insert
+with check (auth.uid() = owner_user_id);
+
+create policy "care_call_schedules_update_own"
+on public.care_call_schedules
+for update
+using (auth.uid() = owner_user_id)
+with check (auth.uid() = owner_user_id);
+
+create policy "care_call_schedules_delete_own"
+on public.care_call_schedules
+for delete
+using (auth.uid() = owner_user_id);
+
+create table if not exists public.care_call_attempts (
+  id uuid primary key default gen_random_uuid(),
+  owner_user_id uuid not null references auth.users(id) on delete cascade,
+  parent_id uuid not null references public.parent_profiles(id) on delete cascade,
+  care_task_id uuid references public.care_tasks(id) on delete set null,
+  schedule_id uuid references public.care_call_schedules(id) on delete set null,
+  provider text not null default 'mock',
+  status text not null default 'prepared',
+  call_script text,
+  parent_response text,
+  transcript text,
+  summary text,
+  risk_level text not null default 'none',
+  started_at timestamptz,
+  ended_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+alter table public.care_call_attempts enable row level security;
+
+create policy "care_call_attempts_select_own"
+on public.care_call_attempts
+for select
+using (auth.uid() = owner_user_id);
+
+create policy "care_call_attempts_insert_own"
+on public.care_call_attempts
+for insert
+with check (auth.uid() = owner_user_id);
+
+create policy "care_call_attempts_update_own"
+on public.care_call_attempts
+for update
+using (auth.uid() = owner_user_id)
+with check (auth.uid() = owner_user_id);
+
+create policy "care_call_attempts_delete_own"
+on public.care_call_attempts
+for delete
+using (auth.uid() = owner_user_id);
+
+-- 필드 의미 (care_call_schedules) — 이번 Day는 테이블만 만들고 관리 UI는 만들지 않는다(Notes 참고)
+-- call_type: 'wellbeing_check' | 'reminder_check' | 'medication_check'
+-- consent_status: 'test_only' | 'consent_pending' | 'consent_granted'
+
+-- 필드 의미 (care_call_attempts)
+-- care_task_id / schedule_id: 둘 다 nullable — 어떤 일정/스케줄에서 비롯됐는지(즉석 Mock은 care_task_id만 채움)
+-- provider: 'mock' | 'twilio' | 'vapi' | 'retell' (Day11에서는 'mock'만 사용)
+-- status: 'prepared' | 'calling' | 'answered' | 'no_answer' | 'failed' | 'completed' | 'help_requested'
+-- call_script: buildCallScript()가 만든 텍스트(opening+main_message+question 조립본)
+-- risk_level: 'none' | 'low' | 'medium' | 'high' (응답 시뮬레이션 결과에 따라 결정)

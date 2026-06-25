@@ -33,6 +33,7 @@ export type CareTaskRow = {
   owner_user_id: string;
   parent_id: string;
   target_person: string | null;
+  original_request: string | null;
   status: string;
 };
 
@@ -65,11 +66,22 @@ export async function listCareTasks(supabase: SupabaseClient): Promise<CareTaskS
 export async function getOwnCareTask(supabase: SupabaseClient, careTaskId: string): Promise<CareTaskRow | null> {
   const { data, error } = await supabase
     .from("care_tasks")
-    .select("id, owner_user_id, parent_id, target_person, status")
+    .select("id, owner_user_id, parent_id, target_person, original_request, status")
     .eq("id", careTaskId)
     .maybeSingle();
   if (error) throw error;
   return data as CareTaskRow | null;
+}
+
+// Day9의 respond_to_notification SQL 함수와 같은 상태 매핑을, 인증된 회원 본인이 호출하는
+// /api/care-calls/[attemptId]/respond에서는 일반 RLS-인증 경로로 처리한다(SQL 함수 불필요).
+export async function updateCareTaskStatus(
+  supabase: SupabaseClient,
+  id: string,
+  patch: { status: string; completed_at?: string | null }
+): Promise<void> {
+  const { error } = await supabase.from("care_tasks").update(patch).eq("id", id);
+  if (error) throw error;
 }
 
 export async function createCareTask(

@@ -24,6 +24,14 @@ export type ParentProfile = ParentProfileInput & {
   updated_at: string;
 };
 
+// /api/care-calls/preview에서 call_script 생성에 쓴다. RLS가 select를 owner_user_id 기준으로
+// 이미 걸러주므로, "0건이면 내 소유가 아니다"로 소유권을 함께 확인한다.
+export async function getParentProfileById(supabase: SupabaseClient, id: string): Promise<ParentProfile | null> {
+  const { data, error } = await supabase.from("parent_profiles").select("*").eq("id", id).maybeSingle();
+  if (error) throw error;
+  return data as ParentProfile | null;
+}
+
 export async function listParentProfiles(supabase: SupabaseClient): Promise<ParentProfile[]> {
   const { data, error } = await supabase
     .from("parent_profiles")
