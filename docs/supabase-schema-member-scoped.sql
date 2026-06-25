@@ -277,3 +277,115 @@ using (auth.uid() = owner_user_id);
 -- request_payload / response_payload: Provider에 보낸 요청과 받은 응답을 그대로 보관(디버깅/감사용)
 -- status: 발송 시도 결과 ('sent' | 'failed' 등, 정확한 값 집합은 Provider 구현에 따름)
 -- external_message_id: 외부 Provider가 발급한 메시지/통화 ID (Mock에서는 가짜 값)
+
+-- =========================================================
+-- Day 9: 어르신 링크 응답 (/r/[token]) — SECURITY DEFINER 함수
+-- =========================================================
+-- 참고 문서: docs/PRD-day8-to-mvp-master-plan.md 5장, tasks/tasks-day9-link-response.md
+--
+-- 어르신은 로그인하지 않으므로 anon(익명) 상태로 /r/[token]에 접근한다. notification_queue/care_tasks/
+-- message_logs의 기존 RLS는 모두 auth.uid() = owner_user_id라서 anon 요청은 항상 막힌다(의도된 동작).
+-- 익명 select/update를 허용하는 새 RLS 정책을 추가하지 않는다 — 그러면 공개된 anon key로 누구나 전체
+-- 큐를 긁어갈 수 있다. 대신 "토큰을 정확히 아는 사람만" 지나갈 수 있는 SECURITY DEFINER 함수 2개만
+-- anon에게 노출한다. 함수 내부는 파라미터로 받은 토큰과 정확히 일치하는 한 행만 다루도록 작성되어
+-- 있어, RLS를 우회하면서도 다른 회원 데이터로 가는 길은 열어주지 않는다.
+
+create or replace function public.get_notification_by_token(p_token text)
+returns table (
+  id uuid,
+  channel text,
+  message_text text,
+  call_script text,
+  status text,
+  expires_at timestamptz,
+  target_person text
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  return query
+  select nq.id, nq.channel, nq.message_text, nq.call_script, nq.status, nq.expires_at, ct.target_person
+  from public.notification_queue nq
+  join public.care_tasks ct on ct.id = nq.care_task_id
+  where nq.response_token = p_token;
+end;
+$$;
+
+revoke all on function public.get_notification_by_token(text) from public;
+grant execute on function public.get_notification_by_token(text) to anon, authenticated;
+
+create or replace function public.respond_to_notification(p_token text, p_action text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_queue record;
+  v_care_task_status text;
+  v_response_label text;
+begin
+  if p_action not in ('completed', 'need_help', 'remind_later', 'wrong_target') then
+    return jsonb_build_object('ok', false, 'error', 'invalid_action');
+  end if;
+
+  select * into v_queue from public.notification_queue where response_token = p_token;
+
+  if v_queue is null then
+    return jsonb_build_object('ok', false, 'error', 'not_found');
+  end if;
+
+  if v_queue.expires_at is not null and v_queue.expires_at < now() then
+    return jsonb_build_object('ok', false, 'error', 'expired');
+  end if;
+
+  if v_queue.status = 'responded' then
+    return jsonb_build_object('ok', false, 'error', 'already_responded');
+  end if;
+
+  v_care_task_status := case p_action
+    when 'completed' then 'completed'
+    when 'need_help' then 'help_requested'
+    when 'remind_later' then 'snoozed'
+    else null -- wrong_target: care_tasks 상태는 건드리지 않음
+  end;
+
+  v_response_label := case p_action
+    when 'completed' then '완료했어요'
+    when 'need_help' then '도움이 필요해요'
+    when 'remind_later' then '나중에 다시 알려주세요'
+    else '잘못 온 알림이에요'
+  end;
+
+  update public.notification_queue
+  set status = 'responded'
+  where id = v_queue.id;
+
+  if v_care_task_status is not null then
+    update public.care_tasks
+    set status = v_care_task_status,
+        completed_at = case when p_action = 'completed' then now() else completed_at end,
+        child_notified = false
+    where id = v_queue.care_task_id;
+  end if;
+
+  insert into public.message_logs (owner_user_id, parent_id, care_task_id, sender, receiver, raw_message, direction, status, source_channel)
+  select ct.owner_user_id, ct.parent_id, ct.id, ct.target_person, '보호자', v_response_label, 'parent_response', 'received', v_queue.channel
+  from public.care_tasks ct
+  where ct.id = v_queue.care_task_id;
+
+  return jsonb_build_object('ok', true, 'action', p_action, 'care_task_status', v_care_task_status);
+end;
+$$;
+
+revoke all on function public.respond_to_notification(text, text) from public;
+grant execute on function public.respond_to_notification(text, text) to anon, authenticated;
+
+-- 함수 동작 요약
+-- get_notification_by_token: 토큰과 정확히 일치하는 알림 1건(+표시용 target_person)만 반환. 0건이면 빈 결과.
+-- respond_to_notification: 액션 검증 → 만료/중복응답 체크 → notification_queue.status='responded' →
+--   care_tasks.status를 'completed'|'help_requested'|'snoozed'로 매핑(wrong_target은 변경 없음) +
+--   child_notified=false(자녀에게 이 응답을 알릴 차례라는 표시) → message_logs에 direction='parent_response' 기록.
+--   반환값 ok=false의 error: 'invalid_action' | 'not_found' | 'expired' | 'already_responded'

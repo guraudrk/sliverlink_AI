@@ -1,6 +1,6 @@
 import { ZodError } from "zod";
 import { notificationQueueInputSchema } from "@/lib/silverlink/delivery/schema";
-import { generateResponseToken } from "@/lib/silverlink/delivery/response-token";
+import { generateResponseToken, getDefaultExpiresAt } from "@/lib/silverlink/delivery/response-token";
 import { MockDeliveryProvider } from "@/lib/silverlink/delivery/mock-provider";
 import { getOwnCareTask } from "@/lib/supabase/care-tasks-repo";
 import { createNotificationQueueEntry } from "@/lib/supabase/notification-queue-repo";
@@ -53,6 +53,7 @@ export async function POST(request: Request) {
   }
 
   const responseToken = generateResponseToken();
+  const queueInput = { ...input, expires_at: input.expires_at ?? getDefaultExpiresAt() };
 
   try {
     const queue = await createNotificationQueueEntry(
@@ -60,7 +61,7 @@ export async function POST(request: Request) {
       userData.user.id,
       careTask.parent_id,
       responseToken,
-      input
+      queueInput
     );
 
     const deliveryResult = await mockProvider.send({

@@ -9,6 +9,30 @@
 
 # 2026-06-25
 
+## Day 9 Slice 1~5: 어르신 링크 응답 (`/r/[token]`)
+
+**목표**: Day8에서 만든 `notification_queue`의 `response_token`을, 실제로 "어르신이 로그인 없이 눌러서 응답"할 수 있는 화면과 API로 연결한다.
+
+**가장 중요한 결정**: 어르신은 회원가입을 하지 않으므로 `/r/[token]`은 Supabase 세션이 전혀 없는 익명(anon) 상태로 접근한다. 지금까지 모든 테이블의 RLS는 "내가 로그인한 사람이어야 내 데이터만 보인다"였는데, 익명에게는 그 "나"가 없다. 익명도 통과할 수 있는 새 RLS 정책을 추가하면 공개된 anon key로 누구나 전체 큐를 긁어갈 수 있게 되므로, 그렇게 하지 않고 **"토큰을 정확히 아는 사람만 지나갈 수 있는 SQL 함수(SECURITY DEFINER) 2개"**만 만들어 anon에게 실행 권한만 열어줬다. 서비스 롤 키는 이번에도 앱 코드에서 전혀 쓰지 않았다 — 이 함수들은 DB 안에서 정의된, 토큰 하나로 범위가 좁혀진 권한 상승이라 별개다.
+
+**만든 것**:
+- `get_notification_by_token(token)`: 토큰과 정확히 일치하는 알림 1건만 반환
+- `respond_to_notification(token, action)`: 만료/중복응답 체크 → `notification_queue.status='responded'` → `care_tasks.status`를 액션별로 매핑(완료/도움필요/나중에, `wrong_target`은 상태 안 바꿈) + `child_notified=false` → `message_logs`에 `direction='parent_response'` 기록까지 한 트랜잭션으로 처리
+- `src/lib/silverlink/responses/schema.ts`, `src/lib/supabase/responses-repo.ts`(둘 다 `supabase.rpc()` 호출), `GET/POST /api/responses/[token]`(로그인 불필요), `/r/[token]` 공개 페이지(`(protected)` 그룹 밖, 버튼 4개: 완료했어요/도움이 필요해요/나중에 다시 알려주세요/잘못 온 알림이에요)
+- Day8에서 비워뒀던 `notification_queue.expires_at` 기본값(3일 TTL)도 이번에 채움
+
+**안 한 것**: 회원 A/B 격리 테스트는 여전히 Day6+7 챕터의 마지막 일괄 테스트로 미룸.
+
+**검증**: `npx vitest run` 61/61(기존 58 + 신규 3), `npm run build` 통과. **실제 수동 테스트도 최종 확인 완료**: `/delivery-preview`에서 큐 생성 → 그 `response_token`으로 `/r/[token]` 접속 → 응답 클릭 → `notification_queue.status`/`care_tasks.status`/`message_logs` 모두 정확히 갱신된 것까지 사용자가 직접 확인.
+
+**🤖 AI 활용 팁**: "로그인 안 한 사용자가 특정 데이터 한 건에만 접근해야 한다"는 요구사항이 나오면, RLS 정책을 느슨하게 풀어주는 대신 SECURITY DEFINER 함수로 "권한 상승의 범위를 함수 시그니처 안에 가두는" 패턴을 쓰면, 공개 anon key의 위험을 키우지 않으면서도 매직링크형 기능을 안전하게 구현할 수 있다.
+
+**변경 파일**: `docs/supabase-schema-member-scoped.sql`, `tasks/tasks-day9-link-response.md`(신규), `src/lib/silverlink/responses/*`(신규), `src/lib/silverlink/delivery/response-token.ts`, `src/lib/supabase/responses-repo.ts`(신규), `src/app/api/delivery/preview/route.ts`, `src/app/api/responses/[token]/route.ts`(신규), `src/app/r/[token]/page.tsx`(신규)
+
+**커밋**: 아직 안 함(사용자 요청 시 진행)
+
+---
+
 ## Day 8 Slice 1~5: notification_queue / delivery_attempts + MockDeliveryProvider + /delivery-preview
 
 **목표**: Day6+7에서 끝난 "Supabase에 일정 저장"을 넘어, "알림을 바로 보내지 않고 먼저 큐에 쌓고 발송 시도를 기록"하는 구조를 만든다. 사용자가 전달한 `docs/PRD-day8-to-mvp-master-plan.md`(Day8~15 전체 로드맵)의 Day8 부분만 떼어내 `tasks/tasks-day8-notification-queue.md`로 만들고, 그 계획대로 진행했다.
