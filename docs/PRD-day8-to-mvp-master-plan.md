@@ -4,6 +4,7 @@
 - 출처: 사용자가 2026-06-25 PDF/TXT로 전달한 "SilverLink AI Day 8~Minimum MVP Master Plan (AI 비서 안부전화 + 링크 응답 + RAG 챗봇 통합 버전)"을 그대로 옮긴 참고 문서
 - 목적: Day 8부터 최소 MVP 완성(Day 15)까지의 전체 로드맵을 기록해 두고, 각 Day의 PRD/tasks 파일을 만들 때 이 문서를 기준 삼는다. **이 문서 자체는 실행 지시서가 아니라 레퍼런스**다 — 실제 작업은 Day별 `docs/PRD-day{N}-*.md` + `tasks/tasks-day{N}-*.md`로 별도 작성한다.
 - 핵심 결론: 최소 MVP에는 완전한 실시간 AI 전화 상담원보다 **Scripted IVR Care Call + RAG-lite + 링크 응답**을 먼저 넣고, OpenAI Realtime/Vapi/Retell/Twilio 기반 실시간 Voice Agent는 **확장 트랙**으로 둔다.
+- **⚠️ 2026-06-25 갱신**: 아래 Day 12~15 섹션은 `docs/PRD-rag-mvp-day12-15-plan.md`(사용자가 추가로 전달한 RAG MVP 실행 문서)로 대체되었다. **Day12=Scripted IVR, Day13=RAG-lite 순서가 Day12=RAG Evidence Layer, Day13=RAG 챗봇 UI로 바뀌었고, 실제 전화 Provider 연동은 post-MVP 백로그로 미뤄졌다.** 아래 원문은 변경 이력 보존용으로만 남겨두고, 실제 작업 기준은 새 문서를 따른다.
 
 ## 1. Executive Roadmap
 

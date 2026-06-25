@@ -9,6 +9,33 @@
 
 # 2026-06-25
 
+## Day 12 Slice 1~4: RAG Evidence Layer (`POST /api/rag/evidence`)
+
+**쉬운 설명**: 지금까지 부모님 정보/일정/응답/알림/안부전화 기록이 여러 테이블에 따로따로 쌓여 있었다. 나중에 만들 AI 챗봇(Day13)이 질문에 답하려면, 그 전에 흩어진 기록 중 질문과 관련된 것만 골라 정리해주는 역할이 필요하다. 비유하면 "책을 읽어주는 사람"(AI 답변, Day13)을 만들기 전에 "이 질문엔 어떤 자료가 관련 있는지 찾아주는 사서"를 먼저 만든 것. 아직 화면(UI)은 없고, 질문을 넣으면 관련 기록을 JSON으로 돌려주는 API(`/api/rag/evidence`)만 만들었다. 예: "도움 요청이 있었던 일정만 보여줘" → 도움 요청 관련 기록만 골라 중요한 순서로 정리해서 반환.
+
+**목표**: 벡터/LLM 없이, 기존 6개 테이블(부모님 프로필/일정/메시지 로그/알림 큐/안부전화 기록/발송 시도)에서 질문에 맞는 근거를 모아 정규화된 형태로 돌려주는 RAG의 뼈대를 만든다.
+
+**오늘의 큰 결정 — 로드맵 순서 변경**: 사용자가 별도로 작성한 RAG MVP 실행 문서를 받아 적용했다. 기존 계획은 "Day12=실제 전화 Provider 연동, Day13=RAG-lite"였는데, 이미 Mock 안부전화(Day11)로 전화 스토리는 데모 가능하고 실제 전화는 번호/동의/스팸규정 등 잡일이 많아 MVP 속도를 늦춘다는 판단으로 **순서를 바꿔 RAG를 먼저 완성**하기로 했다(`docs/PRD-rag-mvp-day12-15-plan.md` 8장에 이유 정리). 실제 전화 Provider는 post-MVP 백로그로 미루고 `ENABLE_REAL_CALLS=false`만 유지.
+
+**만든 것**:
+- `lib/silverlink/rag/types.ts` — `RagEvidence`(정규화된 근거 1건의 형태) / `RagQueryCategory`(summary/help/medication/calls/open)
+- `lib/silverlink/rag/query-classifier.ts` — 키워드 기반 질문 분류기(Day11의 `inferCallGoal`과 같은 code-first 패턴, LLM 호출 없음)
+- `lib/silverlink/rag/evidence-builder.ts` — DB row들을 `RagEvidence[]`로 정규화 + 분류 카테고리별 필터링/중요도 정렬(`help_requested`나 `risk_level` 높은 항목이 위로)
+- `lib/supabase/rag-evidence-repo.ts` — `parentId`(선택)와 최근 30일 시간창 기준으로 6개 테이블을 병렬 조회(`parent_profiles`는 시점성이 없어 시간창 예외)
+- `POST /api/rag/evidence` — 로그인 필요, `parentId` 있으면 소유권 검증(기존 `isOwnParentProfile` 재사용) 후 분류→조회→정규화 결과 반환
+
+**헤맨 점(버그, 직접 발견하고 고침)**: 분류기/필터에서 복약 키워드로 단독 `"약"`을 넣었는데, 테스트를 돌려보니 `"안부전화 결과 요약해줘"`/`"최근 상태 요약해줘"`가 둘 다 `medication`으로 잘못 분류됐다. 원인은 `"요약"`이라는 단어 자체에 `"약"` 글자가 부분 문자열로 포함되어 있었기 때문(한국어는 띄어쓰기 기반 단어 경계 매칭이 어려워 부분 문자열 매칭의 함정이 잘 드러나는 케이스). `"복약"/"투약"/"약 드"/"약 먹"` 등 더 구체적인 표현으로 바꿔서 해결.
+
+**검증**: `npx vitest run` 76/76(기존 66 + 신규 10), `npm run build` 통과(`/api/rag/evidence` 라우트 정상 생성). **이번 Day는 UI가 없는 API 전용 슬라이스**라(UI는 Day13), 실제 동작 확인은 사용자가 로그인 상태에서 브라우저 콘솔로 `fetch` 호출해 보는 방식으로 안내할 예정 — curl로는 인증 쿠키가 없어 401만 확인 가능.
+
+**🤖 AI 활용 팁**: 키워드 기반 분류기를 만들 때, 짧은 단독 글자를 키워드로 쓰면(특히 한국어처럼 조사/복합어가 많은 언어) 의도하지 않은 단어에 부분 문자열로 매칭될 위험이 크다. 테스트 케이스를 분류 카테고리별로 다 작성해두면 이런 실수를 구현 직후 바로 잡을 수 있다(이번에도 테스트가 없었다면 배포 후에야 발견했을 버그).
+
+**변경 파일**: `docs/PRD-rag-mvp-day12-15-plan.md`(신규), `docs/PRD-day8-to-mvp-master-plan.md`(상단에 대체 안내 추가), `tasks/tasks-day12-rag-evidence-layer.md`(신규), `src/lib/silverlink/rag/*`(신규), `src/lib/supabase/rag-evidence-repo.ts`(신규), `src/app/api/rag/evidence/route.ts`(신규)
+
+**커밋**: 아직 안 함(사용자 요청 시 진행)
+
+---
+
 ## Day 11 Slice 1~6: AI 비서 안부전화 Mock MVP (`/dashboard/calls`)
 
 **목표**: 실제 전화를 걸기 전에, "일정 기반으로 통화 스크립트를 만들고 → 전화를 걸고 → 어르신이 응답하고 → 그 결과가 일정 상태에 반영되는" 전체 흐름을 웹 화면 안에서 Mock으로 검증한다.
