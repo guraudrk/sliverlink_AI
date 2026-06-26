@@ -9,6 +9,33 @@
 
 # 2026-06-26
 
+## 오늘 하루 정리 (Day14 — 명령 실행, 채팅 일정 등록, 평가 하네스)
+
+아래는 오늘 작업한 슬라이스들의 요약이다. 각 항목의 자세한 내용(원인 분석, 코드 변경, 검증 결과)은 이 날짜 섹션 아래에 슬라이스별로 따로 기록돼 있다.
+
+**오늘 고친 오류**:
+1. **단일 호출 구조 + 모델/요금 버그**: 답변 생성과 명령 판단이 따로 호출돼 속도가 느렸고, Gemini 무료 등급 모델당 하루 20건 한도에 걸려 답변이 단순 템플릿으로 떨어지던 문제 — 한 번의 호출로 통합 + 모델 교체 + 사용자의 결제 등급 업그레이드로 해결.
+2. **`ragActionIntentSchema`에 `create_care_task` 검증 케이스가 빠져있던 버그**: 타입은 추가했지만 zod 스키마 갱신을 빼먹어서 `/api/rag/confirm-action`이 새 일정 등록 확인 요청을 검증할 수 없었음.
+3. **"근거 N건" 토글이 명령(전화 걸기/새 일정 등록)에도 잘못 붙던 버그**: `classifyQuery`가 "질문"과 "명령"을 구분하지 못해 명령에도 근거 전체가 붙었음 — 새 카테고리(`task_request`) 추가 + (다음 턴까지 안정적으로 잡기 위해) 챗봇 응답 텍스트 자체에 우리가 지정한 템플릿 문구가 있는지 검사하는 방식으로 이중 보강.
+4. **`/dashboard/tasks`에서 일정 클릭이 안 되던 문제 + `task_type` 컬럼이 API 응답에서 빠져있던 문제**: 클릭 가능한 모달 추가 + select 절에 컬럼 추가.
+5. **`/dashboard/create-task` 웹 폼에 유형 지정 기능이 빠져있던 격차**: 채팅 경로에만 분류 기능을 넣고 기존 폼은 그대로 둬서 입력 경로마다 다르게 동작하던 비일관성 — 웹 폼에도 "유형" 선택란 추가.
+6. **(평가 중 발견) 시스템 프롬프트의 "부모님 프로필 없음" 안내가 새 일정 등록과 무관한 일반 질문/명령에도 새던 버그**: 적용 범위를 "새 일정 등록 시도할 때만"으로 명시해 해결.
+
+**오늘 쓴 기술/기법**:
+- **Gemini Function Calling**(`@google/genai`): 도구 3개(전화/메시지/새 일정 등록)를 한 번의 `generateContent` 호출에 텍스트 답변 생성과 함께 등록해, 질문 답변과 명령 판단을 동시에 처리.
+- **"실행 전 확인" 아키텍처**: LLM이 명령을 감지해도 즉시 실행하지 않고 `pendingAction`만 반환 → 사용자가 확인 버튼을 눌러야 별도 엔드포인트(`/api/rag/confirm-action`)가 실행 — 그 사이 상태가 바뀔 수 있어 확인 시점에 후보 목록을 다시 검증(LLM 환각 방지 원칙을 시간차에도 적용).
+- **Code-first 키워드 분류**(LLM 비호출): `classifyTaskType`(일정 유형), `classifyQuery`의 `task_request` 카테고리 — 분류가 자연어 이해를 필요로 하지 않으면 LLM을 부르지 않고 키워드 매칭으로 처리(비용/속도/결정성 확보).
+- **응답 내용 기반 카테고리 보정**: 사용자 입력이 아니라 "우리가 직접 작성한 템플릿 문구가 응답에 있는가"를 검사해 카테고리를 강제 교체 — 사용자 표현의 다양성에 의존하지 않는 더 안정적인 판별 방식.
+- **평가 하네스 분리(`*.eval.ts` + 별도 vitest config)**: 비용/네트워크 의존적인 LLM 평가를 빠른 단위 테스트(`*.test.ts`)와 분리해 `npm run evaluate:rag`로만 실행 — production 함수(`generateAssistantAnswer`)를 Supabase 없이 synthetic 데이터로 그대로 호출해 검증.
+- **Zod discriminated union**: `RagActionIntent`/`ragActionIntentSchema`로 3종 명령의 입력 형태를 타입 안전하게 검증.
+- **반응형 모달 패턴 재사용**: `evidence-detail-modal.tsx`의 바텀시트/중앙팝업 패턴을 `care-task-detail-modal.tsx`에 재사용.
+
+**검증**: 오늘 모든 변경 후 `npx tsc --noEmit` 클린 / `npx vitest run` 150/150 통과 / `npm run build` 클린을 반복 확인했고, `npm run evaluate:rag`(실제 Gemini 호출, 14개 케이스)도 연속 2회 14/14 통과. 사용자가 브라우저에서 전체 흐름(채팅 일정 등록, 유형 분류, 줄바꿈, `/dashboard/tasks` 모달)을 직접 확인 완료.
+
+**커밋**: `dcf8cb7` (push 완료)
+
+---
+
 ## Day14 Slice 11.0: 평가(질문형 + 명령형 케이스, 톤 채점) — 평가 도중 실제 프롬프트 버그 2건 발견
 
 **쉬운 설명**: Day12~14 가이드 문서가 처음부터 계획해둔 단계였다 — "느낌상 잘 되는 것 같다"가 아니라, 질문 12개를 미리 정해두고 몇 개를 통과하는지 점수로 측정하는 단계. 그 사이 명령(전화/메시지/새 일정 등록) 기능이 추가됐으니, 질문형 8개 + 명령형 6개 = 14개로 늘리고 "12개 이상 통과"를 기준으로 잡았다.
@@ -25,7 +52,7 @@
 
 **변경 파일**: `src/lib/silverlink/rag/__evaluation__/rag-evaluation.eval.ts`(신규), `src/lib/silverlink/rag/assistant-response.ts`, `vitest.eval.config.ts`(신규), `package.json`, `tasks/tasks-day14-rag-vector-techniques.md`
 
-**커밋**: 아직 안 함(사용자 요청 시 진행)
+**커밋**: `dcf8cb7`(2026-06-26 일괄 커밋+push 완료)
 
 ---
 
@@ -41,7 +68,7 @@
 
 **변경 파일**: `src/components/rag/care-assistant-panel.tsx`, `tasks/tasks-day14-rag-vector-techniques.md`
 
-**커밋**: 아직 안 함(사용자 요청 시 진행)
+**커밋**: `dcf8cb7`(2026-06-26 일괄 커밋+push 완료)
 
 ---
 
@@ -59,7 +86,7 @@
 
 **변경 파일**: `src/lib/silverlink/rag/assistant-response.ts`, `src/lib/silverlink/rag/__tests__/assistant-response.test.ts`(신규), `tasks/tasks-day14-rag-vector-techniques.md`
 
-**커밋**: 아직 안 함(사용자 요청 시 진행)
+**커밋**: `dcf8cb7`(2026-06-26 일괄 커밋+push 완료)
 
 ---
 
@@ -95,7 +122,7 @@
 
 **변경 파일**: `src/lib/silverlink/care-tasks/task-type.ts`(신규), `src/lib/silverlink/care-tasks/__tests__/task-type.test.ts`(신규), `src/lib/silverlink/rag/{action-tools.ts,action-executor.ts,action-service.ts,assistant-response.ts,schema.ts,types.ts,query-classifier.ts,evidence-builder.ts,answer-generator.ts}`, `src/lib/supabase/care-tasks-repo.ts`, `src/lib/silverlink/rag/__tests__/{action-tools.test.ts,action-service.test.ts,query-classifier.test.ts,evidence-builder.test.ts}`, `src/lib/silverlink/calls/__tests__/call-script-builder.test.ts`, `src/components/rag/rag-ui-meta.ts`, `src/app/api/create-task/route.ts`, `src/components/task-request-form.tsx`, `src/components/tasks/care-task-detail-modal.tsx`(신규), `src/app/(protected)/dashboard/tasks/page.tsx`, `tasks/tasks-day14-rag-vector-techniques.md`
 
-**커밋**: 아직 안 함(사용자 요청 시 진행)
+**커밋**: `dcf8cb7`(2026-06-26 일괄 커밋+push 완료)
 
 ---
 
@@ -115,7 +142,7 @@
 
 **변경 파일**: `src/lib/silverlink/rag/{action-tools.ts,action-executor.ts,action-service.ts,assistant-response.ts}`, `src/app/api/rag/ask/route.ts`, `src/lib/silverlink/rag/__tests__/action-tools.test.ts`, `tasks/tasks-day14-rag-vector-techniques.md`
 
-**커밋**: 아직 안 함(사용자 요청 시 진행)
+**커밋**: `dcf8cb7`(2026-06-26 일괄 커밋+push 완료)
 
 ---
 
@@ -133,7 +160,7 @@
 
 **변경 파일**: `src/lib/silverlink/rag/{types.ts,action-tools.ts,assistant-response.ts,action-service.ts,schema.ts}`, `src/app/api/rag/{ask/route.ts,confirm-action/route.ts(신규)}`, `src/components/rag/{care-assistant-panel.tsx,rag-ui-meta.ts}`, `src/lib/silverlink/rag/__tests__/action-tools.test.ts`, `tasks/tasks-day14-rag-vector-techniques.md`
 
-**커밋**: 아직 안 함(사용자 요청 시 진행)
+**커밋**: `dcf8cb7`(2026-06-26 일괄 커밋+push 완료)
 
 ---
 
@@ -155,7 +182,7 @@
 
 **변경 파일**: `src/lib/silverlink/rag/{assistant-response.ts(신규),gemini-client.ts,action-tools.ts,action-service.ts,answer-generator.ts}`, `src/app/api/rag/ask/route.ts`, `scripts/check-gemini-model.mjs`(신규), `package.json`, `tasks/tasks-day14-rag-vector-techniques.md`
 
-**커밋**: 아직 안 함(사용자 요청 시 진행)
+**커밋**: `dcf8cb7`(2026-06-26 일괄 커밋+push 완료)
 
 ---
 
@@ -183,7 +210,7 @@
 
 **변경 파일**: `src/lib/silverlink/rag/{schema.ts,conversation-history.ts(신규),evidence-service.ts,answer-generator.ts,action-tools.ts,action-service.ts}`, `src/lib/silverlink/rag/__tests__/conversation-history.test.ts`(신규), `src/app/api/rag/ask/route.ts`, `src/components/rag/care-assistant-panel.tsx`, `tasks/tasks-day14-rag-vector-techniques.md`
 
-**커밋**: 아직 안 함(사용자 요청 시 진행)
+**커밋**: `dcf8cb7`(2026-06-26 일괄 커밋+push 완료)
 
 ---
 
@@ -201,7 +228,7 @@
 
 **변경 파일**: `src/components/rag/care-assistant-panel.tsx`, `tasks/tasks-day14-rag-vector-techniques.md`
 
-**커밋**: 아직 안 함(사용자 요청 시 진행)
+**커밋**: `dcf8cb7`(2026-06-26 일괄 커밋+push 완료)
 
 ---
 
@@ -232,7 +259,7 @@
 
 **변경 파일**: `src/lib/silverlink/rag/{action-tools.ts,action-executor.ts(신규),action-service.ts(신규),types.ts,answer-generator.ts}`, `src/components/rag/rag-ui-meta.ts`, `src/app/api/rag/ask/route.ts`, `src/lib/silverlink/rag/__tests__/{action-tools.test.ts,action-service.test.ts(신규)}`, `tasks/tasks-day14-rag-vector-techniques.md`
 
-**커밋**: 아직 안 함(사용자 요청 시 진행)
+**커밋**: `dcf8cb7`(2026-06-26 일괄 커밋+push 완료)
 
 ---
 
@@ -258,7 +285,7 @@
 
 **변경 파일**: `src/lib/silverlink/rag/{gemini-client.ts,answer-generator.ts,action-tools.ts(신규)}`, `src/lib/silverlink/rag/__tests__/action-tools.test.ts`(신규), `tasks/tasks-day14-rag-vector-techniques.md`
 
-**커밋**: 아직 안 함(사용자 요청 시 진행)
+**커밋**: `dcf8cb7`(2026-06-26 일괄 커밋+push 완료)
 
 ---
 
@@ -278,7 +305,7 @@
 
 **변경 파일**: `src/lib/silverlink/rag/answer-generator.ts`, `tasks/tasks-day14-rag-vector-techniques.md`
 
-**커밋**: 아직 안 함(사용자 요청 시 진행)
+**커밋**: `dcf8cb7`(2026-06-26 일괄 커밋+push 완료)
 
 ---
 
@@ -301,7 +328,7 @@
 
 **변경 파일**: `src/lib/silverlink/rag/{answer-generator.ts,evidence-service.ts}`, `tasks/tasks-day14-rag-vector-techniques.md`
 
-**커밋**: 아직 안 함(사용자 요청 시 진행)
+**커밋**: `dcf8cb7`(2026-06-26 일괄 커밋+push 완료)
 
 ---
 
@@ -323,7 +350,7 @@
 
 **변경 파일**: `src/lib/silverlink/rag/{gemini-client.ts(신규),embedding.ts,answer-generator.ts}`, `src/lib/silverlink/rag/__tests__/answer-generator.test.ts`, `src/app/api/rag/ask/route.ts`, `tasks/tasks-day14-rag-vector-techniques.md`
 
-**커밋**: 아직 안 함(사용자 요청 시 진행)
+**커밋**: `dcf8cb7`(2026-06-26 일괄 커밋+push 완료)
 
 ---
 
@@ -353,7 +380,7 @@
 
 **변경 파일**: `docs/supabase-schema-member-scoped.sql`(함수 수정 — **재실행 필요**), `src/lib/silverlink/rag/{embedding.ts,indexer.ts,schema.ts,evidence-service.ts}`(신규/수정), `src/lib/supabase/rag-documents-repo.ts`(신규), `src/app/api/rag/reindex/route.ts`(신규), `tasks/tasks-day14-rag-vector-techniques.md`
 
-**커밋**: 아직 안 함(사용자 요청 시 진행)
+**커밋**: `dcf8cb7`(2026-06-26 일괄 커밋+push 완료)
 
 ---
 
@@ -377,7 +404,7 @@
 
 **변경 파일**: `tasks/tasks-day14-rag-vector-techniques.md`(신규), `docs/supabase-schema-member-scoped.sql`, `src/lib/silverlink/rag/{contextualizer.ts,hybrid-search.ts,crag-check.ts}`(신규), `src/lib/silverlink/rag/__tests__/{contextualizer.test.ts,hybrid-search.test.ts,crag-check.test.ts}`(신규)
 
-**커밋**: 아직 안 함(사용자 요청 시 진행)
+**커밋**: `dcf8cb7`(2026-06-26 일괄 커밋+push 완료)
 
 ---
 
@@ -399,7 +426,7 @@
 
 **변경 파일**: `docs/GUIDE-day14-rag-self-build-gemini-pgvector.md`(신규)
 
-**커밋**: 아직 안 함(사용자 요청 시 진행)
+**커밋**: `dcf8cb7`(2026-06-26 일괄 커밋+push 완료)
 
 ---
 
@@ -426,7 +453,7 @@
 
 **변경 파일**: `tasks/tasks-day13-rag-chatbot-ui.md`(신규), `src/lib/silverlink/rag/{schema.ts,evidence-service.ts,answer-generator.ts,types.ts}`, `src/app/api/rag/{evidence/route.ts(리팩터),ask/route.ts(신규)}`, `src/components/rag/care-assistant-panel.tsx`(신규), `src/app/(protected)/dashboard/assistant/page.tsx`(신규), `src/app/(protected)/dashboard/page.tsx`
 
-**커밋**: 아직 안 함(사용자 요청 시 진행)
+**커밋**: `dcf8cb7`(2026-06-26 일괄 커밋+push 완료)
 
 ---
 
