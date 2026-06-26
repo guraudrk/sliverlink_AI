@@ -486,3 +486,79 @@ using (auth.uid() = owner_user_id);
 -- status: 'prepared' | 'calling' | 'answered' | 'no_answer' | 'failed' | 'completed' | 'help_requested'
 -- call_script: buildCallScript()가 만든 텍스트(opening+main_message+question 조립본)
 -- risk_level: 'none' | 'low' | 'medium' | 'high' (응답 시뮬레이션 결과에 따라 결정)
+
+-- =============================================================
+-- Day 14 Slice 1: pgvector 확장 + rag_documents 테이블 + 벡터 검색 함수
+--
+-- 호출자가 항상 로그인한 보호자 본인이라 SECURITY DEFINER가 아닌 일반 RLS만 쓴다
+-- (Day9의 /r/[token]처럼 진짜 익명 호출자가 있는 경우만 SECURITY DEFINER가 필요하다).
+-- =============================================================
+
+create extension if not exists vector;
+
+create table if not exists public.rag_documents (
+  id uuid primary key default gen_random_uuid(),
+  owner_user_id uuid not null references auth.users(id) on delete cascade,
+  parent_id uuid not null references public.parent_profiles(id) on delete cascade,
+  source_type text not null,
+  source_id text not null,
+  contextual_text text not null,
+  embedding vector(768),
+  created_at timestamptz not null default now(),
+  unique (owner_user_id, source_type, source_id)
+);
+
+alter table public.rag_documents enable row level security;
+
+create policy "rag_documents_select_own"
+on public.rag_documents
+for select
+using (auth.uid() = owner_user_id);
+
+create policy "rag_documents_insert_own"
+on public.rag_documents
+for insert
+with check (auth.uid() = owner_user_id);
+
+create policy "rag_documents_update_own"
+on public.rag_documents
+for update
+using (auth.uid() = owner_user_id)
+with check (auth.uid() = owner_user_id);
+
+create policy "rag_documents_delete_own"
+on public.rag_documents
+for delete
+using (auth.uid() = owner_user_id);
+
+create index if not exists rag_documents_embedding_hnsw_idx
+on public.rag_documents
+using hnsw (embedding vector_cosine_ops);
+
+-- auth.uid()를 함수 본문 안에서 직접 거는 일반 함수(SECURITY DEFINER 아님).
+-- <=> 는 pgvector의 코사인 거리 연산자: 0에 가까울수록 유사 → 1 - 거리 = 0~1 유사도 점수로 변환.
+-- match_parent_id를 null로 보내면 "전체 부모님"(Day13 UI의 전체 부모님 옵션)을 모두 검색한다.
+-- source_id도 반환해야 Hybrid Search(Day14 Slice 6)에서 SQL 키워드 검색 결과와 같은 키(source_type:source_id)로 병합할 수 있다.
+-- 반환 컬럼 구성(RETURNS TABLE)이 바뀌면 create or replace로 못 바꾸므로(Postgres 42P13) 먼저 drop한다.
+drop function if exists public.match_rag_documents(vector(768), uuid, int);
+
+create or replace function public.match_rag_documents(
+  query_embedding vector(768),
+  match_parent_id uuid default null,
+  match_count int default 8
+) returns table(id uuid, source_type text, source_id text, contextual_text text, similarity float)
+language sql stable
+as $$
+  select id, source_type, source_id, contextual_text,
+         1 - (embedding <=> query_embedding) as similarity
+  from public.rag_documents
+  where owner_user_id = auth.uid()
+    and (match_parent_id is null or parent_id = match_parent_id)
+  order by embedding <=> query_embedding
+  limit match_count;
+$$;
+
+-- 필드 의미 (rag_documents)
+-- source_type / source_id: Day12 RagEvidence의 출처를 그대로 가리킴(중복 임베딩 방지용 unique 제약)
+-- contextual_text: contextualizer.ts의 buildContextualText() 결과(임베딩하기 전 맥락이 붙은 텍스트)
+-- embedding: gemini-embedding-001을 output_dimensionality=768로 truncate한 벡터(MRL 기법)

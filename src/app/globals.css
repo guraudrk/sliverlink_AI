@@ -18,3 +18,46 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
 }
+
+@keyframes rag-fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-rag-fade-in-up {
+  animation: rag-fade-in-up 0.4s ease-out both;
+}
+
+@keyframes rag-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-rag-pop-in {
+  animation: rag-pop-in 0.35s ease-out both;
+}
+
+@keyframes rag-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-rag-fade-in {
+  animation: rag-fade-in 0.2s ease-out both;
+}

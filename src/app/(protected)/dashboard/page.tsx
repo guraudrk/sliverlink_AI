@@ -79,6 +79,13 @@ export default async function DashboardPage() {
             <p className="font-semibold text-slate-800">안부전화 (Mock)</p>
             <p className="mt-1 text-sm text-slate-500">AI 비서 전화 시뮬레이션</p>
           </Link>
+          <Link
+            href="/dashboard/assistant"
+            className="rounded-2xl bg-white p-5 text-center shadow-sm ring-1 ring-slate-200 transition-colors hover:ring-blue-300"
+          >
+            <p className="font-semibold text-slate-800">돌봄 기록 AI 비서</p>
+            <p className="mt-1 text-sm text-slate-500">질문하면 근거를 정리해드려요</p>
+          </Link>
         </nav>
       </div>
     </div>

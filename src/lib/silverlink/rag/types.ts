@@ -1,4 +1,6 @@
-export const RAG_QUERY_CATEGORIES = ["summary", "help", "medication", "calls", "open"] as const;
+// "action"은 classifyQuery가 만들어내는 값이 아니라, action-service.ts가 명령(전화/메시지)을
+// 실제로 실행했을 때 응답에 붙이는 카테고리다(질문 분류와는 다른 경로).
+export const RAG_QUERY_CATEGORIES = ["summary", "help", "medication", "calls", "open", "action"] as const;
 export type RagQueryCategory = (typeof RAG_QUERY_CATEGORIES)[number];
 
 export const RAG_SOURCE_TYPES = [
@@ -25,4 +27,12 @@ export type RagEvidence = {
   createdAt: string;
   importance: RagImportance;
   safetyFlags: string[];
+};
+
+// /api/rag/ask(Day13)의 응답 형태. evidence는 답변에 실제로 인용한 근거만 추려서 담는다.
+export type RagAnswer = {
+  answerText: string;
+  evidence: RagEvidence[];
+  nextSteps: string[];
+  hasSufficientEvidence: boolean;
 };

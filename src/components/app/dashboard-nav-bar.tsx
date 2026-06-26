@@ -3,7 +3,7 @@ import Link from "next/link";
 export function DashboardNavBar() {
   return (
     <div className="w-full border-b border-slate-200 bg-white px-4 py-3">
-      <div className="mx-auto flex max-w-xl items-center">
+      <div className="flex items-center">
         <Link
           href="/dashboard"
           className="flex items-center gap-1.5 text-sm font-semibold text-slate-500 transition-colors hover:text-blue-600"

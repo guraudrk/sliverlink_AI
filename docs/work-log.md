@@ -7,6 +7,279 @@
 
 ---
 
+# 2026-06-26
+
+## Day14 이전 대화 맥락 기억 기능 (사용자가 "이게 중요해"라고 강조)
+
+**쉬운 설명**: 직전에 만든 "ChatGPT처럼 계속 대화하는 화면"은 보이는 모양만 바꾼 거였다 — 화면엔 대화가 쌓여 보여도, AI는 매번 새 질문만 보고 처음부터 다시 생각했다. 그래서 "최근 상태 요약해줘" 다음에 "그 중에 도움 필요한 거 있어?"라고 물으면, AI는 "그 중에"가 뭘 가리키는지 전혀 몰랐을 것이다. 이번엔 진짜로 이전 대화를 참고해서 답하도록 만들었다.
+
+**목표**: 화면에서 최근 대화(최대 10턴)를 같이 보내고, 백엔드가 그걸 참고해서 (1) 자연스러운 답변을 만들고, (2) "그 일정에 전화해줘" 같은 명령도 이전 대화를 보고 알아듣게 한다.
+
+**설계: 두 갈래로 다르게 쓴다**: 같은 히스토리를 모든 곳에 똑같이 쓰지 않았다.
+- **LLM에게 보여줄 때**(자연어 답변 생성, 명령 판단)는 "자녀: ~ / AI 비서: ~" 형식의 대화록을 그대로 준다 — LLM은 대화 흐름을 읽고 맥락을 이해하는 게 본업이라 그대로 줘도 된다.
+- **벡터 검색(임베딩)에 쓸 때**는 다르게 처리했다. "그 중에 도움 필요한 거 있어?"라는 문장 자체는 의미가 거의 없어서(벡터로 바꿔도 검색에 쓸 만한 정보가 없음), 최근 자녀 질문 1~2개를 현재 질문 앞에 붙여서 임베딩한다. 반면 키워드 분류기(`classifyQuery`)는 그대로 현재 질문만 본다 — 키워드 매칭은 과거 발화가 섞이면 엉뚱한 카테고리로 잘못 분류될 위험이 더 크기 때문이다(예: 이전 질문에 "복약"이 있었으면 전혀 관련 없는 후속 질문도 medication으로 잘못 분류될 수 있음). 같은 데이터(히스토리)라도 어디에 쓰느냐에 따라 가공 방식을 다르게 한 것.
+
+**검증**: 코드만 짜고 끝내지 않고, 실제 Gemini를 호출해 직접 확인했다 — "최근 상태 요약해줘"에 대한 가상의 답변을 대화록에 넣고 "그 중에 도움 필요했던 거 있어?"라고 물으니, 실제로 이전 답변 내용을 참고해서 "두 건 모두 도움 요청 없이 마무리됐다"고 정확히 답했다.
+
+**만든 것**:
+- `schema.ts` — `conversationMessageSchema`, `ragQueryRequestSchema.history` 필드 추가
+- `conversation-history.ts`(신규) — `formatHistoryTranscript()`(LLM 프롬프트용, 최근 6턴), `buildHistoryAwareSearchText()`(벡터 검색용, 최근 자녀 질문 1~2개 결합). 둘 다 외부 호출 없는 순수 함수라 단위 테스트 6건으로 검증
+- `evidence-service.ts`/`answer-generator.ts`/`action-tools.ts`/`action-service.ts`/`/api/rag/ask` — 전부 `history`를 받아 흘려보내도록 연결
+- `care-assistant-panel.tsx` — 매 질문마다 최근 10턴을 `history`로 같이 전송(현재 보내는 질문은 히스토리에서 제외해 중복 안 되게)
+
+**검증**: `npx vitest run` 121/121(기존 115 + 신규 6), `npm run build` 통과, 실제 Gemini 호출로 맥락 참조 동작 확인(위 검증 항목 참고).
+
+**🤖 AI 활용 팁**: "이전 대화를 기억하게 해줘" 같은 요청을 받으면 모든 곳에 히스토리를 똑같이 끼워 넣고 끝내기 쉬운데, 막상 만들어보면 용도마다 가공 방식이 달라야 하는 경우가 많다. 이번에도 "LLM용 대화록"과 "검색용 합성 질문"을 똑같이 다루지 않고, 각자의 목적(맥락 이해 vs 검색 정확도)에 맞게 따로 함수를 나눠서 처리했다. "히스토리를 어디에 쓸 것인가"를 먼저 따져보고 가공 방식을 정하는 게, 한 가지 형태로 만들어 모든 곳에 재사용하려는 것보다 결과가 더 좋다.
+
+**변경 파일**: `src/lib/silverlink/rag/{schema.ts,conversation-history.ts(신규),evidence-service.ts,answer-generator.ts,action-tools.ts,action-service.ts}`, `src/lib/silverlink/rag/__tests__/conversation-history.test.ts`(신규), `src/app/api/rag/ask/route.ts`, `src/components/rag/care-assistant-panel.tsx`, `tasks/tasks-day14-rag-vector-techniques.md`
+
+**커밋**: 아직 안 함(사용자 요청 시 진행)
+
+---
+
+## Day14 채팅 UI 개편: 단발성 질문-답변 → ChatGPT처럼 이어지는 대화
+
+**쉬운 설명**: 지금까지는 질문 하나 던지면 답변 하나가 그 자리에서 바뀌는 식이었다(이전 질문/답변은 화면에서 사라짐). 이제 ChatGPT처럼, 질문하고 답을 받아도 그 위에 계속 쌓이면서 계속 물어볼 수 있게 바꿨다. 입력창은 항상 화면 맨 아래에 고정돼 있고, 대화 내용만 위로 스크롤된다.
+
+**사용자 질문에 대한 답 — 실제로 전화가 걸리나?**: 아니다, 절대 안 걸린다. `care_call_attempts` 테이블의 `provider` 컬럼은 코드에서 항상 `"mock"`으로 고정해서 저장하고(`createCareCallAttempt`), 실제 통신사 API를 호출하는 코드 자체가 프로젝트 어디에도 없다(grep으로 직접 확인 — `twilio`/`vapi`/`retell` 같은 이름은 "나중에 만들 수도 있다"는 주석에만 등장하고 실제 구현은 없음). 메시지 발송도 `MockDeliveryProvider`가 처리하는데, 이 클래스는 `fetch` 등 외부 네트워크 호출 import 자체가 없다고 주석에 명시돼 있다. "전화 걸어줘"라고 말하면 DB에 "통화했다"는 기록만 남고, 실제 전화기는 울리지 않는다.
+
+**UI 변경**: `care-assistant-panel.tsx`를 "질문 하나 → 답변 하나"에서 "메시지 목록을 계속 쌓는" 구조로 바꿨다 — `answer`/`category` 단일 state를 `messages: ChatMessage[]` 배열로 교체하고, 사용자 메시지는 오른쪽 말풍선, AI 답변은 왼쪽 카드로 표시한다. 패널 자체를 고정 높이(`min(720px, 75vh)`)의 flex 컨테이너로 만들어 위쪽(부모님 선택+빠른 질문)과 아래쪽(입력창)은 고정시키고, 가운데 대화 영역만 스크롤되게 했다. 새 메시지가 올 때마다 자동으로 맨 아래로 스크롤된다.
+
+**중요한 범위 제한 — 기억은 못 한다**: 화면에는 대화가 이어져 보이지만, 매 질문은 여전히 Day12/13/14의 RAG 파이프라인을 처음부터 다시 거친다 — 직전 질문/답변을 다음 질문의 맥락으로 자동으로 넘기지 않는다. 이건 "화면 표시 방식"만 바꾼 것이고, "이전 대화를 기억해서 답하는 기능"은 별도 작업(대화 히스토리를 LLM 프롬프트에 포함하는 것)이 필요하다 — 지금은 그 부분까지는 손대지 않았다.
+
+**검증**: `npx vitest run` 115/115, `npm run build` 통과. **UI 변경이라 브라우저에서 직접 확인하는 수동 테스트가 꼭 필요한데, 이 환경에서는 브라우저로 직접 확인할 수 있는 도구가 없어 시각적 검증은 못 했다** — 사용자가 직접 봐주셔야 한다.
+
+**변경 파일**: `src/components/rag/care-assistant-panel.tsx`, `tasks/tasks-day14-rag-vector-techniques.md`
+
+**커밋**: 아직 안 함(사용자 요청 시 진행)
+
+---
+
+## Day14 Slice 9: 일정 식별 + 도구 실행 + 확인 응답 — "명령 실행"이 실제로 동작
+
+**쉬운 설명**: Slice 8에서 "이게 명령인지, 어떤 일정에 대한 건지" 알아듣는 부분까지 만들었는데, 이번엔 거기서 멈추지 않고 실제로 행동까지 한다. `/dashboard/assistant`에서 "엄마한테 전화 걸어줘" 같은 말을 하면 진짜로(Mock) 안부전화가 걸리고, "복약 확인 메시지 보내줘" 하면 진짜로(Mock) 메시지가 발송 기록에 남는다. 이제 챗봇이 "물어보면 답하는 것"과 "시키면 하는 것"을 둘 다 한다.
+
+**목표**: `tasks/tasks-day14-rag-vector-techniques.md` Slice 9 완료 — Slice 8의 의도 판단 결과를 실제 내부 API 로직에 연결한다.
+
+**설계: 새 안전장치를 만들지 않았다**: "전화 걸어줘" 명령은 기존 Day11의 `/api/care-calls/preview`(스크립트 생성)+`/start`(Mock 통화 시작) 로직을 그대로 가져다 썼고, "메시지 보내줘" 명령은 Day8의 `/api/delivery/preview`(큐 생성 + `MockDeliveryProvider` 발송) 로직을 그대로 가져다 썼다. HTTP로 우리 API를 다시 호출하는 게 아니라, 그 라우트들이 쓰는 repo 함수를 직접 호출하는 방식이라(같은 서버 프로세스 안이니 자기 자신에게 또 HTTP 요청을 보낼 필요가 없다), 소유권 검증이나 Mock 발송 같은 기존 안전장치가 자동으로 그대로 적용된다.
+
+**의도적으로 안 만든 것**: "전화 걸어줘"는 전화를 거는 것까지만 한다 — 어르신이 뭐라고 응답했는지를 챗봇이 대신 지어내지 않는다(그건 실제로 일어나지 않은 일을 만들어내는 것이라 안전 원칙에 어긋난다). 응답 확인은 여전히 기존 `/dashboard/calls` 화면에서 사용자가 직접 시뮬레이션한다.
+
+**확인 메시지는 LLM이 안 쓴다**: "안부전화를 걸었어요" 같은 실행 확인 문구는 Slice 7의 `buildLlmAnswer`처럼 자연어로 윤색하지 않고 고정 문장으로 만들었다(`buildActionAnswer`). 실제로 무슨 일이 일어났는지에 대한 확인은 안전 관련 정보라서, Slice 7에서 정한 "nextSteps/안전 판단은 항상 결정론적" 원칙을 그대로 따른다 — LLM은 "이게 명령인지 판단"까지만 맡고, "무엇을 했는지 보고"는 코드가 맡는다.
+
+**같은 버그 재발 및 빠른 해결**: Slice 8에서 발견했던 "`@google/genai`와 `@/` 절대경로를 같은 import 그래프에 같이 쓰면 Vitest가 못 찾는" 문제가 이번에 만든 `action-executor.ts`/`action-service.ts`에서도 또 나타났다(이번엔 7개 import). 원인을 다시 파고들지 않고 바로 상대경로로 바꿔서 해결했다 — 한 번 겪은 문제라 패턴을 알고 있으니 두 번째는 거의 즉시 처리됐다.
+
+**만든 것**:
+- `action-tools.ts`에 `selectActionCandidates()` 추가(완료된 일정 제외, 부모님 필터, 개수 제한)
+- `action-executor.ts`(신규) — `executeActionIntent()`: 전화/메시지 실행
+- `action-service.ts`(신규) — `tryHandleActionRequest()`: 후보 조회 → 의도 판단 → 실행 → 확인 문구. 의도 판단이 실패하거나(네트워크 오류 등) 명령이 아니면 조용히 기존 질문-답변 경로로 넘어간다(명령으로 잘못 처리하는 것보단 질문으로 처리하는 게 안전한 방향)
+- `types.ts`에 `"action"` 카테고리 추가(질문 분류와는 다른, 명령 실행 전용 카테고리)
+- `/api/rag/ask`가 질문 분류 전에 먼저 "이거 명령이야?"를 확인하도록 연결
+
+**검증**: `npx vitest run` 115/115(기존 107 + 신규 8), `npm run build` 통과. **사용자 수동 테스트는 아직** — `/dashboard/assistant`에서 실제로 "전화 걸어줘"/"메시지 보내줘" 명령을 내려보고, `/dashboard/calls`·발송 기록에 실제로 남는지 확인 필요.
+
+**🤖 AI 활용 팁**: 같은 원인의 버그가 다시 나타났을 때, 처음 겪었을 때처럼 다시 처음부터 진단하지 않고 "저번에 본 패턴이다"를 바로 알아채면 해결 시간이 크게 줄어든다. 이번 프로젝트에서 한 가지 더 배운 건, `@google/genai`처럼 ESM exports가 엄격한 패키지를 쓰는 파일들은 이후로도 계속 같은 문제를 일으킬 수 있으니, "이 디렉토리에서는 절대경로 대신 상대경로를 쓴다"는 규칙을 그 영역에 한해 정해두면 매번 같은 디버깅을 반복하지 않을 수 있다.
+
+**변경 파일**: `src/lib/silverlink/rag/{action-tools.ts,action-executor.ts(신규),action-service.ts(신규),types.ts,answer-generator.ts}`, `src/components/rag/rag-ui-meta.ts`, `src/app/api/rag/ask/route.ts`, `src/lib/silverlink/rag/__tests__/{action-tools.test.ts,action-service.test.ts(신규)}`, `tasks/tasks-day14-rag-vector-techniques.md`
+
+**커밋**: 아직 안 함(사용자 요청 시 진행)
+
+---
+
+## Day14 Slice 8: Function Calling 도구 정의(전화/메시지)
+
+**쉬운 설명**: 지금까지는 챗봇이 "물어보면 답하는" 역할만 했는데, 이번 슬라이스부터는 "시켜서 하는" 역할도 할 준비를 한다. 다만 아직 실제로 전화/메시지를 보내는 부분(Slice 9)은 안 만들었고, 이번엔 "이 말이 명령인지, 명령이면 어떤 일정에 대한 건지"를 AI가 정확히 알아듣는 부분만 만들었다 — 일종의 "의도 파악" 단계.
+
+**목표**: `tasks/tasks-day14-rag-vector-techniques.md` Slice 8 완료 — `action-tools.ts`에 전화/메시지 두 "도구"를 Gemini Function Calling으로 등록하고, 자연어 명령을 받아 어떤 도구를 어떤 일정에 호출할지 판단하는 `detectActionIntent()`를 만든다.
+
+**설계: 분류기를 따로 안 만들었다**: "이건 질문인가 명령인가"를 가르는 코드를 별도로 짜지 않고, Gemini의 Function Calling 메커니즘 자체가 그 판단까지 겸하게 했다. 시스템 프롬프트에 "명확한 명령일 때만 도구를 부르라"는 규칙만 주면, 질문에는 도구를 안 부르고 텍스트로만 답하고, 명령에는 도구를 부른다.
+
+**안전장치: LLM이 지어낸 id를 그대로 믿지 않는다**: Gemini가 함수를 호출할 때 주는 `care_task_id`가 실제로 우리가 제공한 일정 목록에 있는 값인지 코드에서 다시 검증한다(`parseActionIntent`). 이 검증 로직을 네트워크 호출 없는 순수 함수로 따로 빼서, 실제 Gemini를 부르지 않고도 "후보에 없는 id를 거부하는지", "필수값이 없으면 거부하는지" 같은 경우를 단위 테스트 8건으로 직접 검증했다 — Slice 5~7에서 DB/외부 API를 직접 부르는 코드는 단위 테스트를 안 썼던 것과 달리, 이번엔 검증 로직만 순수 함수로 분리할 수 있어서 테스트를 붙일 수 있었다.
+
+**버그 하나 발견**: 테스트를 처음 돌렸을 때 `@google/genai`를 import하는 파일에서 `@/`로 시작하는 절대경로 import를 같이 쓰면 Vitest가 그 경로를 못 찾는 에러가 났다(다른 파일들은 같은 절대경로를 잘 쓰고 있었는데, `@google/genai`를 import하는 파일이 이번이 처음이라 지금까지 안 드러난 문제였다). 정확한 원인까지 파고들기보다, 같은 디렉토리 트리 안이라 상대경로(`../delivery/schema`)로 바꿔서 빠르게 해결했다 — 빌드(`npm run build`)는 문제 없이 통과했던 걸로 봐서 Next.js 자체의 경로 해석과 Vitest의 경로 해석이 이 특정 조합에서만 다르게 동작하는 것으로 보인다.
+
+**만든 것**:
+- `gemini-client.ts`에 `getLlmModel()` 추가(이전엔 `answer-generator.ts`에만 있던 걸 공유 모듈로 이동 — `action-tools.ts`도 같은 모델명을 참조해야 해서)
+- `action-tools.ts` — `request_care_call`/`send_care_message` 두 Function Calling 도구 선언(설명에 "명확한 명령일 때만 호출" 명시), `detectActionIntent(query, candidateTasks)`(일정 목록 + 질문 → Gemini 호출 → 의도 판단, `thinkingLevel: MINIMAL` 유지 — Slice 7 보강 2차에서 확인한 대로 명령 disambiguation은 정확도가 우선), `parseActionIntent()`(순수 검증 함수)
+
+**검증**: `npx vitest run` 107/107(기존 99 + 신규 8), `npm run build` 통과. 이번 슬라이스는 "의도 판단"까지만 만들고 실제 전화/메시지 API 호출은 아직 연결 안 해서, 화면에서 체감할 수 있는 변화는 없다(Slice 9에서 실제로 연결됨).
+
+**🤖 AI 활용 팁**: LLM이 반환하는 값(이번엔 `care_task_id`)을 그냥 믿고 바로 실행에 쓰지 않고, "이 값이 우리가 제공한 후보 목록에 실제로 있는가"를 코드에서 한 번 더 확인하는 검증 단계를 넣어두면, LLM이 가끔 비슷해 보이는 다른 id를 지어내도(환각) 실제 행동(전화/메시지 발송)까지 이어지지 않는다. 이런 "LLM 출력 검증" 로직은 거의 항상 외부 API 호출 없이 순수 함수로 뽑아낼 수 있어서, 실제 LLM을 부르지 않고도 단위 테스트로 충분히 검증할 수 있다.
+
+**변경 파일**: `src/lib/silverlink/rag/{gemini-client.ts,answer-generator.ts,action-tools.ts(신규)}`, `src/lib/silverlink/rag/__tests__/action-tools.test.ts`(신규), `tasks/tasks-day14-rag-vector-techniques.md`
+
+**커밋**: 아직 안 함(사용자 요청 시 진행)
+
+---
+
+## Day14 Slice 7 보강 2차: thinking을 완전히 끄지 않고 속도/정확도/디테일 다시 균형 맞추기
+
+**쉬운 설명**: 직전에 "thinking 끄기"로 속도를 7.5초 → 1초로 줄였는데, 사용자가 "근데 내가 중요하게 여기는 두 가지(세세하고 자연스러운 답변, 전화/문자 명령 실행)에 지장 없겠냐"고 물었다. 솔직히 검증해보니 진짜로 지장이 있었다 — thinking을 완전히 끄면 "약 챙겨 드시는지 확인해줘"처럼 살짝 모호한 명령에서는 AI가 아예 아무 행동도 안 하고 그냥 말로만 답하고 끝나버렸다(3번 다 똑같이 실패). 완전히 끄는 대신 "최소한으로만 켜두는" 옵션으로 바꿔서, 속도와 정확도를 다시 맞췄다.
+
+**검증 과정**: 아직 만들지도 않은 Slice 8(명령 실행) 기능을 가상 시나리오로 미리 시뮬레이션해서 위험을 미리 찾았다 — 가짜 일정 2개를 만들어두고, thinking을 끈 상태로 "병원 가는 일정 확인해줘"(명확)와 "약 챙겨 드시는지 확인해줘"(약간 모호) 두 명령을 내려봤다. 명확한 쪽은 3/3 정확했지만 모호한 쪽은 3/3 모두 행동 자체를 안 했다. 이건 만들고 나서 발견했으면 "왜 명령을 안 듣지?"로 한참 헤맸을 문제를, 기능을 만들기 전에 먼저 잡은 것이다.
+
+**적용한 해결책**: Gemini의 `thinkingConfig`에는 끄기(`thinkingBudget: 0`)와 켜기 사이에 `thinkingLevel: "MINIMAL"`이라는 중간 단계가 있다(완전히 끄는 것보단 느리지만, 최소한의 판단 과정은 거치게 함). 같은 가상 시나리오로 다시 검증하니 모호한 명령도 정확하게 처리했다(속도는 ~2~4초로 늘었지만 기본값 7.5초보단 훨씬 빠름). 다만 `gemini-2.5-flash`는 이 옵션 자체를 지원하지 않았고(400 에러로 확인), 검증 도중 실제로 무료 한도(분당 5회)에도 걸려서, 모델을 다시 `gemini-3-flash-preview`로 되돌렸다 — 속도 욕심 때문에 끌어왔던 모델이 오히려 한도와 기능 지원 면에서 더 약했던 셈이다.
+
+**디테일 우선순위 반영**: 지난 턴에 속도를 짜내려고 시스템 프롬프트에 "3~5문장 정도로, 너무 길지 않게"라는 제약을 넣어뒀는데, 이게 사용자의 1순위 요구사항("세세하게")과 정면으로 충돌하고 있었다는 걸 다시 점검하다가 발견했다. 그 제약을 빼고 "분량 제한보다 구체성이 우선, 근거가 많으면 답변도 길어져도 괜찮다"로 바꿨고, `maxOutputTokens`도 500 → 1200으로 늘렸다.
+
+**검증**: `npx vitest run` 99/99, `npm run build` 통과. **사용자 수동 테스트는 아직** — 실제 화면에서 속도/디테일 둘 다 다시 확인 필요.
+
+**🤖 AI 활용 팁**: "이거 다른 것도 괜찮은 거 맞아?"라는 질문을 받으면, 안심시키는 답을 먼저 내놓기보다 실제로 검증할 수 있는 부분은 검증부터 하는 게 맞다. 이번에 아직 만들지 않은 기능(명령 실행)까지 미리 가상 시나리오로 찔러본 게, 나중에 그 기능을 다 만든 뒤에 같은 문제를 발견하는 것보다 훨씬 쌌다. 그리고 "속도"와 "정확도/디테일"은 거의 항상 트레이드오프 관계라서, 한쪽을 최적화했다는 말을 들으면 반대쪽이 희생되지 않았는지 바로 의심해보는 습관이 필요하다.
+
+**변경 파일**: `src/lib/silverlink/rag/answer-generator.ts`, `tasks/tasks-day14-rag-vector-techniques.md`
+
+**커밋**: 아직 안 함(사용자 요청 시 진행)
+
+---
+
+## Day14 Slice 7 보강: 답변 속도 튜닝
+
+**쉬운 설명**: Slice 7 답변을 직접 테스트해본 사용자가 "느리다"고 피드백을 줬다. 원인을 추측하지 않고 직접 시간을 재서 찾았다 — Gemini의 최신 모델들은 답을 쓰기 전에 사람 눈에 안 보이는 "생각하는 과정"(추론 토큰)을 거치는데, 이번처럼 짧은 요약 작업엔 그 과정이 거의 의미가 없으면서 시간만 6초 가까이 잡아먹고 있었다. 그 과정을 끄는 옵션 하나로 7.5초 걸리던 답변이 1초 초반대로 줄었다.
+
+**진단 방법**: 코드를 바로 고치지 않고, 먼저 `node -e`로 Gemini API를 여러 설정(기본값 / thinking 끄기 / 출력 길이 제한 / 모델 교체)으로 직접 반복 호출해서 시간을 비교했다. 그 결과:
+- `thinkingConfig.thinkingBudget: 0`(생각 과정 끄기) 하나로 `gemini-3-flash-preview` 기준 ~7.5초 → ~2.5초
+- 같은 설정에서 모델을 `gemini-2.5-flash`로 바꾸면 ~1.0~1.2초까지 더 줄어듦(다만 이 모델은 이미 공식 폐지 공지가 난 상태라 언제 끊길지 모르는 위험을 감수한 것 — Day14 가이드에서 미리 설계해둔 "모델명은 환경 변수로만 참조" 덕분에 끊기면 `.env.local` 한 줄만 바꾸면 된다)
+- `maxOutputTokens`만 단독으로 줄이는 건 위험하다는 것도 같이 발견했다 — thinking이 켜진 상태에서는 보이지 않는 생각 토큰도 같은 토큰 예산을 같이 쓰기 때문에, 출력 길이만 제한하면 답변이 채 나오기 전에 잘려버렸다(테스트 중 27자/17자짜리 잘린 응답으로 확인). thinking을 먼저 끈 다음에만 출력 길이 제한이 안전하게 작동한다.
+
+**적용한 기술 2가지**:
+1. **Gemini "thinking" 끄기**(`thinkingConfig: { thinkingBudget: 0 }`) — 단순 요약/말투 변환처럼 복잡한 추론이 필요 없는 작업에는 모델의 기본 추론 단계를 꺼서 지연시간을 줄인다. `maxOutputTokens: 500`도 같이 줘서 답변 길이 상한을 정해뒀다(thinking을 끈 상태라 안전하게 작동).
+2. **독립적인 두 네트워크 호출을 병렬화** — `evidence-service.ts`에서 "질문을 벡터로 바꾸는 작업"(Gemini 호출)과 "DB에서 기존 기록 조회하는 작업"이 서로의 결과를 기다릴 필요가 없는데도 순서대로(직렬로) 실행되고 있었다. 둘을 동시에 시작하도록 고쳐서, 두 왕복 시간이 더해지지 않고 겹치게 했다.
+
+**검증**: `npx vitest run` 99/99, `npm run build` 통과. **사용자 수동 테스트는 아직** — `/dashboard/assistant`에서 실제로 빨라졌는지 체감 확인 필요.
+
+**🤖 AI 활용 팁**: "느리다"는 피드백을 받았을 때 코드를 이것저것 고쳐보기 전에, 외부 API 호출 하나만 떼어내서 설정값을 바꿔가며 직접 시간을 재보는 게 가장 빠르게 원인을 좁히는 방법이다. 이번에도 추측만으로 손댔다면 "모델을 바꿔볼까, 프롬프트를 줄여볼까" 사이에서 헤맸을 텐데, 5분짜리 반복 호출 스크립트 하나로 "thinking 토큰이 7초 중 6초를 차지한다"는 사실을 바로 확인했다.
+
+**변경 파일**: `src/lib/silverlink/rag/{answer-generator.ts,evidence-service.ts}`, `tasks/tasks-day14-rag-vector-techniques.md`
+
+**커밋**: 아직 안 함(사용자 요청 시 진행)
+
+---
+
+## Day14 Slice 7: 자연스러운 톤의 실제 LLM 답변 생성
+
+**쉬운 설명**: Day13까지는 답변이 항상 "최근 기록 3건을 확인했어요 / - 제목: 요약" 식으로 정해진 양식대로만 나왔다. 이제 실제 Gemini가 그 기록들을 읽고, 사람이 가족에게 상황을 설명해주는 듯한 자연스러운 문장으로 풀어서 답한다. 다만 "도움 요청이 있으면 직접 연락을 권장한다" 같은 안전 관련 판단은 여전히 AI한테 맡기지 않고, 예전처럼 정해진 규칙(코드)이 그대로 정한다 — AI는 "어떻게 말할지"만 맡고, "무엇을 권고할지"는 우리가 미리 정한 규칙이 맡는 역할 분리를 유지했다.
+
+**목표**: `tasks/tasks-day14-rag-vector-techniques.md` Slice 7 완료 — `buildLlmAnswer()`를 만들어 `/api/rag/ask`에 연결한다.
+
+**모델명 확인**: 코드를 쓰기 전에 실제 키로 `gemini-3-flash-preview`와 `gemini-2.5-flash` 둘 다 직접 호출해봤다(둘 다 정상 응답). `gemini-2.5-flash`는 이미 폐지 공지가 났던 모델이라(아직은 응답하지만 언제 끊길지 모름) `gemini-3-flash-preview`를 기본값으로 정했다 — `GEMINI_LLM_MODEL` 환경변수로 언제든 바꿀 수 있다.
+
+**리팩터 하나**: `embedding.ts`와 새로 만든 LLM 호출 코드가 "Gemini 클라이언트를 키로 만들고 캐싱한다"는 똑같은 로직을 필요로 해서, `gemini-client.ts`로 뽑아 공유했다(Day13의 `evidence-service.ts` 추출과 같은 이유 — 중복이 생기는 순간 뽑아낸다).
+
+**안전장치 설계**: 안전 관련 다음 행동(`도움 요청한 항목 직접 확인하기`, `복약 메모를 다시 확인하기`)을 정하던 로직을 `deriveNextSteps()`로 뽑아서, `buildFallbackAnswer`와 `buildLlmAnswer` 둘 다 똑같이 쓰게 했다 — LLM이 이 판단까지 자연어로 새로 내리게 두지 않고, 항상 같은 결정론적 규칙을 따르게 한 것. 그리고 LLM 응답에 `"치매입니다"/"병원에 안 가도 됩니다"` 같은 진단·안전 단언 표현이 들어 있으면(`containsForbiddenPhrase`) 그 답변을 버리고 `buildFallbackAnswer`로 대체한다. Gemini 호출 자체가 실패해도(네트워크/요금 한도 등) 같은 fallback으로 내려가게 해서, RAG 답변 기능 자체가 끊기지 않게 했다.
+
+**검증**: `npx vitest run` 99/99(기존 97 + `containsForbiddenPhrase` 2건 — `buildLlmAnswer`는 실제 외부 API를 부르는 코드라 이 프로젝트 관례대로 단위 테스트 대상에서 제외, 순수 함수인 안전 필터만 직접 테스트), `npm run build` 통과. **사용자 수동 테스트는 아직** — `/dashboard/assistant`에서 질문했을 때 답변이 실제로 자연스러운 문장으로 나오는지 확인 필요.
+
+**🤖 AI 활용 팁**: "AI에게 어디까지 맡길지"를 코드 구조로 미리 정해두면 안전하다. 이번에 "안전 관련 다음 행동 결정"과 "문장 표현"을 처음부터 다른 함수(`deriveNextSteps` vs `generateNaturalAnswerText`)로 분리해뒀기 때문에, LLM이 어떤 식으로 답을 쓰든 "도움 요청 권고"는 항상 같은 규칙으로 나간다는 걸 보장할 수 있다. "이 부분은 AI가 매번 다르게 판단해도 괜찮은가?"를 먼저 따져보고 코드를 나누는 게, 다 만들고 나서 안전 문제를 찾는 것보다 훨씬 싸게 먹힌다.
+
+**변경 파일**: `src/lib/silverlink/rag/{gemini-client.ts(신규),embedding.ts,answer-generator.ts}`, `src/lib/silverlink/rag/__tests__/answer-generator.test.ts`, `src/app/api/rag/ask/route.ts`, `tasks/tasks-day14-rag-vector-techniques.md`
+
+**커밋**: 아직 안 함(사용자 요청 시 진행)
+
+---
+
+## Day14 Slice 5~6: 임베딩 파이프라인 + 벡터 검색 + Hybrid Search + CRAG 실제 연결
+
+**쉬운 설명**: 사용자가 Gemini API 키를 새로 발급받아 넣어준 뒤부터 진행했다. 지금까지는 "관련 기록 찾기"가 키워드(정확히 같은 단어)로만 됐는데, 이제 "의미가 비슷한 기록"도 같이 찾을 수 있게 됐다. 예를 들어 "어머니가 요즘 불편해하신 거 있어?"처럼 정확한 키워드가 없는 질문에도, 저장된 기록을 미리 숫자 벡터로 바꿔두고 그 벡터끼리 거리를 재서 의미가 비슷한 기록을 찾아낸다. 다만 키워드 검색과 벡터 검색 둘 다 살려두고 결과를 점수로 합치는 식(Hybrid Search)이라, 기존에 잘 되던 정확 매칭이 깨지지는 않는다. 그리고 벡터 검색이 "그럴듯하지만 사실 관련 없는" 결과를 가져올 위험이 있어서, 그 결과의 신뢰도가 너무 낮으면 통째로 버리는 안전장치(CRAG)도 같이 넣었다.
+
+**목표**: `tasks/tasks-day14-rag-vector-techniques.md` Slice 5~6 완료 — Gemini 임베딩으로 기존 RAG 근거를 벡터화해서 저장하고, 질문이 들어오면 벡터 검색 결과와 기존 키워드 검색 결과를 합쳐서 돌려준다.
+
+**키 발급 검증**: 코드를 짜기 전에 사용자가 새로 발급한 키로 Gemini 임베딩 API를 직접 한 번 호출해서 768차원 벡터가 정상적으로 오는지 먼저 확인했다(키 값은 출력하지 않고, 차원 수만 확인). 이렇게 먼저 확인해두면 이후 코드에 문제가 생겨도 "키 자체가 문제인지/코드가 문제인지"를 바로 구분할 수 있다.
+
+**작업 중 발견하고 고친 설계 결함 2가지**:
+1. SQL 함수 `match_rag_documents`가 `parentId`를 필수로 받게 짜놨었는데, Day13 UI에는 이미 "전체 부모님" 검색(parentId 없음) 옵션이 있다는 걸 다시 코드를 보다가 발견했다. `match_parent_id`를 `default null`로 바꾸고 `parent_id = match_parent_id` 조건을 `(match_parent_id is null or parent_id = match_parent_id)`로 고쳤다.
+2. 같은 함수가 `source_id`를 반환하지 않고 있었는데, Hybrid Search에서 벡터 검색 결과와 키워드 검색 결과를 합치려면 두 결과가 "같은 기록"임을 알아볼 수 있는 공통 키(`source_type:source_id`)가 있어야 한다는 걸 합치는 코드를 짜다가 알아챘다. 반환 컬럼에 `source_id`를 추가했다.
+두 가지 모두 실제로 한 번 써보려고(=다음 단계 코드를 짜보려고) 하다가 발견한 문제라서, "일단 짜고 본다"보다 "이걸로 다음 단계가 실제로 가능한가"를 미리 따라가 보는 게 빈틈을 빨리 찾는 방법이라는 걸 다시 확인했다.
+
+**만든 것**:
+- `embedding.ts` — `embedTexts()`(배치)/`embedText()`(단건), 768차원(MRL로 truncate), 모델명은 `GEMINI_EMBEDDING_MODEL` 환경변수(기본값 `gemini-embedding-001`)
+- `rag-documents-repo.ts` — `upsertRagDocuments()`, `searchRagDocuments()`(parentId optional)
+- `indexer.ts` — `indexRagDocuments()`: evidence 전체를 맥락화(Contextual Retrieval) → 배치 임베딩 → `rag_documents`에 적재
+- `POST /api/rag/reindex` — 배치 적재 트리거 라우트
+- `evidence-service.ts` 수정 — `GEMINI_API_KEY`가 있으면: 질문을 임베딩 → 벡터 검색 → CRAG(최고 유사도가 임계값 미달이면 벡터 결과 전체 폐기, 일부만 골라내지 않음) → Hybrid Search(RRF)로 키워드 검색 결과와 병합. **키가 없으면 기존 Day12/13 키워드 전용 동작이 그대로 유지**된다(점진적 강화, 회귀 없음). 벡터 검색이 일시적으로 실패해도 키워드 결과는 그대로 반환해 RAG 전체가 죽지 않게 했다.
+
+**검증**: `npx vitest run` 97/97(이번 슬라이스는 DB/외부 API를 직접 부르는 코드라 이 프로젝트의 기존 관례대로 새 단위 테스트는 추가하지 않음 — `evidence-service.ts`/`rag-evidence-repo.ts` 등 기존 DB 연동 코드도 단위 테스트 없이 빌드+수동 테스트로 검증해왔다), `npm run build` 통과(`/api/rag/reindex` 라우트 정상 생성). **사용자 수동 테스트는 아직 진행 전** — SQL 함수가 바뀌어서 Supabase에 재실행이 필요하고, 그 다음 `/api/rag/reindex` 호출 → `/dashboard/assistant`에서 질문해보는 확인이 남아있다.
+
+**🤖 AI 활용 팁**: API 키처럼 "있어야만 테스트 가능한" 외부 의존성이 생기면, 애플리케이션 코드를 짜기 전에 그 의존성만 떼어내서 가장 단순한 형태로 한 번 호출해보는 게 좋다(이번엔 `node -e`로 5줄짜리 임베딩 호출 한 번). 이렇게 하면 나중에 더 복잡한 코드에서 에러가 나도 "키/모델명 문제"라는 가능성을 이미 지운 상태로 디버깅을 시작할 수 있다.
+
+**변경 파일**: `docs/supabase-schema-member-scoped.sql`(함수 수정 — **재실행 필요**), `src/lib/silverlink/rag/{embedding.ts,indexer.ts,schema.ts,evidence-service.ts}`(신규/수정), `src/lib/supabase/rag-documents-repo.ts`(신규), `src/app/api/rag/reindex/route.ts`(신규), `tasks/tasks-day14-rag-vector-techniques.md`
+
+**커밋**: 아직 안 함(사용자 요청 시 진행)
+
+---
+
+## Day14 Slice 1~4: 키 없이 가능한 부분 먼저 구현 (pgvector 스키마 + 3대 기법의 순수 로직)
+
+**쉬운 설명**: 어제 만든 가이드를 실제 코드로 옮기기 시작했다. 다만 Gemini API 키가 아직 없어서, 키가 꼭 있어야 하는 부분(임베딩 호출, 실제 LLM 답변, 전화/메시지 명령 실행)은 건드리지 않고, **키 없이도 만들고 테스트할 수 있는 부분만** 먼저 끝냈다 — 벡터를 저장할 DB 테이블, 그리고 3대 기법(Contextual Retrieval/Hybrid Search/CRAG) 중 외부 API 호출이 필요 없는 "순수 계산" 부분.
+
+**목표**: `tasks/tasks-day14-rag-vector-techniques.md`의 Slice 1~4를 완료하고, 키가 필요한 지점에서 멈춰 사용자에게 알린다.
+
+**만든 것**:
+- `docs/supabase-schema-member-scoped.sql` — `rag_documents` 테이블(임베딩 저장용) + RLS 4정책(일반 RLS, Day9처럼 익명 호출자가 아니므로 SECURITY DEFINER 아님) + HNSW 인덱스 + `match_rag_documents()` 벡터 검색 함수. **아직 사용자가 Supabase SQL Editor에서 직접 실행하지 않음**(anon key로는 DDL을 실행할 수 없어 Claude Code가 대신 실행 불가 — Day6~13과 동일한 제약).
+- `lib/silverlink/rag/contextualizer.ts` — `buildContextualText()`: Contextual Retrieval을 LLM 호출 없이 템플릿으로 구현(원본 기법은 Anthropic이 LLM에게 시키지만, 우리 데이터는 이미 구조화돼 있어 템플릿으로도 충분). 구현하다 보니 Day13의 `rag-ui-meta.ts`에 있던 "parent_profile은 시점 없는 배경 정보라 epoch(0)으로 표시" 처리를 빠뜨릴 뻔했는데, 테스트를 쓰다가 "1970-01-01 작성"이라는 이상한 문장이 나오는 걸 발견해서 같은 epoch 판단 로직을 가져와 고쳤다.
+- `lib/silverlink/rag/hybrid-search.ts` — `fuseResults()`: Reciprocal Rank Fusion으로 벡터 검색 결과와 기존 SQL 검색 결과를 합침. 두 개 리스트만 받게 짤 수도 있었지만, 가변 개수 리스트를 받게 만들어서 나중에 검색 소스가 늘어나도(예: 전문 검색 추가) 함수를 안 바꿔도 되게 했다.
+- `lib/silverlink/rag/crag-check.ts` — `checkEvidenceQuality()`: CRAG의 단순화 버전(유사도 임계값 0.5 기본). 처음엔 "정렬된 리스트의 첫 항목이 최고 점수"라고 가정하고 짰는데, 호출하는 쪽이 항상 정렬해서 넘긴다고 보장할 수 없어서 "가진 점수 중 최댓값"으로 바꿨다 — 호출자의 책임을 줄이는 방향.
+
+**검증**: `npx vitest run` 97/97(기존 81 + 신규 16), `npm run build` 통과(라우트 변화 없음, 이번 슬라이스는 DB 호출이 없는 순수 함수만 추가). 화면 변화 없어 수동 테스트 대상 없음.
+
+**다음 멈춤 지점**: `.env.local`에 `GEMINI_API_KEY`가 없어서, Slice 5(임베딩 파이프라인)부터는 진행할 수 없다. 사용자에게 키 발급 여부를 묻고 대기 중.
+
+**🤖 AI 활용 팁**: "이 함수가 입력이 정렬되어 있다고 가정해도 되는가?" 같은 질문은 테스트를 쓰면서 가장 잘 드러난다 — `checkEvidenceQuality`를 짤 때 처음엔 암묵적으로 정렬을 가정했는데, 일부러 순서를 뒤섞은 테스트 케이스를 하나 추가해보니 바로 버그가 보였다. 함수를 다 만든 뒤 테스트를 끼워 맞추는 게 아니라, "이 입력이 항상 이런 형태일까?"를 의심하는 테스트 케이스를 일부러 하나씩 넣어보면 암묵적 가정을 코드에 남기지 않게 된다.
+
+**변경 파일**: `tasks/tasks-day14-rag-vector-techniques.md`(신규), `docs/supabase-schema-member-scoped.sql`, `src/lib/silverlink/rag/{contextualizer.ts,hybrid-search.ts,crag-check.ts}`(신규), `src/lib/silverlink/rag/__tests__/{contextualizer.test.ts,hybrid-search.test.ts,crag-check.test.ts}`(신규)
+
+**커밋**: 아직 안 함(사용자 요청 시 진행)
+
+---
+
+## Day14 준비: 무료·최신 RAG 자가 구축 가이드 작성 (`docs/GUIDE-day14-rag-self-build-gemini-pgvector.md`)
+
+**쉬운 설명**: Day13까지는 "정해진 문장 틀"로만 답을 만들었는데(LLM 키가 없어서), 이제 진짜 AI가 답을 쓰게 만들 차례다. 다만 이번엔 내가 직접 코드를 짜지 않고, 사용자가 스스로 공부하면서 만들어보고 싶다고 해서 — 요리를 대신 해주는 대신 "레시피북"을 아주 상세하게 써준 셈이다. 어떤 AI(LLM), 어떤 임베딩, 어떤 벡터 DB를 쓸지, 그리고 최신 RAG 기법 중 어떤 3가지(Contextual Retrieval / Hybrid Search / CRAG)를 적용할지까지 사용자가 직접 결정했고, 그 결정을 따라가는 9단계 실행 가이드를 만들었다.
+
+**목표**: 사용자가 직접 구현할 수 있도록, 단계별로 "왜 이렇게 하는지(이론)"와 "어떻게 하는지(코드/SQL)"를 함께 담은 학습용 가이드를 작성한다. 코드는 내가 리포지토리에 바로 적용하지 않고, 가이드 문서 안의 예시로만 제공한다.
+
+**의사결정 과정**: 처음엔 LLM=Gemini, Ollama는 제외하는 쪽으로 거의 정해졌었는데, 사용자가 "Gemini 무료 한도가 더 치명적일 수도 있다"며 Ollama 클라우드 호스팅 비용을 먼저 물었다. 직접 검색해서 비교한 결과: Ollama를 클라우드에 상시 띄우면 GPU 기준 월 $120~250, CPU 기준도 월 $30~50가 **사용자가 0명이어도** 청구되는 반면, Gemini 무료 한도(가입 시점 기준 분당 10회·하루 1,500회)는 가족 단위 MVP 트래픽에서는 거의 도달하지 않고, 넘어도 유료 단가가 매우 싸다. 이 비교 끝에 원래 계획(Gemini + pgvector)대로 가기로 확정했다.
+
+**가이드 작성 중 발견한 중요 사실(churn)**: 가이드를 쓰려고 모델명을 검색해보니 `gemini-2.0-flash`(2026-06-01 폐지), `gemini-2.5-flash`(2026-06-17 폐지), `text-embedding-004`(2026-01-14 폐지)가 **이미 다 서비스 종료됐다** — 처음 논의했던 모델명이 가이드를 쓰는 사이에 이미 못 쓰는 상태가 된 것. 그래서 가이드에 모델명을 하드코딩하지 말고 `.env.local`의 환경 변수 하나로만 참조하도록(`GEMINI_LLM_MODEL`, `GEMINI_EMBEDDING_MODEL`) Step 1에 명시했다 — 실제로 겪은 변화를 보고 내린 설계 판단이라 더 설득력이 있다.
+
+**가이드 구성(9단계)**: ① API 키 발급+모델명 확인 ② pgvector 확장+`rag_documents` 테이블+`match_rag_documents` 함수(일반 RLS, SECURITY DEFINER 아님 — Day9/11과 같은 기준) ③ Contextual Retrieval(LLM 호출 없이 템플릿으로 맥락 문장 생성, code-first 원칙 유지) ④ 임베딩 파이프라인(`gemini-embedding-001`을 768차원으로 truncate, MRL 기법) ⑤ 벡터 검색 연동 ⑥ Hybrid Search(Reciprocal Rank Fusion으로 SQL 검색+벡터 검색 합산) ⑦ CRAG 검증(유사도 임계값 미달 시 "근거 부족" 응답) ⑧ 실제 LLM 답변 생성(+안전장치 필터) ⑨ 평가(질문 12개 수동 채점).
+
+**검증**: 문서 작성 작업이라 빌드/테스트 대상 코드 변경 없음. 다음 단계는 사용자가 가이드를 따라 직접 구현.
+
+**🤖 AI 활용 팁**: 빠르게 바뀌는 외부 API(이번엔 Gemini 모델명)를 다루는 가이드를 쓸 때는, "지금 맞는 이름"을 적기보다 "확인하는 방법 + 한 곳에서만 바꿀 수 있는 구조(환경 변수)"를 적는 게 훨씬 오래 유효하다. 실제로 이 대화 중에도 모델 2개가 이미 폐지된 걸 검색으로 확인했다 — 학습 자료성 문서일수록 "정답"이 아니라 "정답을 확인하는 방법"을 가르치는 게 안전하다.
+
+**변경 파일**: `docs/GUIDE-day14-rag-self-build-gemini-pgvector.md`(신규)
+
+**커밋**: 아직 안 함(사용자 요청 시 진행)
+
+---
+
+## Day 13 Slice 1~4: RAG 챗봇 UI + 답변 API (`/dashboard/assistant`, `POST /api/rag/ask`)
+
+**쉬운 설명**: Day12에서 만든 "사서"(관련 기록을 찾아 정리해주는 뒷단 기능)에 드디어 채팅 화면을 붙였다. `/dashboard/assistant`에서 부모님을 고르고, 빠른 질문 버튼을 누르거나 직접 질문을 입력하면, 관련 기록을 찾아서 "최근 기록 N건을 확인했어요" 같은 문장 + 근거 카드 + "지금 확인할 일"을 보여준다. 아직 진짜 AI(LLM)가 글을 쓰는 건 아니고, 정해진 한국어 문장 틀에 찾은 기록을 끼워 넣는 방식이다(이유는 아래 참고).
+
+**목표**: Day12의 evidence 엔진에 "답변 생성"과 "채팅 화면"을 붙여서 보호자가 실제로 질문하고 답을 받는 전체 흐름을 완성한다.
+
+**왜 아직 실제 LLM을 안 쓰는가**: 작업 시작 전에 `.env.local`에 `OPENAI_API_KEY`/`ANTHROPIC_API_KEY`가 있는지 확인했는데(값은 출력하지 않고 키 이름 존재 여부만 확인) 둘 다 없었다. 그래서 이번 Day는 계획에 있던 "LLM 키 없을 때의 deterministic fallback" 경로만 완성했다 — 모은 근거를 고정된 한국어 템플릿 문장으로 정리하는 방식. 마스터플랜이 언급한 `safety-guard.ts`(LLM이 진단/안전 단언 표현을 쓰지 못하게 거르는 모듈)도 이번엔 만들지 않았다 — 우리가 직접 쓰는 고정 문장만 나가는 동안은 걸러낼 LLM 출력이 없어서, 실제 LLM을 붙이는 시점에 다시 검토하기로 했다.
+
+**리팩터 하나**: Day12의 `/api/rag/evidence`와 이번 `/api/rag/ask`가 "소유권 검증 → 분류 → 조회 → 정규화"라는 똑같은 과정을 거쳐야 해서, 그 로직을 `lib/silverlink/rag/evidence-service.ts`의 `resolveRagEvidence()`로 뽑아내고 두 라우트가 같이 쓰게 했다(중복 제거, 동작은 그대로).
+
+**만든 것**:
+- `lib/silverlink/rag/evidence-service.ts` — 공유 evidence 조회 함수(신규)
+- `lib/silverlink/rag/answer-generator.ts` — `buildFallbackAnswer`: 근거 0건이면 "찾지 못했어요" 안내, 있으면 건수+제목/요약 나열, 도움 요청 있으면 직접 연락 권장 문구 추가
+- `POST /api/rag/ask` — 질문을 받아 분류→조회→답변 생성까지 한 번에 처리
+- `/dashboard/assistant` + `components/rag/care-assistant-panel.tsx` — 부모님 선택, 빠른 질문 4개, 자유 질문 입력, 답변/다음 행동/근거 카드, "의료 진단 아님" 안전 문구
+- 대시보드 허브에 "돌봄 기록 AI 비서" 링크 추가
+
+**검증**: `npx vitest run` 81/81(기존 76 + 신규 5), `npm run build` 통과(`/api/rag/ask`, `/dashboard/assistant` 라우트 정상 생성). **이번 Day는 화면이 있어서, 사용자가 브라우저에서 직접 눌러보는 수동 확인이 필요** — 아직 진행 전.
+
+**🤖 AI 활용 팁**: 두 API가 같은 핵심 로직(권한 확인 → 분류 → 조회 → 정규화)을 쓰게 되는 순간, 그 로직을 공유 함수로 뽑아내는 게 "조금 이른 추상화"가 아니라 "이미 일어난 중복을 없애는 것"이다 — 새 기능을 만들 때마다 "이미 똑같은 코드가 다른 곳에 있는가"를 먼저 확인하면, 나중에 둘 중 하나만 고치고 다른 하나를 깜빡하는 버그를 막을 수 있다.
+
+**변경 파일**: `tasks/tasks-day13-rag-chatbot-ui.md`(신규), `src/lib/silverlink/rag/{schema.ts,evidence-service.ts,answer-generator.ts,types.ts}`, `src/app/api/rag/{evidence/route.ts(리팩터),ask/route.ts(신규)}`, `src/components/rag/care-assistant-panel.tsx`(신규), `src/app/(protected)/dashboard/assistant/page.tsx`(신규), `src/app/(protected)/dashboard/page.tsx`
+
+**커밋**: 아직 안 함(사용자 요청 시 진행)
+
+---
+
 # 2026-06-25
 
 ## Day 12 Slice 1~4: RAG Evidence Layer (`POST /api/rag/evidence`)
