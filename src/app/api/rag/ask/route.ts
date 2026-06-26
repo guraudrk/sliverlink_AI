@@ -3,8 +3,9 @@ import { ragQueryRequestSchema } from "@/lib/silverlink/rag/schema";
 import { resolveRagEvidence } from "@/lib/silverlink/rag/evidence-service";
 import { generateAssistantAnswer } from "@/lib/silverlink/rag/assistant-response";
 import { buildFallbackAnswer } from "@/lib/silverlink/rag/answer-generator";
-import { selectActionCandidates } from "@/lib/silverlink/rag/action-tools";
+import { selectActionCandidates, selectParentCandidates } from "@/lib/silverlink/rag/action-tools";
 import { listCareTasks } from "@/lib/supabase/care-tasks-repo";
+import { listParentProfiles } from "@/lib/supabase/parent-profiles-repo";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 function jsonResponse(body: unknown, status = 200) {
@@ -39,20 +40,31 @@ export async function POST(request: Request) {
   }
 
   try {
-    // 질문 분류보다 먼저 "이건 명령인가"를 본다 — 명령으로 처리됐으면 평소 질문-답변 경로는 건너뛴다.
-    const actionResult = await tryHandleActionRequest(supabase, userData.user.id, input);
-    if (actionResult.handled) {
-      return jsonResponse({ ok: true, category: "action", answer: actionResult.answer });
-    }
-
     const result = await resolveRagEvidence(supabase, input);
     if (!result.ok) {
       return jsonResponse({ ok: false, error: result.error }, 404);
     }
-    const answer = process.env.GEMINI_API_KEY
-      ? await buildLlmAnswer(result.category, result.evidence, input.query, input.history)
-      : buildFallbackAnswer(result.category, result.evidence);
-    return jsonResponse({ ok: true, category: result.category, answer });
+
+    if (!process.env.GEMINI_API_KEY) {
+      const answer = buildFallbackAnswer(result.category, result.evidence);
+      return jsonResponse({ ok: true, category: result.category, answer });
+    }
+
+    // 질문 답변과 명령(전화/메시지/새 일정 등록) 판단을 같은 Gemini 호출 안에서 함께 한다. 명령이면
+    // 곧바로 실행하지 않고 pendingAction으로 돌려준다 — 실제 실행은 사용자가 확인을 눌러야 한다.
+    const [tasks, parentProfiles] = await Promise.all([listCareTasks(supabase), listParentProfiles(supabase)]);
+    const candidateTasks = selectActionCandidates(tasks, input.parentId);
+    const parentCandidates = selectParentCandidates(parentProfiles, input.parentId);
+    const { category, answer, pendingAction } = await generateAssistantAnswer(
+      result.category,
+      result.evidence,
+      candidateTasks,
+      parentCandidates,
+      input.parentId,
+      input.query,
+      input.history
+    );
+    return jsonResponse({ ok: true, category, answer, pendingAction });
   } catch {
     return jsonResponse({ ok: false, error: "ask_failed" }, 500);
   }

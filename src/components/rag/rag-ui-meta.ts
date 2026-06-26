@@ -19,8 +19,10 @@ export const CATEGORY_META: Record<string, { label: string; className: string }>
   help: { label: "도움 요청", className: "bg-amber-50 text-amber-700 ring-1 ring-amber-200" },
   medication: { label: "복약", className: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200" },
   calls: { label: "안부전화", className: "bg-pink-50 text-pink-600 ring-1 ring-pink-200" },
+  task_request: { label: "새 일정 요청", className: "bg-indigo-50 text-indigo-600 ring-1 ring-indigo-200" },
   open: { label: "자유 질문", className: "bg-slate-100 text-slate-600 ring-1 ring-slate-200" },
   action: { label: "명령 실행", className: "bg-violet-50 text-violet-600 ring-1 ring-violet-200" },
+  action_pending: { label: "확인 필요", className: "bg-amber-50 text-amber-700 ring-1 ring-amber-200" },
 };
 
 const SAFETY_FLAG_LABELS: Record<string, string> = {

@@ -1,9 +1,15 @@
-import { ZodError } from "zod";
+import { z, ZodError } from "zod";
 import { getSilverLinkEnv } from "@/lib/silverlink/env";
 import { sendToMakeWebhook } from "@/lib/silverlink/make-client";
 import { buildSilverLinkPayload } from "@/lib/silverlink/payload";
 import { createCareTask, createMessageLog, isOwnParentProfile } from "@/lib/supabase/care-tasks-repo";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { classifyTaskType, TASK_TYPE_OPTIONS } from "@/lib/silverlink/care-tasks/task-type";
+
+// task_type은 웹훅 payload(buildSilverLinkPayload)와는 별도로 다룬다 — Make 시나리오로 나가는 외부 계약은
+// 그대로 두고, DB에만 저장하는 관리용 메타데이터이기 때문이다. 사용자가 직접 고르지 않으면(필드 누락/빈 값)
+// classifyTaskType으로 자동 분류한다.
+const taskTypeFieldSchema = z.enum(TASK_TYPE_OPTIONS).optional();
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -36,6 +42,17 @@ export async function POST(request: Request) {
     throw error;
   }
 
+  const rawTaskType = typeof body === "object" && body !== null ? (body as Record<string, unknown>).task_type : undefined;
+  let taskType: (typeof TASK_TYPE_OPTIONS)[number];
+  try {
+    taskType = taskTypeFieldSchema.parse(rawTaskType) ?? classifyTaskType(payload.message);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return jsonResponse({ ok: false, error: "validation_failed", issues: error.issues }, 400);
+    }
+    throw error;
+  }
+
   let owns: boolean;
   try {
     owns = await isOwnParentProfile(supabase, payload.target_person_id);
@@ -58,6 +75,7 @@ export async function POST(request: Request) {
       original_request: payload.message,
       status: "scheduled",
       priority: "normal",
+      task_type: taskType,
     });
     careTaskId = careTask.id;
 
@@ -92,5 +110,6 @@ export async function POST(request: Request) {
     legacyMakeCalled,
     careTaskId,
     messageLogId,
+    taskType,
   });
 }

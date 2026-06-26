@@ -20,6 +20,7 @@ function makeCareTask(original_request: string): CareTaskSummary {
     original_request,
     status: "scheduled",
     priority: "normal",
+    task_type: null,
     completed_at: null,
     notification_status: "none",
     created_at: "2026-06-25T00:00:00Z",

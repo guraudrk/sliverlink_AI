@@ -63,6 +63,13 @@ describe("buildEvidence", () => {
     expect(evidence).toHaveLength(0);
   });
 
+  it("task_request 분류는 모인 근거가 있어도 항상 빈 배열을 반환한다(명령이라 근거로 답할 질문이 아님)", () => {
+    const rows = emptyRows();
+    rows.careTasks = [{ id: "t1", parent_id: "p1", original_request: "복약 확인", status: "scheduled", priority: "normal", created_at: "2026-06-25T00:00:00Z" }];
+    const evidence = buildEvidence("task_request", rows);
+    expect(evidence).toHaveLength(0);
+  });
+
   it("importance 순서(high -> medium -> low)로 정렬한다", () => {
     const rows = emptyRows();
     rows.careTasks = [

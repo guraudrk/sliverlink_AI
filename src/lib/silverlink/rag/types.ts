@@ -1,6 +1,18 @@
-// "action"은 classifyQuery가 만들어내는 값이 아니라, action-service.ts가 명령(전화/메시지)을
-// 실제로 실행했을 때 응답에 붙이는 카테고리다(질문 분류와는 다른 경로).
-export const RAG_QUERY_CATEGORIES = ["summary", "help", "medication", "calls", "open", "action"] as const;
+// "action"/"action_pending"은 classifyQuery가 만들어내는 값이 아니라, 명령(전화/메시지) 경로에서만
+// 붙는 카테고리다. "action_pending"은 LLM이 명령 의도를 감지했지만 아직 실행 전 사용자 확인을
+// 기다리는 상태, "action"은 사용자가 확인을 눌러 실제로 실행이 끝난 상태다.
+// "task_request"는 "일정 만들어줘"처럼 새 일정 등록을 요청하는 명령 — 근거 데이터로 답할 질문이
+// 아니라서(evidence-builder.ts가 항상 빈 배열을 반환) "open"처럼 전체 근거를 덤프하지 않는다.
+export const RAG_QUERY_CATEGORIES = [
+  "summary",
+  "help",
+  "medication",
+  "calls",
+  "task_request",
+  "open",
+  "action",
+  "action_pending",
+] as const;
 export type RagQueryCategory = (typeof RAG_QUERY_CATEGORIES)[number];
 
 export const RAG_SOURCE_TYPES = [

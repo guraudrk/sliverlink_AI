@@ -21,4 +21,12 @@ describe("classifyQuery", () => {
   it("매칭되는 키워드가 없으면 open으로 분류한다", () => {
     expect(classifyQuery("오늘 날씨 어때?")).toBe("open");
   });
+
+  it("새 일정 등록 명령 키워드가 있으면 task_request로 분류한다", () => {
+    expect(classifyQuery("엄마 일정 새로 만들어줘")).toBe("task_request");
+  });
+
+  it("명령 안에 다른 카테고리 키워드(병원 등)가 섞여 있어도 명령 자체를 우선해 task_request로 분류한다", () => {
+    expect(classifyQuery("병원 다녀오셨는지 확인하는 일정 만들어줘")).toBe("task_request");
+  });
 });

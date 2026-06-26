@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 import type { CareTaskSummary } from "@/lib/supabase/care-tasks-repo";
+import type { MessageLogSummary } from "@/lib/supabase/message-logs-repo";
 import type { NotificationQueueRow } from "@/lib/supabase/notification-queue-repo";
+import { CareTaskDetailModal } from "@/components/tasks/care-task-detail-modal";
+import { TASK_TYPE_LABELS, type TaskType } from "@/lib/silverlink/care-tasks/task-type";
 
 const STATUS_LABELS: Record<string, string> = {
   scheduled: "예정",
@@ -26,6 +29,11 @@ function statusBadgeClass(status: string): string {
   return "bg-blue-100 text-blue-700";
 }
 
+function taskTypeLabel(taskType: string | null): string {
+  if (!taskType) return "미분류";
+  return TASK_TYPE_LABELS[taskType as TaskType] ?? taskType;
+}
+
 function formatDate(value: string): string {
   try {
     return new Date(value).toLocaleString("ko-KR", { dateStyle: "medium", timeStyle: "short" });
@@ -37,7 +45,9 @@ function formatDate(value: string): string {
 export default function DashboardTasksPage() {
   const [careTasks, setCareTasks] = useState<CareTaskSummary[]>([]);
   const [queueByCareTaskId, setQueueByCareTaskId] = useState<Map<string, NotificationQueueRow[]>>(new Map());
+  const [messageLogByCareTaskId, setMessageLogByCareTaskId] = useState<Map<string, MessageLogSummary>>(new Map());
   const [loading, setLoading] = useState(true);
+  const [selectedTask, setSelectedTask] = useState<CareTaskSummary | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -45,8 +55,9 @@ export default function DashboardTasksPage() {
     Promise.all([
       fetch("/api/care-tasks").then((res) => res.json()),
       fetch("/api/notification-queue").then((res) => res.json()),
+      fetch("/api/message-logs").then((res) => res.json()),
     ])
-      .then(([tasksData, queueData]) => {
+      .then(([tasksData, queueData, messageLogsData]) => {
         if (!active) return;
         if (tasksData.ok) setCareTasks(tasksData.careTasks as CareTaskSummary[]);
         if (queueData.ok) {
@@ -57,6 +68,14 @@ export default function DashboardTasksPage() {
             map.set(entry.care_task_id, list);
           }
           setQueueByCareTaskId(map);
+        }
+        if (messageLogsData.ok) {
+          // 일정마다 message_log가 0~1건(채팅/웹 폼으로 만들 때 같이 남김)이라 첫 건만 쓴다.
+          const map = new Map<string, MessageLogSummary>();
+          for (const log of messageLogsData.messageLogs as MessageLogSummary[]) {
+            if (log.care_task_id && !map.has(log.care_task_id)) map.set(log.care_task_id, log);
+          }
+          setMessageLogByCareTaskId(map);
         }
       })
       .finally(() => {
@@ -94,7 +113,12 @@ export default function DashboardTasksPage() {
             {careTasks.map((task) => {
               const queueEntries = queueByCareTaskId.get(task.id) ?? [];
               return (
-                <li key={task.id} className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+                <li key={task.id}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTask(task)}
+                    className="w-full rounded-2xl bg-white p-5 text-left shadow-sm ring-1 ring-slate-200 transition-colors hover:ring-blue-300"
+                  >
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-semibold text-slate-800">{task.target_person ?? "대상자 미지정"}</p>
@@ -113,7 +137,12 @@ export default function DashboardTasksPage() {
                     </p>
                   ) : null}
 
-                  <p className="mt-3 text-xs text-slate-400">{formatDate(task.created_at)}</p>
+                  <div className="mt-3 flex items-center gap-2 text-xs text-slate-400">
+                    <span>{formatDate(task.created_at)}</span>
+                    <span className="rounded-full bg-blue-50 px-2.5 py-0.5 font-semibold text-blue-700">
+                      {taskTypeLabel(task.task_type)}
+                    </span>
+                  </div>
 
                   {queueEntries.length > 0 ? (
                     <div className="mt-3 flex flex-wrap gap-2">
@@ -127,12 +156,22 @@ export default function DashboardTasksPage() {
                       ))}
                     </div>
                   ) : null}
+                  </button>
                 </li>
               );
             })}
           </ul>
         )}
       </div>
+
+      {selectedTask ? (
+        <CareTaskDetailModal
+          task={selectedTask}
+          queueEntries={queueByCareTaskId.get(selectedTask.id) ?? []}
+          messageLog={messageLogByCareTaskId.get(selectedTask.id) ?? null}
+          onClose={() => setSelectedTask(null)}
+        />
+      ) : null}
     </div>
   );
 }

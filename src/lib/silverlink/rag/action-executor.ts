@@ -4,21 +4,23 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildCallScript, formatCallScriptText } from "../calls/call-script-builder";
 import { generateResponseToken, getDefaultExpiresAt } from "../delivery/response-token";
 import { MockDeliveryProvider } from "../delivery/mock-provider";
-import { getOwnCareTask } from "../../supabase/care-tasks-repo";
+import { createCareTask, createMessageLog, getOwnCareTask } from "../../supabase/care-tasks-repo";
 import { getParentProfileById } from "../../supabase/parent-profiles-repo";
 import { createCareCallAttempt, updateCareCallAttempt } from "../../supabase/care-call-attempts-repo";
 import { createNotificationQueueEntry } from "../../supabase/notification-queue-repo";
 import { createDeliveryAttempt } from "../../supabase/delivery-attempts-repo";
+import { classifyTaskType, type TaskType } from "../care-tasks/task-type";
 import type { RagActionIntent } from "./action-tools";
 
 export type RagActionResult =
   | { type: "request_care_call"; ok: true; attemptId: string }
   | { type: "send_care_message"; ok: true; deliveryAttemptId: string; deliveryStatus: string }
+  | { type: "create_care_task"; ok: true; careTaskId: string; taskType: TaskType }
   | { ok: false; error: "care_task_not_found" | "parent_not_found" | "execution_failed" };
 
 const mockDeliveryProvider = new MockDeliveryProvider();
 
-// detectActionIntent(action-tools.ts)가 판단한 의도를 실제로 실행한다. 기존 /api/care-calls/preview+start,
+// decideTurn(assistant-response.ts)이 판단한 의도를 실제로 실행한다. 기존 /api/care-calls/preview+start,
 // /api/delivery/preview의 로직을 그대로 재사용한다(HTTP 자기호출이 아니라 같은 repo 함수를 직접 호출) —
 // 안전장치(소유권 검증, MockDeliveryProvider)를 새로 만들지 않고 이미 검증된 것을 그대로 쓴다.
 export async function executeActionIntent(
@@ -29,7 +31,65 @@ export async function executeActionIntent(
   if (intent.type === "request_care_call") {
     return executeRequestCareCall(supabase, ownerUserId, intent.careTaskId);
   }
+  if (intent.type === "create_care_task") {
+    return executeCreateCareTask(
+      supabase,
+      ownerUserId,
+      intent.parentId,
+      intent.senderName,
+      intent.originalRequest,
+      intent.taskType
+    );
+  }
   return executeSendCareMessage(supabase, ownerUserId, intent);
+}
+
+// /api/create-task가 하는 일(care_task insert + message_log insert)과 동일하다. 채팅에서도 "보내는 분"을
+// 명시적으로 받기로 했으므로(Day14 sender_name 요구사항), 기존 웹 폼과 동일하게 message_log도 같이
+// 남겨 누가 무엇을 요청했는지 기록을 남긴다 — source_channel은 "web"으로 동일하게 취급한다(채팅도
+// 결국 같은 웹 대시보드 안에서 들어온 요청이라 별도 채널 값을 새로 만들지 않는다).
+async function executeCreateCareTask(
+  supabase: SupabaseClient,
+  ownerUserId: string,
+  parentId: string,
+  senderName: string,
+  originalRequest: string,
+  explicitTaskType: TaskType | undefined
+): Promise<RagActionResult> {
+  try {
+    const profile = await getParentProfileById(supabase, parentId);
+    if (!profile) return { ok: false, error: "parent_not_found" };
+
+    // 자녀가 유형을 직접 골랐으면 그 값을 쓰고, 아니면(자동 분류 원함) 요청 내용으로 자동 분류한다
+    // — 웹 폼(/dashboard/create-task)의 "자동 분류" 기본값과 동일한 원칙.
+    const taskType = explicitTaskType ?? classifyTaskType(originalRequest);
+
+    const careTask = await createCareTask(supabase, {
+      owner_user_id: ownerUserId,
+      parent_id: parentId,
+      target_person: profile.display_name,
+      original_request: originalRequest,
+      status: "scheduled",
+      priority: "normal",
+      task_type: taskType,
+    });
+
+    await createMessageLog(supabase, {
+      owner_user_id: ownerUserId,
+      parent_id: parentId,
+      care_task_id: careTask.id,
+      direction: "inbound",
+      status: "received",
+      sender: senderName,
+      receiver: profile.display_name,
+      raw_message: originalRequest,
+      source_channel: "web",
+    });
+
+    return { type: "create_care_task", ok: true, careTaskId: careTask.id, taskType };
+  } catch {
+    return { ok: false, error: "execution_failed" };
+  }
 }
 
 // /api/care-calls/preview + /api/care-calls/[attemptId]/start를 한 번에 수행한다. "전화 걸어줘"라는

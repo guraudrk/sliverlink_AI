@@ -9,6 +9,13 @@ describe("buildActionAnswer", () => {
     expect(answer.hasSufficientEvidence).toBe(true);
   });
 
+  it("새 일정 등록 성공 시 유형 라벨을 포함한 확인 문구를 반환한다", () => {
+    const answer = buildActionAnswer({ type: "create_care_task", ok: true, careTaskId: "task-1", taskType: "meal" });
+    expect(answer.answerText).toContain("새 일정을 등록했어요");
+    expect(answer.answerText).toContain("식사");
+    expect(answer.hasSufficientEvidence).toBe(true);
+  });
+
   it("메시지 발송 성공 시 확인 문구를 반환한다", () => {
     const answer = buildActionAnswer({ type: "send_care_message", ok: true, deliveryAttemptId: "d-1", deliveryStatus: "sent" });
     expect(answer.answerText).toContain("메시지를 보냈어요");

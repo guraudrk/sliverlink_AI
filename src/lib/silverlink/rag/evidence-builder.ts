@@ -129,6 +129,10 @@ function filterByCategory(category: RagQueryCategory, evidence: RagEvidence[]): 
       );
     case "calls":
       return evidence.filter((item) => item.sourceType === "care_call_attempt");
+    case "task_request":
+      // 새 일정 등록 명령은 근거로 답할 질문이 아니다 — 채팅 화면에 "근거 N건"이 뜨면 사용자가
+      // 헷갈리므로, 어떤 근거가 모였든 항상 빈 배열을 반환한다.
+      return [];
     case "summary":
     case "open":
     default:

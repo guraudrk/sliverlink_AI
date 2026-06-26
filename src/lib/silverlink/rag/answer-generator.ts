@@ -9,8 +9,10 @@ export const CATEGORY_LABELS: Record<RagQueryCategory, string> = {
   help: "도움 요청 확인",
   medication: "복약 관련",
   calls: "안부전화 결과",
+  task_request: "새 일정 등록 요청",
   open: "자유 질문",
   action: "명령 실행",
+  action_pending: "명령 확인 대기",
 };
 
 // 도움 요청/복약 같은 안전 관련 다음 행동은 LLM이 글을 쓰든 안 쓰든 항상 같은 결정론적 규칙으로

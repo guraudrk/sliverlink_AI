@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "check:gemini": "node --env-file=.env.local scripts/check-gemini-model.mjs",
+    "evaluate:rag": "node --env-file=.env.local node_modules/vitest/vitest.mjs run --config vitest.eval.config.ts"
   },
   "dependencies": {
     "@google/genai": "^2.10.0",

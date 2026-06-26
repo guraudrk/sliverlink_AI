@@ -1,6 +1,42 @@
 import { z } from "zod";
+import { DELIVERY_CHANNEL_OPTIONS } from "../delivery/schema";
+import { TASK_TYPE_OPTIONS } from "../care-tasks/task-type";
 
 export const DEFAULT_RAG_TIME_WINDOW_DAYS = 30;
+
+// action-tools.ts의 RagActionIntent와 같은 모양 — /api/rag/confirm-action이 클라이언트로부터 받은
+// 명령 의도를 검증한다. care_task_id는 어차피 executeActionIntent 내부에서 RLS 기반 소유권 검증을
+// 한 번 더 거치므로(getOwnCareTask), 여기서는 입력 형태만 검증한다.
+export const ragActionIntentSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("request_care_call"),
+    careTaskId: z.string().uuid("careTaskId는 올바른 UUID여야 합니다."),
+  }),
+  z.object({
+    type: z.literal("send_care_message"),
+    careTaskId: z.string().uuid("careTaskId는 올바른 UUID여야 합니다."),
+    channel: z.enum(DELIVERY_CHANNEL_OPTIONS),
+    messageText: z.string().trim().min(1, "messageText는 비어 있을 수 없습니다."),
+  }),
+  z.object({
+    type: z.literal("create_care_task"),
+    parentId: z.string().uuid("parentId는 올바른 UUID여야 합니다."),
+    senderName: z.string().trim().min(1, "senderName는 비어 있을 수 없습니다."),
+    originalRequest: z.string().trim().min(1, "originalRequest는 비어 있을 수 없습니다."),
+    taskType: z.enum(TASK_TYPE_OPTIONS).optional(),
+  }),
+]);
+
+export type RagActionIntentInput = z.infer<typeof ragActionIntentSchema>;
+
+// 확인 버튼을 눌렀을 때 보내는 요청 — parentId는 candidateTasks 필터링 범위를 ask 때와 동일하게
+// 유지하기 위함이고(전체/특정 부모님), 실제 소유권 검증은 RLS가 한다.
+export const ragConfirmActionRequestSchema = z.object({
+  parentId: z.string().uuid("parentId는 올바른 UUID여야 합니다.").optional(),
+  intent: ragActionIntentSchema,
+});
+
+export type RagConfirmActionRequest = z.infer<typeof ragConfirmActionRequestSchema>;
 
 // 채팅 화면(Day14)이 이전 턴을 함께 보내 "이전 대화 맥락을 기억하는" 답변/명령 판단에 쓴다.
 // 평문 텍스트만 주고받는다 — evidence나 RagAnswer 전체를 왔다갔다 보내지 않아 payload를 가볍게 유지한다.

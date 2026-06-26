@@ -7,6 +7,7 @@ export type CareTaskInsert = {
   original_request: string;
   status: "scheduled";
   priority: "normal";
+  task_type?: string;
 };
 
 export type MessageLogInsert = {
@@ -44,6 +45,7 @@ export type CareTaskSummary = {
   original_request: string | null;
   status: string;
   priority: string | null;
+  task_type: string | null;
   completed_at: string | null;
   notification_status: string | null;
   created_at: string;
@@ -54,7 +56,9 @@ export type CareTaskSummary = {
 export async function listCareTasks(supabase: SupabaseClient): Promise<CareTaskSummary[]> {
   const { data, error } = await supabase
     .from("care_tasks")
-    .select("id, parent_id, target_person, original_request, status, priority, completed_at, notification_status, created_at")
+    .select(
+      "id, parent_id, target_person, original_request, status, priority, task_type, completed_at, notification_status, created_at"
+    )
     .order("created_at", { ascending: false });
 
   if (error) throw error;

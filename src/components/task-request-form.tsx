@@ -2,6 +2,9 @@
 
 import { useState, useSyncExternalStore, type FormEvent, type SVGProps } from "react";
 import type { ParentProfile } from "@/lib/supabase/parent-profiles-repo";
+import { TASK_TYPE_LABELS, TASK_TYPE_OPTIONS, type TaskType } from "@/lib/silverlink/care-tasks/task-type";
+
+const AUTO_TASK_TYPE_VALUE = "";
 
 type RecentRequest = {
   sender_name: string;
@@ -87,6 +90,7 @@ export function TaskRequestForm({ parentProfiles }: { parentProfiles: ParentProf
   const [senderName, setSenderName] = useState("자녀 테스트");
   const [targetPersonId, setTargetPersonId] = useState(parentProfiles[0]?.id ?? "");
   const [message, setMessage] = useState("");
+  const [taskType, setTaskType] = useState<TaskType | typeof AUTO_TASK_TYPE_VALUE>(AUTO_TASK_TYPE_VALUE);
   const [messageError, setMessageError] = useState<string | null>(null);
   const [status, setStatus] = useState<SubmitStatus>("idle");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -125,6 +129,7 @@ export function TaskRequestForm({ parentProfiles }: { parentProfiles: ParentProf
           target_person_id: targetPersonId,
           target_person: selectedProfile.display_name,
           message,
+          ...(taskType ? { task_type: taskType } : {}),
         }),
       });
       const data: ApiResponse = await res.json();
@@ -151,6 +156,7 @@ export function TaskRequestForm({ parentProfiles }: { parentProfiles: ParentProf
         requested_at: requestedAt,
       });
       setMessage("");
+      setTaskType(AUTO_TASK_TYPE_VALUE);
     } catch {
       setStatus("error");
       setStatusMessage("네트워크 연결을 확인하고 다시 시도해 주세요.");
@@ -223,6 +229,26 @@ export function TaskRequestForm({ parentProfiles }: { parentProfiles: ParentProf
               {messageError}
             </p>
           ) : null}
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="task_type" className="block text-base font-semibold text-slate-700">
+            유형
+          </label>
+          <select
+            id="task_type"
+            name="task_type"
+            value={taskType}
+            onChange={(event) => setTaskType(event.target.value as TaskType | typeof AUTO_TASK_TYPE_VALUE)}
+            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-lg text-slate-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+          >
+            <option value={AUTO_TASK_TYPE_VALUE}>자동 분류(전하실 말씀 내용으로 판단)</option>
+            {TASK_TYPE_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {TASK_TYPE_LABELS[option]}
+              </option>
+            ))}
+          </select>
         </div>
 
         <button
