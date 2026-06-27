@@ -49,7 +49,7 @@
 
 **변경 파일**: `README.md`, `docs/demo-scenario.md`(신규), `.env.example`
 
-**커밋**: 아직 안 함
+**커밋**: `3b0739e` (push 완료)
 
 ---
 
