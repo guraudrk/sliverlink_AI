@@ -21,6 +21,7 @@
 5. 사용자가 제시한 5단계 로드맵(실제 발송/Google 가입/웹 개편/Resend 도메인 인증/Day15 마무리)의 난이도를 객관적으로 평가해 순서를 재정렬(외부 승인 의존도가 큰 "실제 발송"을 맨 뒤로) — 합의 후 **Google OAuth 로그인을 실제로 구현하고 사용자가 직접 테스트해 정상 동작 확인.**
 6. Day15 마무리 — README에 Day10~15 섹션 추가, 데모 시나리오 문서(`docs/demo-scenario.md`) 작성, 전체 재검증.
 7. Day16 — 브랜드 아이콘/매니페스트, 레거시 `/notifications` 정리, 모바일 iOS 자동 확대 버그 수정, **실제로 Vercel에 배포해서 `https://silverlink-ai.vercel.app`에서 서비스가 돈다.**
+8. Day16 후속 — 안드로이드(갤럭시) 환경에서도 모바일 점검(운영 배포 주소 기준), 발견된 문제 없음.
 
 **오늘 쓴 기술/기법**:
 - **OWASP LLM Top 10 기반 보안 평가**: 평가 하네스(`*.eval.ts`)에 일반 품질 케이스와 분리된 "보안 케이스"를 추가해, 허용치 없이 100% 통과를 요구하도록 설계 — 품질 케이스는 LLM 표현 변동성 때문에 12/14 같은 허용치를 두지만, 안전/보안 불변식은 허용치를 두면 안 된다는 원칙을 분리해서 반영.
@@ -57,6 +58,24 @@
 **변경 파일**: `src/app/{icon.tsx,apple-icon.tsx,manifest.ts,layout.tsx}`, `src/app/favicon.ico`(삭제), `src/app/notifications/`, `src/app/api/notifications/prepare/`, `src/components/notification-preview-panel.tsx`(모두 삭제), `src/components/rag/care-assistant-panel.tsx`, `src/components/tasks/send-notification-modal.tsx`, `docs/PRD-day16-web-redesign-deploy-mobile.md`(신규), `tasks/tasks-day16-web-redesign-deploy-mobile.md`(신규), `docs/deployment-guide.md`(신규)
 
 **커밋**: `73292c3`(레거시 정리), `08694a2`(브랜드 아이콘), `650e017`(iOS 줄 버그 수정), `b57c60c`(Day16 문서) — 모두 push 완료. 운영 배포(Vercel) 자체는 git 커밋과 무관하게 별도로 진행됨.
+
+---
+
+## Day16 후속 — 안드로이드(갤럭시) 모바일 점검
+
+**계기**: Day16 모바일 점검이 iOS(아이폰)만 다뤘다는 걸 사용자가 짚어서, 다음에 이어갈 때 안드로이드도 추가하자고 미리 요청해뒀던 항목. 이번에 실제로 진행.
+
+**점검 방법**: 운영 배포 주소(`https://silverlink-ai.vercel.app`)를 대상으로, Playwright의 `devices["Galaxy S24"]` 기기 프로필(360×780, 아이폰보다 더 좁은 폭이라 오버플로우를 더 잘 잡아냄)로 비로그인 페이지(`/login`, `/signup`, `/r/[token]`)를 스크린샷 — 가로 스크롤 없이 깨끗하게 나옴. 로그인이 필요한 페이지는 (이번에도 테스트 계정이 없어서) 코드 레벨로 Android Chrome 특이사항을 점검 — iOS 전용 코드(`-webkit-`, `safe-area`, `-apple-system` 단독 의존 등)가 있는지 grep, 결과는 폰트 fallback 목록의 `-apple-system` 한 줄뿐이었고 그것도 먼저 로드되는 Pretendard 웹폰트가 모든 플랫폼에서 우선 적용돼서 실질적 영향 없음.
+
+**결과**: 발견된 문제 없음 — Day16에서 고친 두 가지(iOS 자동 확대 버그)는 iOS 전용 동작이라 Android와는 무관했고, 나머지 레이아웃/터치 영역은 처음부터 두 플랫폼 모두에 통하는 방식(Tailwind 반응형 유틸리티, 고정폭 미사용)으로 만들어져 있었다.
+
+**🤖 AI 활용 팁**: "모바일 점검"이라고 해도 iOS와 Android는 서로 다른 버그 클래스를 가진다(iOS의 자동 확대, Android의 다른 기본 줄바꿈/스크롤 동작 등) — 한 플랫폼만 확인하고 "모바일 됐다"고 끝내면 다른 플랫폼의 문제를 놓칠 수 있다. 이번엔 운 좋게 코드 자체가 플랫폼 중립적으로 짜여 있어서 추가로 고칠 게 없었지만, 점검은 두 플랫폼 다 따로 해보는 게 맞다는 걸 사용자가 먼저 짚어준 덕에 확인할 수 있었다.
+
+**검증**: 코드 변경 없음(문제가 없어서) — 따라서 별도 `tsc`/`vitest`/`build` 재실행 불필요.
+
+**변경 파일**: 없음(점검 전용, `docs/work-log.md`만 갱신)
+
+**커밋**: 이 work-log 항목만 커밋 예정
 
 ---
 
