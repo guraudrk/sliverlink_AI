@@ -1,7 +1,13 @@
 import Link from "next/link";
 import { LoginForm } from "@/components/auth/login-form";
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
+
   return (
     <div className="flex flex-1 flex-col items-center justify-center bg-slate-50 px-4 py-10 sm:py-16">
       <div className="mb-8 max-w-sm text-center">
@@ -11,6 +17,11 @@ export default function LoginPage() {
       </div>
 
       <div className="w-full max-w-sm">
+        {error === "oauth_failed" ? (
+          <div role="alert" className="mb-4 rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+            Google 로그인에 실패했어요. 다시 시도해 주세요.
+          </div>
+        ) : null}
         <LoginForm />
         <p className="mt-6 text-center text-sm text-slate-500">
           계정이 없으신가요?{" "}

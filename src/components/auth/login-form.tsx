@@ -3,6 +3,7 @@
 import { useState, type FormEvent, type SVGProps } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { GoogleSignInButton } from "./google-signin-button";
 
 type Status = "idle" | "submitting" | "error";
 
@@ -92,6 +93,14 @@ export function LoginForm() {
           <span>{errorMessage}</span>
         </div>
       ) : null}
+
+      <div className="flex items-center gap-3 text-xs font-medium text-slate-400">
+        <span className="h-px flex-1 bg-slate-200" />
+        또는
+        <span className="h-px flex-1 bg-slate-200" />
+      </div>
+
+      <GoogleSignInButton />
     </form>
   );
 }
