@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist_Mono } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
@@ -16,8 +16,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SilverLink AI | 웹 입력",
-  description: "자녀와 관리자가 어르신께 전달할 요청을 입력하는 SilverLink AI 웹 입력 채널",
+  title: "SilverLink AI",
+  description: "자녀와 관리자가 어르신께 전달할 요청·돌봄 기록을 관리하는 SilverLink AI",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#2563eb",
 };
 
 export default function RootLayout({
