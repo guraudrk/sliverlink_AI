@@ -157,25 +157,33 @@
   - `npx tsc --noEmit` 클린, `npx vitest run` 150/150 통과(평가 파일은 일반 스위트에 안 잡힘 — 의도대로 분리됨), `npm run build` 클린, `npm run evaluate:rag` 연속 2회 실행 모두 14/14 통과 확인
   - **변경 파일**: `src/lib/silverlink/rag/__evaluation__/rag-evaluation.eval.ts`(신규), `src/lib/silverlink/rag/assistant-response.ts`(buildParentListText 프롬프트 수정), `vitest.eval.config.ts`(신규), `package.json`
 
-- [ ] 12.0 (백로그, 사용자 요청 2026-06-26) `nextSteps` 추천 항목을 바로 실행할 수 있는 링크/버튼으로 확장
-  - 지금은 `RagAnswer.nextSteps`가 "도움 요청한 항목 직접 확인하기" 같은 안내 문구 텍스트로만 표시됨(`care-assistant-panel.tsx`의 "⚡ 지금 확인할 일" 목록)
-  - 각 nextStep에 실제 행동으로 바로 이어지는 버튼/링크를 붙인다(예: 해당 일정으로 이동하는 링크, Slice 8~10에서 만들 전화/메시지 액션을 같은 챗봇 안에서 한 번에 실행하는 버튼)
-  - Slice 8~10(명령 실행/Function Calling)과 자연스럽게 이어지는 작업이라, 그 슬라이스들을 먼저 끝낸 뒤 착수
-  - 13.0/14.0(아래)과 한 묶음으로 보면 됨 — 모두 "확인/실행이 끝난 결과에 바로 이어지는 액션 버튼"이라는 같은 패턴
+- [x] 12.0 (2026-06-27 완료) `nextSteps` 추천 항목을 바로 실행할 수 있는 링크/버튼으로 확장
+  - `RagAnswer.nextSteps`를 `string[]`에서 `RagNextStep[]`(`{ label: string; href?: string }`, `types.ts`)으로 변경
+  - `deriveNextSteps`(`answer-generator.ts`)가 안전 플래그를 유발한 근거 항목의 `parentId`로 `/dashboard/parents/${parentId}` 링크를 붙임(help_requested/medication_related 각각)
+  - `action-service.ts`의 `buildActionAnswer`도 결과별로 링크 부여: 안부전화→`/dashboard/calls`, 새 일정 등록/메시지 발송→`/dashboard/tasks`
+  - `care-assistant-panel.tsx`: href가 있으면 `next/link`로 클릭 가능한 버튼(앰버 배경), 없으면 기존처럼 텍스트만 표시
+  - `npx tsc --noEmit` 클린, `npx vitest run` 150/150 통과, `npm run build` 클린, `npm run evaluate:rag` 통과(케이스 2의 체크를 `nextSteps.includes(문자열)`에서 `nextSteps.some(step => step.label === ...)`로 갱신)
+  - **변경 파일**: `src/lib/silverlink/rag/types.ts`, `answer-generator.ts`, `action-service.ts`, `__tests__/answer-generator.test.ts`, `__tests__/action-service.test.ts`, `__evaluation__/rag-evaluation.eval.ts`, `src/components/rag/care-assistant-panel.tsx`
+  - 13.0/14.0(아래)과 한 묶음으로 보면 됨 — 모두 "확인/실행이 끝난 결과에 바로 이어지는 액션 버튼"이라는 같은 패턴. 14.0에서 이 버튼 스타일을 그대로 재사용 가능
 
-- [ ] 13.0 (백로그, 사용자 요청 2026-06-26) 대시보드: 미발송 알림 일괄 확인 + 발송 팝업
+- [x] 13.0 (2026-06-27 완료) 대시보드: 미발송 알림 일괄 확인 + 발송 팝업
   - 요구사항(사용자 원문): "dashboard에서 버튼을 누르면 발송되지 않은, 등록된 알림이 뜨고, 그 중 하나를 클릭하면 팝업창이 뜨고 sms/카카오톡 중 하나를 선택해서 알림을 보냄"
-  - 현재 상태 점검 결과: 비슷해 보이지만 다른 두 화면이 이미 있어 혼동 주의.
-    - `/notifications`(`NotificationPreviewPanel` + `/api/notifications/prepare`)는 Day8 이전 레거시 화면 — 지금 쓰는 `notification_queue`/`delivery_attempts` 테이블과 무관한, 옛 Airtable/Make 연동 시절의 Mock 미리보기다. 이번 기능을 만들 때 이 화면은 **혼란을 줄 수 있어 정리(제거 또는 명확히 구분) 대상**으로 같이 검토해야 함.
-    - `/delivery-preview`(`DeliveryPreviewForm` + `POST /api/delivery/preview`)가 실제로 쓰는 현재 시스템이다 — 일정 선택 → 채널 선택 → 메시지 입력 → Mock 발송(큐 생성 + 발송 시도 기록)까지 이미 구현돼 있음. 다만 전체 일정 목록을 보여주는 풀페이지 폼이라, "발송되지 않은 것만 골라 보여주는 목록 + 클릭 시 팝업"이라는 이번 요구사항과는 UX가 다르다.
-  - 구현 방향(다음에 착수할 때 참고):
-    - "발송되지 않은, 등록된 알림"의 정의를 먼저 확정해야 함 — 가장 그럴듯한 후보: `listCareTasks()` 결과 중 `notification_status`가 비어있거나(아직 한 번도 알림을 시도 안 함) `status`가 `scheduled`인 것들. 또는 `notification_queue`에서 `status`가 `sent`/`responded`가 아닌 행. 사용자에게 다시 확인 후 결정.
-    - `/dashboard`에 새 버튼(또는 `/dashboard/tasks`의 "미발송만 보기" 필터)을 추가해 그 목록을 띄운다.
-    - 목록의 항목을 클릭하면 `care-task-detail-modal.tsx`(Slice 10.6에서 만든 모달)와 비슷한 팝업 패턴으로 "채널 선택(SMS/카카오 알림톡) + 발송" UI를 띄운다 — 백엔드는 기존 `POST /api/delivery/preview`를 그대로 재사용 가능(새 API 불필요할 가능성 높음).
-    - 발송 성공 시 목록에서 그 항목을 제거하거나 "발송됨" 상태로 갱신해 다시 보이지 않게 한다.
+  - **착수 전 발견한 버그(사용자에게 확인 후 수정)**: "미발송" 정의로 쓰기로 했던 `notification_status` 컬럼이 사실 Day5 레거시 알림 엔진(`/api/notifications/prepare`)만 갱신하는 죽은 필드였다 — 지금 실제로 쓰는 두 발송 경로(`/api/delivery/preview`, 챗봇의 `send_care_message` 실행)는 이 필드를 전혀 건드리지 않아서, 그대로 두면 발송에 성공해도 계속 "미발송"으로 보이는 버그가 생겼을 것. `updateCareTaskNotificationStatus`(`care-tasks-repo.ts`, 신규)를 두 발송 경로(`/api/delivery/preview/route.ts`, `action-executor.ts`의 `executeSendCareMessage`) 끝에서 호출해, 발송 성공 시 실제로 `notification_status`를 `'sent'`로 갱신하도록 고친 뒤 진행
+  - 정의(확정): `selectUnsentCareTasks`(`care-tasks-repo.ts`, 신규 순수 함수) — `status !== "completed" && notification_status !== "sent"`
+  - 레거시 정리(사용자 확인 후): `/dashboard`의 "알림 미리보기"(`/notifications`) 카드를 새 "미발송 알림"(`/dashboard/tasks?unsent=1`) 카드로 교체. `/notifications` 페이지/API 자체는 삭제하지 않고 그대로 둠(링크만 제거)
+  - `/dashboard/tasks/page.tsx`: `useSearchParams`로 `?unsent=1` 진입 시 "미발송만 보기" 토글이 기본 on(Next.js 권장대로 `<Suspense>`로 감쌈). 토글 on 상태에서 카드를 클릭하면 기존 `CareTaskDetailModal` 대신 새 `SendNotificationModal`(채널 선택 + 발송)이 뜸. 발송 성공 시 API 재호출 없이 그 자리에서 `notification_status: "sent"`로 갱신해 목록에서 즉시 빠짐
+  - `SendNotificationModal`(`src/components/tasks/send-notification-modal.tsx`, 신규): `care-task-detail-modal.tsx`의 반응형 모달 패턴 재사용. SMS/카카오 알림톡 버튼 + 메시지 내용(기본값=original_request) → 기존 `POST /api/delivery/preview`를 그대로 호출(새 API 불필요)
+  - `npx tsc --noEmit` 클린, `npx vitest run` 153/153 통과(`selectUnsentCareTasks` 단위 테스트 3건 추가), `npm run build` 클린
+  - **변경 파일**: `src/lib/supabase/care-tasks-repo.ts`(`selectUnsentCareTasks`, `updateCareTaskNotificationStatus`), `src/lib/silverlink/rag/action-executor.ts`, `src/app/api/delivery/preview/route.ts`, `src/app/(protected)/dashboard/tasks/page.tsx`, `src/app/(protected)/dashboard/page.tsx`, `src/components/tasks/send-notification-modal.tsx`(신규), `src/lib/supabase/__tests__/care-tasks-repo.test.ts`
+  - **수동 UI 테스트는 아직 안 함** — 브라우저 자동화 도구가 없어 직접 클릭해보지 못함. `/dashboard` → "미발송 알림" 카드 → 항목 클릭 → 채널 선택 → 발송 → 목록에서 사라지는지 한 번 직접 확인 필요
 
-- [ ] 14.0 (백로그, 사용자 요청 2026-06-26) 챗봇: 새 일정 등록 직후 즉시 알림 발송 버튼
+- [x] 14.0 (2026-06-27 완료) 챗봇: 새 일정 등록 직후 즉시 알림 발송 버튼
   - 요구사항(사용자 원문): "챗봇에서 막 등록한 거를 즉시 알람을 보내는 기능(이것도 버튼으로 선택할 수 있게)"
-  - 구현 방향: 다행히 이미 있는 부품으로 거의 다 짤 수 있다 — `send_care_message` 도구/액션(Slice 8~10)이 "특정 care_task_id로 채널 선택 + 메시지 발송"을 이미 확인(`pendingAction`)→실행(`confirmActionIntent`) 구조로 구현해뒀다. `create_care_task`가 성공한 응답(`action-service.ts`의 `buildActionAnswer` create_care_task 분기)에 "지금 알려드릴까요?" 같은 후속 버튼을 붙이고, 그 버튼을 누르면 방금 만든 `careTaskId`로 새 `send_care_message` 의도를 만들어 **같은 확인 카드(채널 선택 포함)를 한 번 더** 띄우면 된다 — 새로운 실행 경로를 만들 필요 없이 기존 확인/실행 플로우를 재사용.
-  - `care-assistant-panel.tsx`: create_care_task 실행 결과 메시지에 "지금 알려드리기" 버튼 추가 → 클릭 시 채널 선택 UI(간단히는 SMS/카카오 알림톡 버튼 2개)를 보여주고, 선택하면 `send_care_message` 타입의 `pendingAction`을 만들어 기존 확인 흐름(`confirmAction`)으로 흘려보낸다.
-  - 12.0(nextSteps 버튼화)과 같은 패턴이라, 12.0을 먼저 하면서 공통 "액션 버튼" 컴포넌트를 만들어두면 14.0에서 거의 그대로 재사용 가능할 것으로 보임 — 착수 시 12.0과 함께 설계하는 걸 권장
+  - 구현: 새로운 실행 경로를 만들지 않고 기존 `send_care_message` 확인/실행 플로우(pendingAction → confirmAction)를 재사용
+    - `action-executor.ts`: `RagActionResult`의 `create_care_task` 분기에 `originalRequest`를 추가로 담아 반환(이후 알림 메시지 기본값으로 재사용하기 위함)
+    - `types.ts`: `RagAnswer`에 `createdCareTask?: { careTaskId, originalRequest }` 추가 — 새 일정이 막 등록됐을 때만 채워짐
+    - `action-service.ts`: `buildActionAnswer`의 create_care_task 분기가 `createdCareTask`를 채움
+    - `care-assistant-panel.tsx`: `createdCareTask`가 있으면(아직 pendingAction이 없을 때) "지금 알려드릴까요?" + SMS/카카오 알림톡 버튼 2개를 보여줌. 클릭 시 `startFollowUpNotify(messageId, channel)`가 새 API 호출 없이 같은 메시지에 `send_care_message` 타입 `pendingAction`을 얹고(messageText 기본값=originalRequest) `createdCareTask`를 지움 → 기존 확인/취소 UI가 그대로 나타나고, 확인을 누르면 기존 `confirmAction`(POST /api/rag/confirm-action)이 실제 발송을 수행
+  - `npx tsc --noEmit` 클린, `npx vitest run` 150/150 통과(`action-service.test.ts`에 `createdCareTask` 검증 추가), `npm run build` 클린, `npm run evaluate:rag` 통과
+  - **변경 파일**: `action-executor.ts`, `types.ts`, `action-service.ts`, `__tests__/action-service.test.ts`, `src/components/rag/care-assistant-panel.tsx`
+  - **수동 UI 테스트는 아직 안 함** — 브라우저 자동화 도구가 없어 클릭 흐름을 직접 확인하지 못했다. 사용자가 챗봇에서 새 일정을 등록한 뒤 "지금 알려드리기" 버튼 → 채널 선택 → 확인까지 한 번 직접 눌러보고 확인 필요

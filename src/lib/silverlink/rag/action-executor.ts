@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildCallScript, formatCallScriptText } from "../calls/call-script-builder";
 import { generateResponseToken, getDefaultExpiresAt } from "../delivery/response-token";
 import { MockDeliveryProvider } from "../delivery/mock-provider";
-import { createCareTask, createMessageLog, getOwnCareTask } from "../../supabase/care-tasks-repo";
+import { createCareTask, createMessageLog, getOwnCareTask, updateCareTaskNotificationStatus } from "../../supabase/care-tasks-repo";
 import { getParentProfileById } from "../../supabase/parent-profiles-repo";
 import { createCareCallAttempt, updateCareCallAttempt } from "../../supabase/care-call-attempts-repo";
 import { createNotificationQueueEntry } from "../../supabase/notification-queue-repo";
@@ -15,7 +15,7 @@ import type { RagActionIntent } from "./action-tools";
 export type RagActionResult =
   | { type: "request_care_call"; ok: true; attemptId: string }
   | { type: "send_care_message"; ok: true; deliveryAttemptId: string; deliveryStatus: string }
-  | { type: "create_care_task"; ok: true; careTaskId: string; taskType: TaskType }
+  | { type: "create_care_task"; ok: true; careTaskId: string; taskType: TaskType; originalRequest: string }
   | { ok: false; error: "care_task_not_found" | "parent_not_found" | "execution_failed" };
 
 const mockDeliveryProvider = new MockDeliveryProvider();
@@ -86,7 +86,7 @@ async function executeCreateCareTask(
       source_channel: "web",
     });
 
-    return { type: "create_care_task", ok: true, careTaskId: careTask.id, taskType };
+    return { type: "create_care_task", ok: true, careTaskId: careTask.id, taskType, originalRequest };
   } catch {
     return { ok: false, error: "execution_failed" };
   }
@@ -151,6 +151,8 @@ async function executeSendCareMessage(
       error_code: deliveryResult.error_code,
       error_message: deliveryResult.error_message,
     });
+
+    await updateCareTaskNotificationStatus(supabase, careTask.id, deliveryResult.status);
 
     return { type: "send_care_message", ok: true, deliveryAttemptId: attempt.id, deliveryStatus: deliveryResult.status };
   } catch {

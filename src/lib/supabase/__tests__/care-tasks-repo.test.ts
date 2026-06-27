@@ -1,6 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { getOwnCareTask, isOwnParentProfile } from "../care-tasks-repo";
+import { getOwnCareTask, isOwnParentProfile, selectUnsentCareTasks, type CareTaskSummary } from "../care-tasks-repo";
 import type { SupabaseClient } from "@supabase/supabase-js";
+
+function makeSummary(overrides: Partial<CareTaskSummary> = {}): CareTaskSummary {
+  return {
+    id: "t1",
+    parent_id: "p1",
+    target_person: "어머니",
+    original_request: "오늘 점심 드셨는지 확인",
+    status: "scheduled",
+    priority: "normal",
+    task_type: "meal",
+    completed_at: null,
+    notification_status: null,
+    created_at: "2026-06-27T00:00:00Z",
+    ...overrides,
+  };
+}
 
 function makeStubClient(maybeSingleResult: { data: unknown; error: unknown }): SupabaseClient {
   return {
@@ -52,5 +68,26 @@ describe("getOwnCareTask", () => {
   it("쿼리 자체가 에러면 throw한다", async () => {
     const supabase = makeStubClient({ data: null, error: new Error("boom") });
     await expect(getOwnCareTask(supabase, "t1")).rejects.toThrow();
+  });
+});
+
+describe("selectUnsentCareTasks", () => {
+  it("완료된 일정은 미발송 목록에서 뺀다", () => {
+    const tasks = [makeSummary({ id: "t1", status: "completed", notification_status: null })];
+    expect(selectUnsentCareTasks(tasks)).toHaveLength(0);
+  });
+
+  it("notification_status가 'sent'인 일정은 미발송 목록에서 뺀다", () => {
+    const tasks = [makeSummary({ id: "t1", notification_status: "sent" })];
+    expect(selectUnsentCareTasks(tasks)).toHaveLength(0);
+  });
+
+  it("완료되지 않았고 아직 발송하지 않은(null/레거시 'none'/'prepared') 일정은 남긴다", () => {
+    const tasks = [
+      makeSummary({ id: "t1", notification_status: null }),
+      makeSummary({ id: "t2", notification_status: "none" }),
+      makeSummary({ id: "t3", notification_status: "prepared" }),
+    ];
+    expect(selectUnsentCareTasks(tasks).map((t) => t.id)).toEqual(["t1", "t2", "t3"]);
   });
 });

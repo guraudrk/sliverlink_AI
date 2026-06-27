@@ -2,7 +2,7 @@ import { ZodError } from "zod";
 import { notificationQueueInputSchema } from "@/lib/silverlink/delivery/schema";
 import { generateResponseToken, getDefaultExpiresAt } from "@/lib/silverlink/delivery/response-token";
 import { MockDeliveryProvider } from "@/lib/silverlink/delivery/mock-provider";
-import { getOwnCareTask } from "@/lib/supabase/care-tasks-repo";
+import { getOwnCareTask, updateCareTaskNotificationStatus } from "@/lib/supabase/care-tasks-repo";
 import { createNotificationQueueEntry } from "@/lib/supabase/notification-queue-repo";
 import { createDeliveryAttempt } from "@/lib/supabase/delivery-attempts-repo";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -83,6 +83,8 @@ export async function POST(request: Request) {
       error_code: deliveryResult.error_code,
       error_message: deliveryResult.error_message,
     });
+
+    await updateCareTaskNotificationStatus(supabase, input.care_task_id, deliveryResult.status);
 
     return jsonResponse({ ok: true, queue, deliveryAttemptId: attempt.id, deliveryStatus: deliveryResult.status });
   } catch {

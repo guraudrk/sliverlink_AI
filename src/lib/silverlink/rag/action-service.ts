@@ -50,7 +50,7 @@ export function buildActionAnswer(result: RagActionResult): RagAnswer {
     return {
       answerText: "안부전화를 걸었어요. 어르신 응답은 안부전화 기록에서 확인할 수 있어요.",
       evidence: [],
-      nextSteps: ["안부전화 기록에서 응답 확인하기"],
+      nextSteps: [{ label: "안부전화 기록에서 응답 확인하기", href: "/dashboard/calls" }],
       hasSufficientEvidence: true,
     };
   }
@@ -60,15 +60,16 @@ export function buildActionAnswer(result: RagActionResult): RagAnswer {
     return {
       answerText: `새 일정을 등록했어요. (유형: ${taskTypeLabel}) 이제 이 일정으로 전화나 메시지를 요청할 수 있어요.`,
       evidence: [],
-      nextSteps: [],
+      nextSteps: [{ label: "등록한 일정 확인하기", href: "/dashboard/tasks" }],
       hasSufficientEvidence: true,
+      createdCareTask: { careTaskId: result.careTaskId, originalRequest: result.originalRequest },
     };
   }
 
   return {
     answerText: "메시지를 보냈어요. 발송 결과는 발송 기록에서 확인할 수 있어요.",
     evidence: [],
-    nextSteps: [],
+    nextSteps: [{ label: "발송 기록에서 확인하기", href: "/dashboard/tasks" }],
     hasSufficientEvidence: true,
   };
 }

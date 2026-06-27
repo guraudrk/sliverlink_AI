@@ -37,13 +37,13 @@ describe("buildFallbackAnswer", () => {
     const evidence = [makeEvidence({ safetyFlags: ["help_requested"] })];
     const answer = buildFallbackAnswer("help", evidence);
     expect(answer.answerText).toContain("직접 연락해 확인");
-    expect(answer.nextSteps).toContain("도움 요청한 항목 직접 확인하기");
+    expect(answer.nextSteps).toContainEqual({ label: "도움 요청한 항목 직접 확인하기", href: "/dashboard/parents/p1" });
   });
 
   it("medication 카테고리이고 medication_related 태그가 있으면 복약 메모 확인을 다음 행동으로 추가한다", () => {
     const evidence = [makeEvidence({ sourceType: "parent_profile", safetyFlags: ["medication_related"] })];
     const answer = buildFallbackAnswer("medication", evidence);
-    expect(answer.nextSteps).toContain("복약 메모를 다시 확인하기");
+    expect(answer.nextSteps).toContainEqual({ label: "복약 메모를 다시 확인하기", href: "/dashboard/parents/p1" });
   });
 
   it("evidence가 5건을 넘으면 답변에는 상위 5건만 담는다", () => {

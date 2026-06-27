@@ -41,10 +41,20 @@ export type RagEvidence = {
   safetyFlags: string[];
 };
 
+// "지금 확인할 일" 한 항목. href가 있으면 채팅 UI가 버튼/링크로 보여준다(클릭하면 바로 그 화면으로
+// 이동) — href가 없으면(예: action-service.ts의 결과 안내) 그냥 텍스트로만 보여준다.
+export type RagNextStep = {
+  label: string;
+  href?: string;
+};
+
 // /api/rag/ask(Day13)의 응답 형태. evidence는 답변에 실제로 인용한 근거만 추려서 담는다.
 export type RagAnswer = {
   answerText: string;
   evidence: RagEvidence[];
-  nextSteps: string[];
+  nextSteps: RagNextStep[];
   hasSufficientEvidence: boolean;
+  // 새 일정이 막 등록됐을 때만 채워진다(action-service.ts) — 채팅 UI가 이 필드를 보고
+  // "지금 알려드리기" 버튼(채널 선택 후 send_care_message 의도를 같은 확인 흐름으로 재실행)을 보여준다.
+  createdCareTask?: { careTaskId: string; originalRequest: string };
 };

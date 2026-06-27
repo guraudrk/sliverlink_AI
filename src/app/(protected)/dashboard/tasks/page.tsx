@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import type { CareTaskSummary } from "@/lib/supabase/care-tasks-repo";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { selectUnsentCareTasks, type CareTaskSummary } from "@/lib/supabase/care-tasks-repo";
 import type { MessageLogSummary } from "@/lib/supabase/message-logs-repo";
 import type { NotificationQueueRow } from "@/lib/supabase/notification-queue-repo";
 import { CareTaskDetailModal } from "@/components/tasks/care-task-detail-modal";
+import { SendNotificationModal } from "@/components/tasks/send-notification-modal";
 import { TASK_TYPE_LABELS, type TaskType } from "@/lib/silverlink/care-tasks/task-type";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -42,12 +44,25 @@ function formatDate(value: string): string {
   }
 }
 
+// /dashboard의 "미발송 알림" 버튼이 ?unsent=1로 들어온다 — useSearchParams를 쓰는 부분만 Suspense로
+// 감싸 그 바깥(레이아웃 등)은 정적으로 프리렌더될 수 있게 한다(Next.js 공식 권장 패턴).
 export default function DashboardTasksPage() {
+  return (
+    <Suspense fallback={<div className="flex flex-1 items-center justify-center bg-slate-50 px-4 py-16" />}>
+      <DashboardTasksPageContent />
+    </Suspense>
+  );
+}
+
+function DashboardTasksPageContent() {
+  const searchParams = useSearchParams();
   const [careTasks, setCareTasks] = useState<CareTaskSummary[]>([]);
   const [queueByCareTaskId, setQueueByCareTaskId] = useState<Map<string, NotificationQueueRow[]>>(new Map());
   const [messageLogByCareTaskId, setMessageLogByCareTaskId] = useState<Map<string, MessageLogSummary>>(new Map());
   const [loading, setLoading] = useState(true);
   const [selectedTask, setSelectedTask] = useState<CareTaskSummary | null>(null);
+  const [sendTarget, setSendTarget] = useState<CareTaskSummary | null>(null);
+  const [unsentOnly, setUnsentOnly] = useState(() => searchParams.get("unsent") === "1");
 
   useEffect(() => {
     let active = true;
@@ -87,6 +102,13 @@ export default function DashboardTasksPage() {
     };
   }, []);
 
+  // 발송 성공 시 새로고침 없이 그 자리에서 notification_status를 'sent'로 바꿔, 미발송 목록에서
+  // 곧바로 사라지게 한다(selectUnsentCareTasks가 이 필드로 걸러내므로).
+  function handleSent(careTaskId: string) {
+    setCareTasks((prev) => prev.map((task) => (task.id === careTaskId ? { ...task, notification_status: "sent" } : task)));
+    setSendTarget(null);
+  }
+
   if (loading) {
     return (
       <div className="flex flex-1 items-center justify-center bg-slate-50 px-4 py-16">
@@ -94,6 +116,8 @@ export default function DashboardTasksPage() {
       </div>
     );
   }
+
+  const visibleTasks = unsentOnly ? selectUnsentCareTasks(careTasks) : careTasks;
 
   return (
     <div className="flex flex-1 flex-col items-center bg-slate-50 px-4 py-10 sm:py-16">
@@ -104,19 +128,31 @@ export default function DashboardTasksPage() {
           <p className="mt-2 text-slate-500">등록된 모든 일정과 발송 상태를 한눈에 확인해요.</p>
         </div>
 
-        {careTasks.length === 0 ? (
+        <div className="mb-5 flex justify-center">
+          <button
+            type="button"
+            onClick={() => setUnsentOnly((prev) => !prev)}
+            className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+              unsentOnly ? "bg-amber-500 text-white shadow-sm shadow-amber-200" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
+            }`}
+          >
+            {unsentOnly ? "미발송 알림만 보는 중" : "미발송 알림만 보기"}
+          </button>
+        </div>
+
+        {visibleTasks.length === 0 ? (
           <p className="rounded-3xl bg-white p-8 text-center text-slate-500 shadow-sm ring-1 ring-slate-200">
-            아직 등록된 일정이 없어요.
+            {unsentOnly ? "미발송 알림이 없어요." : "아직 등록된 일정이 없어요."}
           </p>
         ) : (
           <ul className="space-y-3">
-            {careTasks.map((task) => {
+            {visibleTasks.map((task) => {
               const queueEntries = queueByCareTaskId.get(task.id) ?? [];
               return (
                 <li key={task.id}>
                   <button
                     type="button"
-                    onClick={() => setSelectedTask(task)}
+                    onClick={() => (unsentOnly ? setSendTarget(task) : setSelectedTask(task))}
                     className="w-full rounded-2xl bg-white p-5 text-left shadow-sm ring-1 ring-slate-200 transition-colors hover:ring-blue-300"
                   >
                   <div className="flex items-start justify-between gap-3">
@@ -171,6 +207,10 @@ export default function DashboardTasksPage() {
           messageLog={messageLogByCareTaskId.get(selectedTask.id) ?? null}
           onClose={() => setSelectedTask(null)}
         />
+      ) : null}
+
+      {sendTarget ? (
+        <SendNotificationModal task={sendTarget} onClose={() => setSendTarget(null)} onSent={handleSent} />
       ) : null}
     </div>
   );

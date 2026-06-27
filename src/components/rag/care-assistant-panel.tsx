@@ -1,9 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { ParentProfile } from "@/lib/supabase/parent-profiles-repo";
 import type { RagAnswer, RagEvidence } from "@/lib/silverlink/rag/types";
-import type { RagActionIntent } from "@/lib/silverlink/rag/action-tools";
+import type { DeliveryChannel, RagActionIntent } from "@/lib/silverlink/rag/action-tools";
 import { EvidenceDetailModal } from "./evidence-detail-modal";
 import { CATEGORY_META, IMPORTANCE_BADGE_CLASS, SOURCE_TYPE_META } from "./rag-ui-meta";
 
@@ -38,6 +39,11 @@ function createMessageId() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
 }
 
+// "지금 확인할 일" 링크를 눌러 다른 페이지로 이동했다가 돌아오면 이 컴포넌트가 새로 마운트되면서
+// 대화 기록이 날아가는 문제(2026-06-27 사용자 리포트)가 있어, sessionStorage에 대화 상태를 같이
+// 들고 다닌다 — 탭을 닫으면 사라지는 정도면 충분해서(로그인 세션과 비슷한 생명주기) localStorage까지는 안 씀.
+const CHAT_STORAGE_KEY = "silverlink-rag-chat-v1";
+
 export function CareAssistantPanel({ parentProfiles }: { parentProfiles: ParentProfile[] }) {
   const [parentId, setParentId] = useState("");
   const [query, setQuery] = useState("");
@@ -47,10 +53,37 @@ export function CareAssistantPanel({ parentProfiles }: { parentProfiles: ParentP
   const [selectedEvidence, setSelectedEvidence] = useState<RagEvidence | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // 마운트 시 sessionStorage 복원이 끝나기 전에는 쓰기 effect가 먼저 돌아 빈 상태로 덮어쓸 수 있어
+  // 막아준다 — 복원 effect가 setState를 호출하면 그 갱신된 값으로 다음 렌더에서 다시 쓰기 effect가 돈다.
+  const skipNextWriteRef = useRef(true);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, busy]);
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(CHAT_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { parentId?: string; messages?: ChatMessage[] };
+      if (parsed.parentId) setParentId(parsed.parentId);
+      if (Array.isArray(parsed.messages)) setMessages(parsed.messages);
+    } catch {
+      // 저장된 데이터가 손상됐으면 무시하고 빈 대화로 시작한다.
+    }
+  }, []);
+
+  useEffect(() => {
+    if (skipNextWriteRef.current) {
+      skipNextWriteRef.current = false;
+      return;
+    }
+    try {
+      sessionStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify({ parentId, messages }));
+    } catch {
+      // sessionStorage 용량 초과 등은 무시한다 — 대화 기록 저장은 best-effort다.
+    }
+  }, [parentId, messages]);
 
   // textarea가 입력 줄 수에 맞춰 자라도록 높이를 직접 계산한다(최대 5줄 정도, 그 이상은 스크롤).
   useEffect(() => {
@@ -160,6 +193,28 @@ export function CareAssistantPanel({ parentProfiles }: { parentProfiles: ParentP
     );
   }
 
+  // 새 일정 등록 직후 "지금 알려드리기" 버튼(채널 선택)을 눌렀을 때 — 새 API 호출 없이 같은 메시지에
+  // send_care_message 의도를 pendingAction으로 얹어, 기존 확인/실행 흐름(confirmAction)을 그대로 재사용한다.
+  function startFollowUpNotify(messageId: string, channel: DeliveryChannel) {
+    const channelLabel = channel === "sms" ? "SMS" : "카카오 알림톡";
+    setMessages((prev) =>
+      prev.map((message) => {
+        if (message.id !== messageId || message.role !== "assistant" || !message.answer.createdCareTask) return message;
+        const { careTaskId, originalRequest } = message.answer.createdCareTask;
+        const intent: RagActionIntent = { type: "send_care_message", careTaskId, channel, messageText: originalRequest };
+        return {
+          ...message,
+          pendingAction: intent,
+          answer: {
+            ...message.answer,
+            answerText: `${channelLabel}로 보낼까요?\n내용: ${originalRequest}`,
+            createdCareTask: undefined,
+          },
+        };
+      })
+    );
+  }
+
   return (
     <div
       className="flex w-full max-w-2xl flex-col overflow-hidden rounded-3xl bg-white/90 shadow-lg shadow-slate-200/60 ring-1 ring-slate-200 backdrop-blur-sm"
@@ -176,13 +231,16 @@ export function CareAssistantPanel({ parentProfiles }: { parentProfiles: ParentP
             onChange={(event) => setParentId(event.target.value)}
             className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 shadow-sm transition-colors focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-200"
           >
-            <option value="">전체 부모님</option>
+            <option value="">통합 (등록된 모든 어르신)</option>
             {parentProfiles.map((profile) => (
               <option key={profile.id} value={profile.id}>
                 {profile.display_name}
               </option>
             ))}
           </select>
+          {parentId === "" ? (
+            <p className="text-xs text-slate-400">등록된 모든 어르신을 한 번에 보고 케어할 수 있는 통합 모드예요.</p>
+          ) : null}
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -224,6 +282,7 @@ export function CareAssistantPanel({ parentProfiles }: { parentProfiles: ParentP
                 onSelectEvidence={setSelectedEvidence}
                 onConfirm={() => confirmAction(message.id)}
                 onCancel={() => cancelAction(message.id)}
+                onStartFollowUpNotify={(channel) => startFollowUpNotify(message.id, channel)}
               />
             )
           )
@@ -284,6 +343,7 @@ function AssistantMessage({
   onSelectEvidence,
   onConfirm,
   onCancel,
+  onStartFollowUpNotify,
 }: {
   category: string;
   answer: RagAnswer;
@@ -292,6 +352,7 @@ function AssistantMessage({
   onSelectEvidence: (evidence: RagEvidence) => void;
   onConfirm: () => void;
   onCancel: () => void;
+  onStartFollowUpNotify: (channel: DeliveryChannel) => void;
 }) {
   const [evidenceOpen, setEvidenceOpen] = useState(false);
   const categoryMeta = CATEGORY_META[category] ?? CATEGORY_META.open;
@@ -333,16 +394,50 @@ function AssistantMessage({
             </div>
           ) : null}
 
+          {answer.createdCareTask ? (
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <p className="text-sm font-medium text-slate-600">지금 알려드릴까요?</p>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => onStartFollowUpNotify("sms")}
+                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-blue-200 transition-all hover:-translate-y-0.5 hover:bg-blue-700 disabled:cursor-not-allowed disabled:translate-y-0 disabled:bg-slate-300"
+              >
+                SMS로 알리기
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => onStartFollowUpNotify("kakao_alimtalk")}
+                className="rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-amber-200 transition-all hover:-translate-y-0.5 hover:bg-amber-600 disabled:cursor-not-allowed disabled:translate-y-0 disabled:bg-slate-300"
+              >
+                카카오 알림톡으로 알리기
+              </button>
+            </div>
+          ) : null}
+
           {answer.nextSteps.length > 0 ? (
             <div className="space-y-1.5 rounded-xl bg-amber-50 p-3 ring-1 ring-amber-100">
               <p className="text-xs font-bold text-amber-700">⚡ 지금 확인할 일</p>
-              <ul className="space-y-1">
-                {answer.nextSteps.map((step) => (
-                  <li key={step} className="flex items-center gap-2 text-sm text-amber-800">
-                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
-                    {step}
-                  </li>
-                ))}
+              <ul className="space-y-1.5">
+                {answer.nextSteps.map((step) =>
+                  step.href ? (
+                    <li key={step.label}>
+                      <Link
+                        href={step.href}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-amber-100 px-3 py-1.5 text-sm font-semibold text-amber-800 transition-colors hover:bg-amber-200"
+                      >
+                        {step.label}
+                        <span aria-hidden="true">→</span>
+                      </Link>
+                    </li>
+                  ) : (
+                    <li key={step.label} className="flex items-center gap-2 text-sm text-amber-800">
+                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
+                      {step.label}
+                    </li>
+                  )
+                )}
               </ul>
             </div>
           ) : null}

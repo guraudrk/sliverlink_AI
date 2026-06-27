@@ -52,11 +52,11 @@ export default async function DashboardPage() {
             <p className="mt-1 text-sm text-slate-500">요청 작성</p>
           </Link>
           <Link
-            href="/notifications"
+            href="/dashboard/tasks?unsent=1"
             className="rounded-2xl bg-white p-5 text-center shadow-sm ring-1 ring-slate-200 transition-colors hover:ring-blue-300"
           >
-            <p className="font-semibold text-slate-800">알림 미리보기</p>
-            <p className="mt-1 text-sm text-slate-500">발송 전 확인</p>
+            <p className="font-semibold text-slate-800">미발송 알림</p>
+            <p className="mt-1 text-sm text-slate-500">바로 확인 · 발송</p>
           </Link>
           <Link
             href="/dashboard/tasks"
