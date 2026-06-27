@@ -22,6 +22,7 @@
 6. Day15 마무리 — README에 Day10~15 섹션 추가, 데모 시나리오 문서(`docs/demo-scenario.md`) 작성, 전체 재검증.
 7. Day16 — 브랜드 아이콘/매니페스트, 레거시 `/notifications` 정리, 모바일 iOS 자동 확대 버그 수정, **실제로 Vercel에 배포해서 `https://silverlink-ai.vercel.app`에서 서비스가 돈다.**
 8. Day16 후속 — 안드로이드(갤럭시) 환경에서도 모바일 점검(운영 배포 주소 기준), 발견된 문제 없음.
+9. 사용자 추가 요청 2건 — 응답/일정 기록 페이지에 클릭→상세 팝업 추가, `/dashboard/responses`에 부모님별/통합 필터 추가.
 
 **오늘 쓴 기술/기법**:
 - **OWASP LLM Top 10 기반 보안 평가**: 평가 하네스(`*.eval.ts`)에 일반 품질 케이스와 분리된 "보안 케이스"를 추가해, 허용치 없이 100% 통과를 요구하도록 설계 — 품질 케이스는 LLM 표현 변동성 때문에 12/14 같은 허용치를 두지만, 안전/보안 불변식은 허용치를 두면 안 된다는 원칙을 분리해서 반영.
@@ -75,7 +76,27 @@
 
 **변경 파일**: 없음(점검 전용, `docs/work-log.md`만 갱신)
 
-**커밋**: 이 work-log 항목만 커밋 예정
+**커밋**: `0a1b926` (push 완료)
+
+---
+
+## 응답/일정 기록 페이지 클릭→상세 팝업 + `/dashboard/responses` 부모님 필터
+
+**계기**: 안드로이드 점검을 마친 뒤, 사용자가 두 가지를 연달아 요청 — (1) `/dashboard/responses`에서 직접 클릭해보니 항목을 눌러도 자세히 볼 방법이 없다는 걸 발견해 상세 팝업을 요청, (2) 이어서 어르신별로 따로 보거나 전체를 통합해서 볼 수 있는 필터도 요청.
+
+**1) 클릭→상세 팝업**: Day14에서 만든 `/dashboard/tasks`의 `CareTaskDetailModal`(클릭 시 일정 상세를 바텀시트/팝업으로 보여주는 패턴)을 그대로 참고해서, 같은 패턴이 빠져 있던 두 곳에 적용했다.
+- `/dashboard/responses`: 새 `MessageLogDetailModal`(신규, `src/components/responses/`) 추가 — 받는 분/채널/받은 시각과, 그 응답이 어떤 일정에 대한 것인지("관련 일정")까지 보여준다. 목록에 안 보이던 정보(채널, 관련 일정)를 팝업에서 추가로 보여주는 게 포인트.
+- `/dashboard/parents/[parentId]`: "일정" 섹션은 기존 `CareTaskDetailModal`을 그대로 재사용(이 페이지엔 없었던 `notification-queue` 조회를 추가해야 했음 — `/dashboard/tasks`와 동일한 방식), "응답 기록" 섹션은 같은 `MessageLogDetailModal`을 재사용.
+
+**2) `/dashboard/responses` 부모님 필터**: RAG 비서(`care-assistant-panel.tsx`)에 이미 있던 "부모님 선택" 드롭다운 패턴(빈 값 = "통합", 선택하면 그 부모님만)을 그대로 가져왔다 — 새로운 UI 패턴을 만들지 않고 이미 검증된 패턴을 재사용. 선택 바는 목록 위쪽에 배치하고, 사용자가 명시적으로 요청한 대로 목록과 완전히 붙지 않게 `mb-5`(약 20px) 간격을 줬다.
+
+**🤖 AI 활용 팁**: "이 페이지에도 그 기능 추가해줘" 같은 요청을 받으면, 새로 디자인하지 않고 같은 프로젝트 안에서 이미 쓰고 있는 동일한 패턴(모달 스타일, 부모님 선택 드롭다운)을 그대로 재사용하는 게 일관성도 높고 구현도 빠르다 — 사용자가 이미 한 번 써본 UI라 학습 비용도 없다.
+
+**검증**: 두 작업 각각 `npx tsc --noEmit` 클린 / `npx vitest run` 153/153 통과 / `npm run build` 클린 확인. 운영 배포 후 사용자가 직접 두 기능 모두 확인 완료.
+
+**변경 파일**: `src/components/responses/message-log-detail-modal.tsx`(신규), `src/app/(protected)/dashboard/responses/page.tsx`, `src/app/(protected)/dashboard/parents/[parentId]/page.tsx`
+
+**커밋**: `1d1eb9e`(상세 팝업), `9a94f78`(부모님 필터) — 모두 push 완료
 
 ---
 
