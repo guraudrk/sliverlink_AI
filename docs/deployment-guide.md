@@ -2,6 +2,8 @@
 
 이 문서는 SilverLink AI를 Vercel에 배포·재배포하는 방법과, 배포 후 챙겨야 하는 설정(환경변수, OAuth 리다이렉트 URL)을 정리한 운영 문서입니다. 배포 관련 문제가 생기면 이 문서를 먼저 확인하세요.
 
+**현재 운영 주소**: https://silverlink-ai.vercel.app (2026-06-27 최초 배포, Day16)
+
 배경/결정 이유는 [`docs/PRD-day16-web-redesign-deploy-mobile.md`](PRD-day16-web-redesign-deploy-mobile.md) 2장 참고.
 
 ## 1. 배포 플랫폼
@@ -13,6 +15,7 @@
 1. https://vercel.com 에서 GitHub 계정으로 로그인.
 2. "Add New..." → "Project" → GitHub 저장소 `guraudrk/sliverlink_AI` Import.
 3. Project Name을 `silverlink-ai`(또는 사용 가능한 가장 가까운 이름)로 지정 — 이게 곧 운영 주소(`https://<이름>.vercel.app`)가 됩니다. Framework Preset은 Next.js가 자동 감지됨.
+   > ⚠️ **Project Name을 나중에 바꿔도 도메인은 자동으로 안 바뀝니다.** 처음 만들 때 GitHub 저장소 이름(`sliverlink_AI`, 오타 포함)을 그대로 제안받아 그게 도메인으로 굳어진 적이 있었음 — Settings → General에서 이름을 바꾼 뒤, Settings → Domains에서 기존 도메인의 "Edit"를 눌러 도메인 문자열도 같이 수동으로 바꿔야 함.
 4. "Environment Variables"에서 아래 3장의 변수들을 등록(값은 `.env.local`에 있는 실제 값 — Vercel 대시보드에만 입력하고 어디에도 복사해 남기지 않기).
 5. "Deploy" 클릭 → 빌드 로그에서 에러 없이 끝나는지 확인.
 6. 배포 완료 후 4장(리다이렉트 URL)을 마무리해야 로그인이 정상 동작합니다.

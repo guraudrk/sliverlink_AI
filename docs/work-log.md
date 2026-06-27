@@ -20,6 +20,7 @@
 4. 회원가입 폼 개선(비밀번호 확인/강도 표시/중복 가입 감지/확인 메일 재전송) — 그 과정에서 Resend 샌드박스 발송 제한이라는 진짜 인프라 문제를 다시 만났다.
 5. 사용자가 제시한 5단계 로드맵(실제 발송/Google 가입/웹 개편/Resend 도메인 인증/Day15 마무리)의 난이도를 객관적으로 평가해 순서를 재정렬(외부 승인 의존도가 큰 "실제 발송"을 맨 뒤로) — 합의 후 **Google OAuth 로그인을 실제로 구현하고 사용자가 직접 테스트해 정상 동작 확인.**
 6. Day15 마무리 — README에 Day10~15 섹션 추가, 데모 시나리오 문서(`docs/demo-scenario.md`) 작성, 전체 재검증.
+7. Day16 — 브랜드 아이콘/매니페스트, 레거시 `/notifications` 정리, 모바일 iOS 자동 확대 버그 수정, **실제로 Vercel에 배포해서 `https://silverlink-ai.vercel.app`에서 서비스가 돈다.**
 
 **오늘 쓴 기술/기법**:
 - **OWASP LLM Top 10 기반 보안 평가**: 평가 하네스(`*.eval.ts`)에 일반 품질 케이스와 분리된 "보안 케이스"를 추가해, 허용치 없이 100% 통과를 요구하도록 설계 — 품질 케이스는 LLM 표현 변동성 때문에 12/14 같은 허용치를 두지만, 안전/보안 불변식은 허용치를 두면 안 된다는 원칙을 분리해서 반영.
@@ -31,6 +32,31 @@
 **검증**: 모든 변경 후 `npx tsc --noEmit` 클린 / `npx vitest run` 153/153 통과 / `npm run build` 클린을 반복 확인. `npm run evaluate:rag`는 보안 케이스 추가 전후로 각각 실행해 인젝션 수정이 실제로 통했는지 2회 연속 확인(18/18). 회원 A/B RLS 격리는 실제 두 계정으로 8/8 통과.
 
 **커밋**: 기능별로 분리해서 커밋·푸쉬 완료 — `d26e9ec`(Day14 백로그+챗 기록 유지), `b7a52f9`(프롬프트 인젝션 수정), `c7310de`(회원가입 폼), `81bafc3`(Google OAuth), 그리고 이 문서 작업 자체는 아래 "Day15 마무리" 항목 참고
+
+---
+
+## Day16 — 웹 개편(모바일 최적화) + 배포(Vercel)
+
+**계기**: 사용자가 남은 로드맵(③Resend 도메인 인증 ④웹 개편/배포/모바일 최적화 ⑤실제 발송)의 순서를 "4번→3번→5번"으로 재조정. ④ 안에서도 "앱 출시는 가장 나중으로 미루고, 지금은 모바일 Chrome에서 쓰기 좋게"와 "배포는 우리가 아는 최신 기술스택으로"라는 구체적인 방향을 받았다.
+
+**결정 사항(위임받아 판단)**:
+- **배포 플랫폼 = Vercel**: 사용자가 "Vercel이든 Docker/Railway든 무료니까, 나중에 AI 에이전트를 적극 쓸 것까지 감안해서 판단해달라"고 위임 — Next.js 공식 검증 어댑터라는 점뿐 아니라, Vercel이 AI/에이전트 워크로드를 겨냥해 만든 **Fluid Compute**(콜드스타트 감소, 더 긴 실행시간을 무료 티어부터 제공)가 향후 RAG 비서를 더 무겁게 쓰거나 장시간 에이전트를 붙일 때 일반 컨테이너 직접 운영보다 유리하다고 판단해 Vercel로 결정.
+- **도메인 = 무료 Vercel 서브도메인을 직접 고른 이름으로**: 사용자가 "무료인 걸로 하되 최대한 내 고유의 것처럼"이라고 요청 — 진짜 무료 최상위 도메인(Freenom류)은 스팸 평판 문제가 있어 다음 로드맵(Resend 도메인 인증, "신뢰할 수 있는 도메인으로 메일 보내기")과 목적이 충돌해서 제외하고, `silverlink-ai.vercel.app`처럼 직접 고른 무료 서브도메인으로 결정.
+
+**작업 내용**(PRD/tasks: `docs/PRD-day16-web-redesign-deploy-mobile.md` / `tasks/tasks-day16-web-redesign-deploy-mobile.md`):
+1. **브랜드 아이콘**: 외부 이미지 파일 없이 `next/og`의 `ImageResponse`로 `icon.tsx`/`apple-icon.tsx`를 코드로 생성 — 기존 UI가 이미 일관되게 쓰던 브랜드 블루(`blue-600`) 위에 하트 모티프. `manifest.ts`(Android "홈 화면에 추가")와 `layout.tsx`의 `viewport.themeColor`도 함께 추가, 기존 Next 기본 템플릿 `favicon.ico`는 삭제.
+2. **레거시 정리**: 아무 데서도 링크되지 않던 `/notifications`(Day8 이전 Airtable Mock 화면)와 `/api/notifications/prepare`를 grep으로 재확인 후 삭제. 다만 그 밑단인 `src/lib/silverlink/notifications/`(Day5의 code-first 알림 준비 엔진 + 자체 테스트)는 README 12장에 따로 기록된 독립적인 완성된 결과물이라 의도적으로 남겨뒀다 — "안 쓰이는 라우트/화면"과 "그 라우트가 의존하던, 그 자체로 의미 있는 라이브러리"를 구분해서 정리 범위를 좁혔다.
+3. **모바일 반응형 점검**: Playwright로 비로그인 페이지(`/login`, `/signup`, `/r/[token]`)를 모바일 뷰포트(375×812)로 스크린샷 — 가로 스크롤 없이 이미 잘 만들어져 있었다(`/r/[token]`은 이미 큰 버튼/큰 글씨의 어르신 친화적 디자인이 적용돼 있었음). 로그인이 필요한 대시보드 페이지들은 테스트 계정이 없어 스크린샷 대신 코드 리뷰로 점검했고, 이 과정에서 **실제 버그를 2건 발견·수정**: 채팅의 "부모님 선택" select와 발송 모달의 textarea가 `text-sm`(14px)이라 iOS Safari가 포커스 시 자동으로 화면을 확대해버리는 문제(16px 미만 입력 필드에서 발생하는 잘 알려진 iOS 동작) — `text-base`(16px)로 맞춰 해결.
+4. **배포**: 사용자가 Vercel에 GitHub 저장소를 Import → 환경변수(`NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY`/`GEMINI_API_KEY`) 직접 입력 → 배포 성공. **헤맨 점**: 최초 Import 시 GitHub 저장소 이름의 오타(`sliverlink_AI`)가 그대로 도메인 기본값으로 들어가서 `sliverlink-ai.vercel.app`가 됐는데, Vercel은 Project Name을 바꿔도 이미 발급된 `.vercel.app` 도메인을 자동으로 갈아주지 않는다 — Settings → Domains에서 기존 도메인의 "Edit"를 눌러 도메인 문자열 자체를 수동으로 `silverlink-ai.vercel.app`로 바꾸고, "Remove old domain"으로 오타 도메인을 정리해서 해결.
+5. **리다이렉트 설정 + 스모크 테스트**: Supabase Authentication → URL Configuration에 운영 도메인의 Site URL/Redirect URL 추가(Google Cloud Console 쪽은 Supabase 자체 콜백 주소로 고정돼 있어 변경 불필요, Day15 Google OAuth 구현 당시 확인한 그대로). 공개 라우트는 `curl`로 전부 200/307 확인, 로그인·Google 로그인·대시보드·채팅·`/r/[token]`(실제 알림 큐에서 만든 토큰으로, 사용자가 폰으로 직접) 응답까지 전부 사용자가 직접 확인.
+
+**🤖 AI 활용 팁**: Vercel처럼 "이름을 바꾸면 주소도 같이 바뀔 것 같은" UI는 실제로 그렇게 동작하지 않는 경우가 있다 — 짐작보다 사용자가 실제로 본 화면(스크린샷)을 기준으로 다음 행동을 정했고, 한 번에 맞히지 못해도 스크린샷을 다시 받아 정확히 정정하는 쪽이 추측을 고집하는 것보다 빨랐다. 또한 "로그인이 필요한 페이지는 테스트 계정이 없어 스크린샷 검증을 못 했다"를 숨기지 않고 사용자에게 명시적으로 알리고 사용자의 직접 확인으로 넘긴 것도 중요했다 — AI가 검증 못 한 부분을 검증한 것처럼 포장하지 않는 것.
+
+**검증**: `npx tsc --noEmit` 클린, `npx vitest run` 153/153 통과, `npm run build` 클린(레거시 라우트 삭제 후 스테일 `.next` 타입 캐시 때문에 재빌드 1회 필요했음). 운영 배포 후 공개 라우트 7개 `curl` 스모크 테스트 전부 정상, 사용자가 직접 전체 기능(로그인/Google 로그인/대시보드/채팅/`/r/[token]` 응답) 확인 완료.
+
+**변경 파일**: `src/app/{icon.tsx,apple-icon.tsx,manifest.ts,layout.tsx}`, `src/app/favicon.ico`(삭제), `src/app/notifications/`, `src/app/api/notifications/prepare/`, `src/components/notification-preview-panel.tsx`(모두 삭제), `src/components/rag/care-assistant-panel.tsx`, `src/components/tasks/send-notification-modal.tsx`, `docs/PRD-day16-web-redesign-deploy-mobile.md`(신규), `tasks/tasks-day16-web-redesign-deploy-mobile.md`(신규), `docs/deployment-guide.md`(신규)
+
+**커밋**: `73292c3`(레거시 정리), `08694a2`(브랜드 아이콘), `650e017`(iOS 줄 버그 수정), `b57c60c`(Day16 문서) — 모두 push 완료. 운영 배포(Vercel) 자체는 git 커밋과 무관하게 별도로 진행됨.
 
 ---
 
