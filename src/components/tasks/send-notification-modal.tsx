@@ -119,7 +119,7 @@ export function SendNotificationModal({
             rows={3}
             value={messageText}
             onChange={(event) => setMessageText(event.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 shadow-sm focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-200"
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-base text-slate-800 shadow-sm focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-200"
           />
         </div>
 
