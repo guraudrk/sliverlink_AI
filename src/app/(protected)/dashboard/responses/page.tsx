@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import type { MessageLogSummary } from "@/lib/supabase/message-logs-repo";
+import type { CareTaskSummary } from "@/lib/supabase/care-tasks-repo";
+import { MessageLogDetailModal } from "@/components/responses/message-log-detail-modal";
 
 function formatDate(value: string): string {
   try {
@@ -13,19 +15,29 @@ function formatDate(value: string): string {
 
 export default function DashboardResponsesPage() {
   const [responses, setResponses] = useState<MessageLogSummary[]>([]);
+  const [careTaskById, setCareTaskById] = useState<Map<string, CareTaskSummary>>(new Map());
   const [loading, setLoading] = useState(true);
+  const [selectedLog, setSelectedLog] = useState<MessageLogSummary | null>(null);
 
   useEffect(() => {
     let active = true;
 
-    fetch("/api/message-logs")
-      .then((res) => res.json())
-      .then((data) => {
-        if (active && data.ok) {
-          const parentResponses = (data.messageLogs as MessageLogSummary[]).filter(
+    Promise.all([
+      fetch("/api/message-logs").then((res) => res.json()),
+      fetch("/api/care-tasks").then((res) => res.json()),
+    ])
+      .then(([logsData, tasksData]) => {
+        if (!active) return;
+        if (logsData.ok) {
+          const parentResponses = (logsData.messageLogs as MessageLogSummary[]).filter(
             (log) => log.direction === "parent_response"
           );
           setResponses(parentResponses);
+        }
+        if (tasksData.ok) {
+          const map = new Map<string, CareTaskSummary>();
+          for (const task of tasksData.careTasks as CareTaskSummary[]) map.set(task.id, task);
+          setCareTaskById(map);
         }
       })
       .finally(() => {
@@ -61,15 +73,29 @@ export default function DashboardResponsesPage() {
         ) : (
           <ul className="space-y-3">
             {responses.map((log) => (
-              <li key={log.id} className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-                <p className="font-semibold text-slate-800">{log.sender ?? "어르신"}</p>
-                <p className="mt-1 text-slate-600">{log.raw_message}</p>
-                <p className="mt-2 text-xs text-slate-400">{formatDate(log.created_at)}</p>
+              <li key={log.id}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedLog(log)}
+                  className="w-full rounded-2xl bg-white p-5 text-left shadow-sm ring-1 ring-slate-200 transition-colors hover:ring-blue-300"
+                >
+                  <p className="font-semibold text-slate-800">{log.sender ?? "어르신"}</p>
+                  <p className="mt-1 text-slate-600">{log.raw_message}</p>
+                  <p className="mt-2 text-xs text-slate-400">{formatDate(log.created_at)}</p>
+                </button>
               </li>
             ))}
           </ul>
         )}
       </div>
+
+      {selectedLog ? (
+        <MessageLogDetailModal
+          log={selectedLog}
+          relatedTask={selectedLog.care_task_id ? careTaskById.get(selectedLog.care_task_id) ?? null : null}
+          onClose={() => setSelectedLog(null)}
+        />
+      ) : null}
     </div>
   );
 }
