@@ -118,7 +118,7 @@ export function DeliveryDetailModal({ attempt, parent, onClose }: Props) {
           {/* 발송 시각 */}
           <div className="flex justify-between">
             <dt className="text-slate-500">발송 시각</dt>
-            <dd className="font-medium text-slate-800">{formatDateTime(attempt.created_at)}</dd>
+            <dd className="font-medium text-slate-800">{formatDateTime(attempt.attempted_at)}</dd>
           </div>
 
           {/* 채널별 상세 */}

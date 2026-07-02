@@ -101,7 +101,7 @@ export function DeliveriesClient({ initialAttempts, parentById }: Props) {
                             ? `${parent.display_name}${parent.phone ? ` · ${parent.phone}` : ""}`
                             : "수신자 정보 없음"}
                         </p>
-                        <p className="text-xs text-slate-400">{formatDateTime(attempt.created_at)}</p>
+                        <p className="text-xs text-slate-400">{formatDateTime(attempt.attempted_at)}</p>
                       </div>
                       <svg
                         className="h-4 w-4 shrink-0 text-slate-300"

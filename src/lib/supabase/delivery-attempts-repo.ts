@@ -8,7 +8,7 @@ export type DeliveryAttemptSummary = {
   error_code: string | null;
   error_message: string | null;
   response_payload: unknown;
-  created_at: string;
+  attempted_at: string;
   parent_id: string;
 };
 
@@ -55,8 +55,8 @@ export async function listDeliveryAttempts(
 ): Promise<DeliveryAttemptSummary[]> {
   const { data, error } = await supabase
     .from("delivery_attempts")
-    .select("id, channel, status, external_message_id, error_code, error_message, response_payload, created_at, parent_id")
-    .order("created_at", { ascending: false })
+    .select("id, channel, status, external_message_id, error_code, error_message, response_payload, attempted_at, parent_id")
+    .order("attempted_at", { ascending: false })
     .limit(100);
   if (error) throw error;
   return (data ?? []) as DeliveryAttemptSummary[];
