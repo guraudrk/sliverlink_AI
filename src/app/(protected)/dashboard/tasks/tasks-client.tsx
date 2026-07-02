@@ -3,7 +3,6 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import { selectUnsentCareTasks, type CareTaskSummary } from "@/lib/supabase/care-tasks-repo";
-import { PageGuideButton } from "@/components/app/page-guide-button";
 import type { MessageLogSummary } from "@/lib/supabase/message-logs-repo";
 import type { NotificationQueueRow } from "@/lib/supabase/notification-queue-repo";
 import { TASK_TYPE_LABELS, type TaskType } from "@/lib/silverlink/care-tasks/task-type";
@@ -82,36 +81,6 @@ export function TasksClient({
   return (
     <div className="flex flex-1 flex-col items-center bg-slate-50 px-4 py-10 sm:py-16">
       <div className="w-full max-w-2xl">
-        <div className="mb-3 flex animate-rag-fade-in-up">
-          <PageGuideButton title="오늘의 일정 안내">
-            <section>
-              <h3 className="mb-1.5 flex items-center gap-2 font-bold text-slate-800">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">1</span>
-                일정이란?
-              </h3>
-              <p className="leading-relaxed">AI 비서에게 어르신 안부 확인을 부탁하는 항목이에요. 자유롭게 내용을 입력하면 AI가 일정 유형을 분류하고 SMS·전화 초안을 만들어 줍니다.</p>
-            </section>
-            <section>
-              <h3 className="mb-1.5 flex items-center gap-2 font-bold text-slate-800">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">2</span>
-                상태 뱃지 설명
-              </h3>
-              <ul className="space-y-1 leading-relaxed">
-                <li><span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">예정</span> — 아직 발송 전</li>
-                <li><span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">완료</span> — 어르신이 완료 응답</li>
-                <li><span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">도움 요청</span> — 직접 연락 필요</li>
-                <li><span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">나중에 다시</span> — 어르신이 미룸</li>
-              </ul>
-            </section>
-            <section>
-              <h3 className="mb-1.5 flex items-center gap-2 font-bold text-slate-800">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">3</span>
-                미발송 필터
-              </h3>
-              <p className="leading-relaxed">상단 버튼으로 <strong>아직 알림을 보내지 않은 일정만</strong> 골라볼 수 있어요. 클릭하면 바로 채널을 선택해 발송할 수 있습니다.</p>
-            </section>
-          </PageGuideButton>
-        </div>
 
         <div className="mb-8 text-center animate-rag-fade-in-up">
           <p className="text-sm font-semibold uppercase tracking-widest text-blue-600">SilverLink AI</p>

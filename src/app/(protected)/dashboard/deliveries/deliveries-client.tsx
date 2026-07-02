@@ -3,7 +3,6 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import type { DeliveryAttemptSummary } from "@/lib/supabase/delivery-attempts-repo";
-import { PageGuideButton } from "@/components/app/page-guide-button";
 import type { ParentProfile } from "@/lib/supabase/parent-profiles-repo";
 
 const DeliveryDetailModal = dynamic(
@@ -61,39 +60,6 @@ export function DeliveriesClient({ initialAttempts, parentById }: Props) {
   return (
     <div className="flex flex-1 flex-col items-center bg-slate-50 px-4 py-10 sm:py-16">
       <div className="w-full max-w-2xl">
-        <div className="mb-3 flex animate-rag-fade-in-up">
-          <PageGuideButton title="발송 기록 안내">
-            <section>
-              <h3 className="mb-1.5 flex items-center gap-2 font-bold text-slate-800">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">1</span>
-                채널 뱃지
-              </h3>
-              <ul className="space-y-1 leading-relaxed">
-                <li><span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">AI 전화</span> — TTS 음성 안부전화</li>
-                <li><span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">SMS</span> — 문자 메시지</li>
-                <li><span className="rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-semibold text-yellow-700">카카오</span> — 카카오 알림톡</li>
-              </ul>
-            </section>
-            <section>
-              <h3 className="mb-1.5 flex items-center gap-2 font-bold text-slate-800">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">2</span>
-                상태 뱃지
-              </h3>
-              <ul className="space-y-1 leading-relaxed">
-                <li><span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">응답 완료</span> — 어르신이 키패드 응답</li>
-                <li><span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">발송 완료</span> — 정상 전송됨</li>
-                <li><span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">실패</span> — 발송 오류 발생</li>
-              </ul>
-            </section>
-            <section>
-              <h3 className="mb-1.5 flex items-center gap-2 font-bold text-slate-800">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">3</span>
-                상세 보기
-              </h3>
-              <p className="leading-relaxed">카드를 클릭하면 수신자, 발송 시각, AI 전화 응답 키, 오류 원인 등 상세 정보를 확인할 수 있어요.</p>
-            </section>
-          </PageGuideButton>
-        </div>
 
         <div className="mb-6 text-center animate-rag-fade-in-up">
           <p className="text-xs font-semibold uppercase tracking-widest text-blue-600">SilverLink AI</p>
