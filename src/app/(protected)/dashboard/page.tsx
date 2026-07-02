@@ -36,7 +36,7 @@ export default async function DashboardPage() {
           </form>
         </div>
 
-        <nav className="grid gap-3 sm:grid-cols-3">
+        <nav className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <Link
             href="/parents"
             className="rounded-2xl bg-white p-5 text-center shadow-sm ring-1 ring-slate-200 transition-colors hover:ring-blue-300"

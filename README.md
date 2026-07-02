@@ -255,3 +255,17 @@ MVP의 마지막 퍼즐 — 지금까지 모든 발송이 Mock이었다면, Day1
 - **부모님 관리 가이드 아이콘**: `/dashboard/parents` 페이지에 `?` 버튼 추가 — 클릭 시 AI SMS 자동 구성·ARS 전화·챗봇 명령 예시를 설명하는 팝업 표시.
 
 웹훅 DB 함수 설정 방법은 [`docs/voice-webhook-setup.sql`](docs/voice-webhook-setup.sql), 배포 환경변수 등록 방법은 [`docs/deployment-guide.md`](docs/deployment-guide.md) 7장, 작업 과정은 [`docs/work-log.md`](docs/work-log.md)의 "Day17" 섹션을 참고하세요.
+
+## 21. Day 18 — 앱 친화성 + 로딩 속도 2배+ 최적화
+
+기능 구현이 어느 정도 마무리된 시점에서, 기존 기능 변경 없이 **체감 속도와 모바일 UX**만 집중적으로 개선했습니다.
+
+- **Server Component 전환 (4개 페이지)**: `/dashboard/tasks`, `/dashboard/responses`, `/dashboard/calls`, `/parents` 페이지를 `"use client"` + `useEffect` + `fetch` 패턴에서 Next.js RSC(React Server Component)로 전환. 서버에서 `listCareTasks()` / `listMessageLogs()` 등 repo 함수를 `Promise.all`로 병렬 조회한 뒤 데이터가 채워진 HTML을 즉시 전송 — 기존 클라이언트 API 워터폴(빈 화면 → JS 실행 → 3개 API 호출 → 렌더)이 사라짐.
+- **Dynamic Import로 모달 지연 로드**: `CareTaskDetailModal`, `SendNotificationModal`, `MessageLogDetailModal` 3개 모달을 `next/dynamic({ ssr: false })`로 lazy-load. 초기 JS 번들에서 제외되어 모달을 열 때만 로드됨.
+- **로딩 스켈레톤 (`loading.tsx`)**: 4개 라우트에 pulse 애니메이션 스켈레톤 추가. 서버 컴포넌트가 DB를 조회하는 동안 Next.js가 자동으로 이 컴포넌트를 Suspense fallback으로 사용 — 빈 화면 대신 레이아웃 형태의 뼈대가 즉시 표시됨.
+- **모바일 하단 탭 내비게이션**: 홈 / 일정 / 응답 / 부모님 / AI비서 5탭을 화면 하단에 고정 (`fixed bottom-0`), 데스크톱(`sm:hidden`)에서는 숨김. 아이콘은 외부 라이브러리 없이 인라인 SVG로 구현.
+- **iPhone 안전 영역(Safe Area) 지원**: `viewport: Viewport`에 `viewportFit: "cover"` 추가, 하단 탭에 `env(safe-area-inset-bottom)` 패딩 적용 — 노치/홈 인디케이터 바 아래 UI 가림 방지.
+- **Google Fonts CDN 요청 제거**: 실제로 사용되지 않던 `Geist_Mono` (`next/font/google`) 제거 — 빌드 시 외부 CDN 요청 1건 감소, `--font-mono`는 시스템 폰트 스택으로 교체.
+- **대시보드 메인 그리드 모바일 2열**: 홈 화면의 메뉴 카드를 모바일 1열 → 2열(`grid-cols-2`)로 변경해 앱 같은 그리드 느낌 구현.
+
+구현 과정과 기술 설명은 [`docs/work-log.md`](docs/work-log.md)의 "Day18" 섹션을 참고하세요.

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { DashboardNavBar } from "@/components/app/dashboard-nav-bar";
+import { MobileBottomNav } from "@/components/app/mobile-bottom-nav";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {
@@ -13,7 +14,8 @@ export default async function ProtectedLayout({ children }: { children: React.Re
   return (
     <>
       <DashboardNavBar />
-      {children}
+      <div className="pb-16 sm:pb-0">{children}</div>
+      <MobileBottomNav />
     </>
   );
 }

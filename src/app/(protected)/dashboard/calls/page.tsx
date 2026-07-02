@@ -1,44 +1,15 @@
-"use client";
-
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { listCareTasks } from "@/lib/supabase/care-tasks-repo";
+import { listCareCallAttempts } from "@/lib/supabase/care-call-attempts-repo";
 import { CareCallPanel } from "@/components/calls/care-call-panel";
-import type { CareTaskSummary } from "@/lib/supabase/care-tasks-repo";
-import type { CareCallAttempt } from "@/lib/supabase/care-call-attempts-repo";
 
-export default function DashboardCallsPage() {
-  const [careTasks, setCareTasks] = useState<CareTaskSummary[]>([]);
-  const [attempts, setAttempts] = useState<CareCallAttempt[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let active = true;
-
-    Promise.all([
-      fetch("/api/care-tasks").then((res) => res.json()),
-      fetch("/api/care-calls").then((res) => res.json()),
-    ])
-      .then(([tasksData, attemptsData]) => {
-        if (!active) return;
-        if (tasksData.ok) setCareTasks(tasksData.careTasks as CareTaskSummary[]);
-        if (attemptsData.ok) setAttempts(attemptsData.attempts as CareCallAttempt[]);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="flex flex-1 items-center justify-center bg-slate-50 px-4 py-16">
-        <p className="text-slate-400">불러오는 중...</p>
-      </div>
-    );
-  }
+export default async function DashboardCallsPage() {
+  const supabase = await createSupabaseServerClient();
+  const [careTasks, attempts] = await Promise.all([
+    listCareTasks(supabase),
+    listCareCallAttempts(supabase),
+  ]);
 
   if (careTasks.length === 0) {
     return (

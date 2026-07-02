@@ -9,6 +9,76 @@
 
 # 2026-07-02
 
+## Day18 — 앱 친화성 개선 + 로딩 속도 2배+ 최적화
+
+**계기**: Day17까지 기능을 쌓으면서 대시보드의 모든 페이지가 `"use client"` + `useEffect` + `fetch` 패턴으로 되어 있었다. 이는 Next.js App Router에서 가장 비효율적인 데이터 페칭 방식으로, 페이지가 빈 HTML로 로드된 뒤 JS가 실행되고 나서야 API를 호출해 데이터를 가져오는 구조였다. 모바일에서 체감 로딩이 느렸고, 앱처럼 느껴지려면 기존 기능은 건드리지 않으면서 속도와 UX만 개선해야 했다.
+
+**핵심 문제 분석**:
+
+기존 흐름:
+```
+① 빈 HTML 도착 → ② JS 번들 다운로드·파싱 (300~600ms) → ③ useEffect 실행
+→ ④ /api/care-tasks, /api/notification-queue, /api/message-logs 동시 호출 (각 100~300ms)
+→ ⑤ 데이터 도착 후 React re-render → ⑥ 화면 표시
+```
+
+총 체감 로딩: 600ms ~ 1500ms (빈 화면 or "불러오는 중..." 표시)
+
+개선 후 흐름:
+```
+① 서버에서 DB를 직접 조회해 데이터가 채워진 HTML 생성
+→ ② HTML 도착 즉시 화면 표시 (서버 처리 시간만큼 약간 지연, 그 사이 loading.tsx 스켈레톤 표시)
+```
+
+**작업 내용**:
+
+1. **Server Component 전환 (4개 페이지)**: Next.js App Router의 핵심 개념인 RSC(React Server Component)를 실제로 적용했다. 기존의 `"use client"` 페이지 파일에서 데이터 페칭 로직을 분리해, `page.tsx` 자체는 순수 서버 비동기 함수(`async function`)로 만들고 상호작용이 필요한 UI는 `*-client.tsx`에 분리했다.
+
+   - `dashboard/tasks/page.tsx` → `listCareTasks()`, `listNotificationQueue()`, `listMessageLogs()` 3개를 서버에서 `Promise.all`로 병렬 조회 후 `<TasksClient>` 에 props로 전달. 이전에 `useSearchParams` 훅이 필요했던 `?unsent=1` 쿼리 파라미터도 이제 서버 props(`searchParams: Promise<{ unsent?: string }>`)로 읽어 클라이언트에 전달하므로 `Suspense` 래핑 불필요.
+   - `dashboard/responses/page.tsx` → 3개 테이블 병렬 조회, parent_response 필터링도 서버에서 처리
+   - `dashboard/calls/page.tsx` → `CareCallPanel`이 이미 `initialAttempts: CareCallAttempt[]` props를 받도록 설계되어 있어 전환이 단순했다
+   - `parents/page.tsx` → `listParentProfiles()` 1번 호출, `<ParentsClient>`에 전달
+
+   **핵심**: 서버 컴포넌트에서 `createSupabaseServerClient()`를 통해 쿠키 기반 세션으로 DB에 접근하면 RLS가 그대로 적용된다. 별도 API 라우트를 거칠 필요가 없다. Map → plain Record 변환을 서버에서 처리해 JSON 직렬화가 가능하게 했다.
+
+2. **Dynamic Import로 모달 번들 분리**: 페이지가 처음 로드될 때 모달(CareTaskDetailModal, SendNotificationModal, MessageLogDetailModal)의 JS도 함께 다운로드되던 문제를 해결했다. `next/dynamic`으로 lazy-load하면 사용자가 실제로 모달을 열 때만 해당 JS를 가져온다.
+
+   ```ts
+   const CareTaskDetailModal = dynamic(
+     () => import("@/components/tasks/care-task-detail-modal")
+           .then((m) => ({ default: m.CareTaskDetailModal })),
+     { ssr: false }
+   );
+   ```
+
+   `{ ssr: false }` 옵션: 모달은 서버에서 미리 렌더링할 필요가 없는 클라이언트 전용 UI라 SSR을 끄면 서버 렌더링 시간도 단축된다. named export를 dynamic으로 불러올 때는 `.then((m) => ({ default: m.Component }))` 패턴이 필요하다.
+
+3. **loading.tsx — 즉각적인 스켈레톤 UI**: Next.js App Router에서 `loading.tsx`를 route 폴더에 두면, 서버 컴포넌트가 데이터를 가져오는 동안 자동으로 해당 컴포넌트를 `Suspense fallback`으로 사용한다. 이를 통해 "하얀 빈 화면" 대신 실제 레이아웃과 비슷한 모양의 pulse 애니메이션 스켈레톤이 즉시 표시된다. tasks / responses / calls / parents 4개 라우트에 추가.
+
+4. **모바일 하단 탭 내비게이션**: 앱처럼 느껴지게 하는 핵심 UX 요소. 기존에는 상단에 "대시보드로 ←" 링크만 있어 모바일에서 앱처럼 느껴지지 않았다. 5개 탭(홈/일정/응답/부모님/AI비서)을 하단에 고정(`fixed bottom-0`)하고, 데스크톱(`sm:hidden`)에서는 숨겼다.
+
+   - **아이콘**: 외부 아이콘 라이브러리 없이 SVG를 직접 인라인으로 작성 (패키지 의존성 0 추가)
+   - **iOS 안전 영역(Safe Area)**: iPhone X 이후 기종은 홈 버튼 대신 홈 인디케이터 바가 있어 하단 UI를 가릴 수 있다. `style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}`로 해결. 이 CSS 환경 변수가 동작하려면 HTML viewport에 `viewport-fit=cover`가 필요하므로 `src/app/layout.tsx`의 `viewport: Viewport`에 `viewportFit: "cover"` 추가.
+   - **콘텐츠 가림 방지**: `(protected)/layout.tsx`의 children 감싸는 div에 `pb-16 sm:pb-0` 추가 → 모바일에서 마지막 카드가 하단 탭에 가려지지 않음
+
+5. **Google Fonts CDN 요청 제거**: 기존 `Geist_Mono` 폰트를 `next/font/google`(CDN 의존)로 로드했는데, 실제로 코드 어디에서도 `font-mono` Tailwind 클래스를 사용하지 않았다. Grep으로 확인 후 제거하고 `globals.css`의 `--font-mono`를 `ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas` 시스템 폰트 폴백 스택으로 교체. Next.js 빌드 시 외부 CDN 요청이 1개 사라진다.
+
+6. **대시보드 메인 그리드 모바일 2열**: 홈(`/dashboard`)의 메뉴 카드가 모바일에서 1열(세로 긴 목록)로 나오던 것을 `grid-cols-2`로 변경. 앱 같은 느낌의 그리드 레이아웃이 됨. 데스크톱(`sm:grid-cols-3`)은 변경 없음.
+
+**🤖 AI 활용 팁**:
+- **Server Component vs Client Component 분리 기준**: "데이터를 읽는 것"은 서버에서, "상태를 갖거나 클릭에 반응하는 것"은 클라이언트에서. 가장 단순한 분리 패턴: `page.tsx`(server) → 데이터 조회 → props 전달 → `*-client.tsx`(client) → 상태 관리 + UI 렌더. 이 패턴으로 전환하면 waterfall 없이 SSR + 클라이언트 상호작용 모두 가능하다.
+- **Map은 JSON 직렬화 불가**: 서버 컴포넌트에서 클라이언트로 넘기는 데이터는 반드시 JSON 직렬화가 가능해야 한다(`Date`, `Map`, `Set` 불가). `Map<string, T>` → `Record<string, T>` 변환(`Object.fromEntries()` 또는 서버에서 직접 빈 객체로 구축)이 필요하다.
+- **loading.tsx 위치가 곧 Suspense 범위**: `app/foo/loading.tsx`는 `app/foo/page.tsx`를 자동으로 Suspense로 감싼다. 라우트마다 독립된 로딩 UI를 갖게 되어 하나의 페이지가 느려도 다른 페이지의 쉘이 가려지지 않는다.
+- **`env(safe-area-inset-bottom)`는 `viewport-fit=cover` 없이는 0**: iOS safe area CSS 환경 변수는 viewport meta에 `viewport-fit=cover`가 없으면 항상 0을 반환한다. Next.js에서는 `layout.tsx`의 `viewport: Viewport` export에 `viewportFit: "cover"`를 추가해야 한다.
+
+**검증**: `npx tsc --noEmit` 클린, `npx next build` 정상 완료. 모든 페이지가 `ƒ (Dynamic) server-rendered on demand`로 빌드.
+
+**변경 파일**:
+- 신규: `src/app/(protected)/dashboard/tasks/tasks-client.tsx`, `src/app/(protected)/dashboard/responses/responses-client.tsx`, `src/app/(protected)/parents/parents-client.tsx`, `src/app/(protected)/dashboard/tasks/loading.tsx`, `src/app/(protected)/dashboard/responses/loading.tsx`, `src/app/(protected)/dashboard/calls/loading.tsx`, `src/app/(protected)/parents/loading.tsx`, `src/components/app/mobile-bottom-nav.tsx`
+- 수정: `src/app/(protected)/dashboard/tasks/page.tsx`, `src/app/(protected)/dashboard/responses/page.tsx`, `src/app/(protected)/dashboard/calls/page.tsx`, `src/app/(protected)/parents/page.tsx`, `src/app/(protected)/layout.tsx`, `src/app/(protected)/dashboard/page.tsx`, `src/app/layout.tsx`, `src/app/globals.css`
+
+---
+
 ## Day17 — 실제 SMS 발송 (Solapi) + AI 자동 메시지 구성 + 챗봇 SMS 연동
 
 **계기**: 지금까지의 모든 발송(SMS·전화)이 Mock이었다 — 실제 문자 한 통도 나가지 않는 상태로 MVP 시연을 하기 어렵다는 판단 아래, "실제 발송 연동"을 Day17 핵심 목표로 잡았다. 같은 날 참석한 **창업진흥원 스타트업 원스톱 브릿지데이 (2026-07-01, SVC Seoul)** 전문가 상담에서 받은 방향 피드백도 반영했다: ① 챗봇을 중심 허브로(SMS·전화·카카오톡을 챗봇 하나에서 처리), ② 공공기관 연계 확장 가능 구조는 post-MVP, ③ 쌍방향 AI도 post-MVP.
