@@ -20,7 +20,7 @@ export function ParentsClient({ initialProfiles }: Props) {
   return (
     <div className="flex flex-1 flex-col items-center bg-slate-50 px-4 py-10 sm:py-16">
       <div className="w-full max-w-xl space-y-6">
-        <div className="space-y-1">
+        <div className="space-y-1 animate-rag-fade-in-up">
           <p className="text-sm font-semibold uppercase tracking-widest text-blue-600">SilverLink AI</p>
           <h1 className="text-2xl font-bold text-slate-900">부모님/어르신 관리</h1>
           <p className="text-slate-500">
@@ -28,13 +28,16 @@ export function ParentsClient({ initialProfiles }: Props) {
           </p>
         </div>
 
+        <div className="animate-rag-fade-in-up" style={{ animationDelay: "70ms" }}>
         <ParentProfileList
           profiles={profiles}
           loading={false}
           onSelect={setEditingProfile}
           selectedId={editingProfile?.id}
         />
+        </div>
 
+        <div className="animate-rag-fade-in-up" style={{ animationDelay: "140ms" }}>
         {editingProfile ? (
           <ParentProfileForm
             mode="edit"
@@ -53,6 +56,7 @@ export function ParentsClient({ initialProfiles }: Props) {
             }}
           />
         )}
+        </div>
       </div>
     </div>
   );

@@ -36,13 +36,13 @@ export function ResponsesClient({ initialResponses, careTaskById, parentProfiles
   return (
     <div className="flex flex-1 flex-col items-center bg-slate-50 px-4 py-10 sm:py-16">
       <div className="w-full max-w-2xl">
-        <div className="mb-8 text-center">
+        <div className="mb-8 text-center animate-rag-fade-in-up">
           <p className="text-sm font-semibold uppercase tracking-widest text-blue-600">SilverLink AI</p>
           <h1 className="mt-2 text-3xl font-bold text-slate-900">어르신 응답 기록</h1>
           <p className="mt-2 text-slate-500">링크로 받은 응답을 최근순으로 모아봤어요.</p>
         </div>
 
-        <div className="mb-5 space-y-1.5">
+        <div className="mb-5 space-y-1.5 animate-rag-fade-in-up" style={{ animationDelay: "60ms" }}>
           <label htmlFor="response_parent_id" className="block text-xs font-semibold text-slate-500">
             부모님 선택
           </label>
@@ -62,13 +62,13 @@ export function ResponsesClient({ initialResponses, careTaskById, parentProfiles
         </div>
 
         {visibleResponses.length === 0 ? (
-          <p className="rounded-3xl bg-white p-8 text-center text-slate-500 shadow-sm ring-1 ring-slate-200">
+          <p className="rounded-3xl bg-white p-8 text-center text-slate-500 shadow-sm ring-1 ring-slate-200 animate-rag-fade-in-up" style={{ animationDelay: "100ms" }}>
             아직 받은 응답이 없어요.
           </p>
         ) : (
           <ul className="space-y-3">
-            {visibleResponses.map((log) => (
-              <li key={log.id}>
+            {visibleResponses.map((log, i) => (
+              <li key={log.id} className="animate-rag-fade-in-up" style={{ animationDelay: `${100 + i * 55}ms` }}>
                 <button
                   type="button"
                   onClick={() => setSelectedLog(log)}

@@ -60,23 +60,23 @@ export function DeliveriesClient({ initialAttempts, parentById }: Props) {
   return (
     <div className="flex flex-1 flex-col items-center bg-slate-50 px-4 py-10 sm:py-16">
       <div className="w-full max-w-2xl">
-        <div className="mb-6 text-center">
+        <div className="mb-6 text-center animate-rag-fade-in-up">
           <p className="text-xs font-semibold uppercase tracking-widest text-blue-600">SilverLink AI</p>
           <h1 className="mt-1 text-2xl font-bold text-slate-900">발송 기록</h1>
           <p className="mt-1 text-sm text-slate-500">SMS · 음성 전화 발송 이력</p>
         </div>
 
         {initialAttempts.length === 0 ? (
-          <div className="rounded-2xl bg-white p-10 text-center shadow-sm ring-1 ring-slate-200">
+          <div className="rounded-2xl bg-white p-10 text-center shadow-sm ring-1 ring-slate-200 animate-rag-fade-in-up" style={{ animationDelay: "60ms" }}>
             <p className="text-slate-500">아직 발송 기록이 없어요.</p>
             <p className="mt-1 text-sm text-slate-400">알림을 발송하면 여기에 이력이 쌓입니다.</p>
           </div>
         ) : (
           <ul className="space-y-3">
-            {initialAttempts.map((attempt) => {
+            {initialAttempts.map((attempt, i) => {
               const parent = parentById[attempt.parent_id] ?? null;
               return (
-                <li key={attempt.id}>
+                <li key={attempt.id} className="animate-rag-fade-in-up" style={{ animationDelay: `${60 + i * 55}ms` }}>
                   <button
                     type="button"
                     onClick={() => setSelected(attempt)}
