@@ -3,6 +3,7 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import type { MessageLogSummary } from "@/lib/supabase/message-logs-repo";
+import { PageGuideButton } from "@/components/app/page-guide-button";
 import type { CareTaskSummary } from "@/lib/supabase/care-tasks-repo";
 import type { ParentProfile } from "@/lib/supabase/parent-profiles-repo";
 
@@ -36,6 +37,32 @@ export function ResponsesClient({ initialResponses, careTaskById, parentProfiles
   return (
     <div className="flex flex-1 flex-col items-center bg-slate-50 px-4 py-10 sm:py-16">
       <div className="w-full max-w-2xl">
+        <div className="mb-3 flex animate-rag-fade-in-up">
+          <PageGuideButton title="어르신 응답 기록 안내">
+            <section>
+              <h3 className="mb-1.5 flex items-center gap-2 font-bold text-slate-800">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">1</span>
+                응답 기록이란?
+              </h3>
+              <p className="leading-relaxed">SMS로 전달된 <strong>응답 링크</strong>를 어르신이 눌렀을 때 남기는 내용이에요. 어르신이 직접 상태를 체크하거나 메시지를 입력한 결과가 여기 모입니다.</p>
+            </section>
+            <section>
+              <h3 className="mb-1.5 flex items-center gap-2 font-bold text-slate-800">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">2</span>
+                부모님 필터
+              </h3>
+              <p className="leading-relaxed">상단 선택 박스에서 특정 어르신을 선택하면 그분의 응답만 볼 수 있어요. 기본값은 <strong>등록된 모든 어르신</strong>의 응답을 합쳐서 보여줍니다.</p>
+            </section>
+            <section>
+              <h3 className="mb-1.5 flex items-center gap-2 font-bold text-slate-800">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">3</span>
+                응답 클릭
+              </h3>
+              <p className="leading-relaxed">각 응답 카드를 클릭하면 관련 일정, 채널, 받은 시각 등 상세 정보를 확인할 수 있어요.</p>
+            </section>
+          </PageGuideButton>
+        </div>
+
         <div className="mb-8 text-center animate-rag-fade-in-up">
           <p className="text-sm font-semibold uppercase tracking-widest text-blue-600">SilverLink AI</p>
           <h1 className="mt-2 text-3xl font-bold text-slate-900">어르신 응답 기록</h1>

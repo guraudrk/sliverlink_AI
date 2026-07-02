@@ -8,6 +8,7 @@ import type { MessageLogSummary } from "@/lib/supabase/message-logs-repo";
 import type { NotificationQueueRow } from "@/lib/supabase/notification-queue-repo";
 import { CareTaskDetailModal } from "@/components/tasks/care-task-detail-modal";
 import { MessageLogDetailModal } from "@/components/responses/message-log-detail-modal";
+import { PageGuideButton } from "@/components/app/page-guide-button";
 
 const STATUS_LABELS: Record<string, string> = {
   scheduled: "예정",
@@ -104,7 +105,26 @@ export default function ParentDashboardPage() {
   return (
     <div className="flex flex-1 flex-col items-center bg-slate-50 px-4 py-10 sm:py-16">
       <div className="w-full max-w-2xl space-y-8">
-        <div className="text-center animate-rag-fade-in-up">
+        <div className="flex animate-rag-fade-in-up">
+          <PageGuideButton title="어르신 개별 현황 안내">
+            <section>
+              <h3 className="mb-1.5 flex items-center gap-2 font-bold text-slate-800">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">1</span>
+                이 페이지는?
+              </h3>
+              <p className="leading-relaxed">이 어르신에게 등록된 <strong>일정</strong>과 <strong>응답 기록</strong>만 모아서 보여줘요. 전체 목록에서 특정 어르신의 상황만 집중해서 확인할 때 유용합니다.</p>
+            </section>
+            <section>
+              <h3 className="mb-1.5 flex items-center gap-2 font-bold text-slate-800">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">2</span>
+                상세 보기
+              </h3>
+              <p className="leading-relaxed">일정 카드나 응답 카드를 클릭하면 상세 내용을 팝업으로 확인할 수 있어요. 일정의 발송 채널·상태, 응답의 원문 메시지를 볼 수 있습니다.</p>
+            </section>
+          </PageGuideButton>
+        </div>
+
+        <div className="text-center animate-rag-fade-in-up" style={{ animationDelay: "30ms" }}>
           <p className="text-sm font-semibold uppercase tracking-widest text-blue-600">SilverLink AI</p>
           <h1 className="mt-2 text-3xl font-bold text-slate-900">
             {profile.display_name}
