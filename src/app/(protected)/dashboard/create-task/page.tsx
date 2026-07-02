@@ -39,7 +39,7 @@ export default function CreateTaskPage() {
   if (profiles.length === 0) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center bg-slate-50 px-4 py-16 text-center">
-        <div className="max-w-sm space-y-4 rounded-3xl bg-white p-8 shadow-sm ring-1 ring-slate-200">
+        <div className="max-w-sm space-y-4 rounded-3xl bg-white p-8 shadow-sm ring-1 ring-slate-200 animate-rag-pop-in">
           <p className="text-lg font-semibold text-slate-700">먼저 부모님/어르신을 등록해 주세요.</p>
           <p className="text-sm text-slate-500">등록된 분이 있어야 일정을 만들 수 있어요.</p>
           <Link
@@ -55,12 +55,15 @@ export default function CreateTaskPage() {
 
   return (
     <div className="flex flex-1 flex-col items-center bg-slate-50 px-4 py-10 sm:py-16">
-      <div className="mb-8 max-w-xl text-center">
+      <div className="mb-8 max-w-xl text-center animate-rag-fade-in-up">
         <p className="text-sm font-semibold uppercase tracking-widest text-blue-600">SilverLink AI</p>
         <h1 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">어르신께 마음을 전해보세요</h1>
         <p className="mt-2 text-slate-500">등록하신 부모님께 전할 말씀을 남겨주세요.</p>
       </div>
-      <TaskRequestForm parentProfiles={profiles} />
+      <div className="animate-rag-fade-in-up w-full max-w-xl" style={{ animationDelay: "80ms" }}>
+        <TaskRequestForm parentProfiles={profiles} />
+      </div>
     </div>
   );
 }
+

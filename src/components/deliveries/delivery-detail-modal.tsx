@@ -82,11 +82,11 @@ export function DeliveryDetailModal({ attempt, parent, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 px-4 pb-0 sm:items-center sm:pb-0"
+      className="animate-rag-fade-in fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 backdrop-blur-sm px-4 pb-0 sm:items-center sm:p-4 sm:pb-4"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-t-3xl bg-white p-6 shadow-xl sm:rounded-3xl"
+        className="animate-rag-pop-in w-full max-w-md rounded-t-3xl bg-white p-6 shadow-2xl ring-1 ring-slate-200 sm:rounded-3xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 헤더 */}

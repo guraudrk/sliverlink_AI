@@ -104,7 +104,7 @@ export default function ParentDashboardPage() {
   return (
     <div className="flex flex-1 flex-col items-center bg-slate-50 px-4 py-10 sm:py-16">
       <div className="w-full max-w-2xl space-y-8">
-        <div className="text-center">
+        <div className="text-center animate-rag-fade-in-up">
           <p className="text-sm font-semibold uppercase tracking-widest text-blue-600">SilverLink AI</p>
           <h1 className="mt-2 text-3xl font-bold text-slate-900">
             {profile.display_name}
@@ -112,7 +112,7 @@ export default function ParentDashboardPage() {
           </h1>
         </div>
 
-        <section>
+        <section className="animate-rag-fade-in-up" style={{ animationDelay: "60ms" }}>
           <h2 className="mb-3 text-lg font-bold text-slate-700">일정</h2>
           {careTasks.length === 0 ? (
             <p className="rounded-2xl bg-white p-6 text-center text-sm text-slate-500 shadow-sm ring-1 ring-slate-200">
@@ -120,8 +120,8 @@ export default function ParentDashboardPage() {
             </p>
           ) : (
             <ul className="space-y-2">
-              {careTasks.map((task) => (
-                <li key={task.id}>
+              {careTasks.map((task, i) => (
+                <li key={task.id} className="animate-rag-fade-in-up" style={{ animationDelay: `${100 + i * 50}ms` }}>
                   <button
                     type="button"
                     onClick={() => setSelectedTask(task)}
@@ -141,7 +141,7 @@ export default function ParentDashboardPage() {
           )}
         </section>
 
-        <section>
+        <section className="animate-rag-fade-in-up" style={{ animationDelay: "100ms" }}>
           <h2 className="mb-3 text-lg font-bold text-slate-700">응답 기록</h2>
           {responses.length === 0 ? (
             <p className="rounded-2xl bg-white p-6 text-center text-sm text-slate-500 shadow-sm ring-1 ring-slate-200">
@@ -149,8 +149,8 @@ export default function ParentDashboardPage() {
             </p>
           ) : (
             <ul className="space-y-2">
-              {responses.map((log) => (
-                <li key={log.id}>
+              {responses.map((log, i) => (
+                <li key={log.id} className="animate-rag-fade-in-up" style={{ animationDelay: `${140 + i * 50}ms` }}>
                   <button
                     type="button"
                     onClick={() => setSelectedLog(log)}

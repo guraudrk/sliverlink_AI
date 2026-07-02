@@ -37,8 +37,8 @@ export function ParentProfileList({
 
   return (
     <ul className="space-y-3">
-      {profiles.map((profile) => (
-        <li key={profile.id} className="relative">
+      {profiles.map((profile, i) => (
+        <li key={profile.id} className="relative animate-rag-fade-in-up" style={{ animationDelay: `${i * 60}ms` }}>
           <button
             type="button"
             onClick={() => onSelect(profile)}
