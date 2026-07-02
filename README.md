@@ -125,23 +125,23 @@ npm run dev
 
 두 테스트 모두 `SILVERLINK_DRY_RUN=true` 기준으로 동작하도록 작성되어 있어, 실제 Make Webhook이나 외부 서비스 없이도 전체 흐름을 검증할 수 있습니다. E2E 테스트는 개발 서버가 켜져 있지 않으면 `playwright.config.ts`의 `webServer` 설정에 따라 자동으로 띄워줍니다.
 
-## 10. 아직 구현하지 않은 기능 (2026-07-02 Day17 기준 최신)
+## 10. 아직 구현하지 않은 기능 (2026-07-02 Day19 기준 최신)
 
-Day17까지 완료한 뒤 남은 항목:
+Day19까지 완료한 뒤 남은 항목:
 
-**단기 (Day18 후보)**
-1. **발송 기록 페이지** — SMS·음성 `delivery_attempts` 목록과 `voiceReplied` 결과를 대시보드에서 직접 확인하는 UI가 없음.
-2. **Solapi 웹훅 실제 연결 테스트** — `/api/voice/solapi-status` 코드는 완성됐지만, 배포된 Vercel URL을 Solapi 콘솔 상태보고 URL로 등록하고 실제 Push 수신을 확인해야 함.
-3. **어르신 동의 상태(`consent_status`) 관리** — 실제 부모님 번호로 발신하기 전 동의 수집 UI/흐름.
+**단기 (Day20 후보)**
+1. **실제 SMS/음성 end-to-end 테스트** — 배포된 Vercel 앱에서 실제 발송해 폰 수신 + 발송 기록 화면 확인.
+2. **Solapi 웹훅 실제 연결 테스트** — Solapi 콘솔 상태보고 URL로 Vercel 주소 등록 후 Push 수신 확인.
+3. **KakaoTalk 알림톡 (`SolapiKakaoProvider`)** — 코드 준비 완료 예정. 채널 승인 절차(카카오 비즈니스) 완료 후 실사용 가능.
 
 **중기 (Post-MVP)**
-4. **KakaoTalk 알림톡** — Solapi 동일 계정으로 연동 가능. 채널 승인 절차(카카오 비즈니스) 필요.
+4. **어르신 동의 상태(`consent_status`) 관리** — 실제 부모님 번호로 발신하기 전 동의 수집 UI/흐름.
 5. **Resend 도메인 인증** — 현재 인증 메일이 계정 소유자에게만 발송됨. 실제 도메인 구매 후 DNS 인증 필요.
 6. **쌍방향 AI 음성 에이전트** — OpenAI Realtime / Vapi / Retell 기반 자유대화형 전화. Post-MVP 실험 트랙.
 7. **공공기관 연계 확장** — 지자체/복지관 API 연동.
 
 그 외:
-- `due_task_checker` 자동 알림 크론 (기한 임박 케어 업무 자동 큐 등록)
+- 크론 실사용을 위한 `docs/cron-setup.sql` Supabase 등록 + `CRON_SECRET` Vercel 환경변수 설정
 - 회원 탈퇴, 비밀번호 재설정 등 계정 관리 기능
 - RAG 비서 평가 케이스 확충
 
@@ -269,3 +269,13 @@ MVP의 마지막 퍼즐 — 지금까지 모든 발송이 Mock이었다면, Day1
 - **대시보드 메인 그리드 모바일 2열**: 홈 화면의 메뉴 카드를 모바일 1열 → 2열(`grid-cols-2`)로 변경해 앱 같은 그리드 느낌 구현.
 
 구현 과정과 기술 설명은 [`docs/work-log.md`](docs/work-log.md)의 "Day18" 섹션을 참고하세요.
+
+## 22. Day 19 — 발송 기록 대시보드 + Vercel 자동 알림 크론
+
+- **발송 기록 페이지 (`/dashboard/deliveries`)**: `delivery_attempts` 테이블에 쌓이는 발송 이력을 카드 목록으로 표시. 채널별 색상 배지(`AI 전화`=파랑 · `SMS`=초록 · `카카오`=노랑)와 상태 배지(`answered`=파랑 · `sent`=초록 · `failed`=빨강). 카드 클릭 시 상세 모달: 음성이면 키패드 응답 여부·눌린 키·통화 시간, SMS이면 메시지 ID, 실패이면 에러 코드 표시. 원본 응답 JSON은 접기/펼치기(`<details>`)로 제공.
+- **Server Component 패턴 (Day18 연속)**: `page.tsx`에서 `listDeliveryAttempts` + `listParentProfiles`를 `Promise.all`로 서버에서 직접 조회. `parentById: Record<string, ParentProfile>`을 서버에서 구축해 props로 전달 — 클라이언트가 별도 API 호출 없이 수신자 이름·번호를 O(1) 조회.
+- **Vercel Cron 자동 발송 (`/api/cron/check-due-tasks`)**: `vercel.json`에 `"schedule": "0 0 * * *"` 등록. 매일 UTC 00:00(한국 09:00)에 Vercel이 자동 호출. `CRON_SECRET` Bearer 토큰으로 외부 임의 트리거 방지. `export const maxDuration = 60`으로 타임아웃 연장.
+- **SECURITY DEFINER RPC 패턴 3번째 적용**: 크론은 사용자 세션 없이 실행되므로 RLS를 통과할 수 없다. `@supabase/supabase-js createClient(anonKey)`로 세션 없는 클라이언트를 만들고, `fetch_due_queue_for_cron()` + `record_cron_attempt()` 두 SECURITY DEFINER SQL 함수로만 DB를 다룬다 (Day9 어르신 익명 응답 · Day17 Solapi 웹훅에 이어 세 번째 패턴 적용). 설정 SQL은 `docs/cron-setup.sql`.
+- **기존 발송 플래그 상속**: 크론도 `ENABLE_REAL_SMS` / `ENABLE_REAL_CALLS` 플래그를 그대로 따름 — 두 플래그가 false면 크론이 실행돼도 실제 발송 없이 Mock 처리.
+
+크론 DB 함수 설정 방법은 [`docs/cron-setup.sql`](docs/cron-setup.sql), 작업 과정은 [`docs/work-log.md`](docs/work-log.md)의 "Day19" 섹션을 참고하세요.

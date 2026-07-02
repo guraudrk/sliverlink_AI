@@ -1,5 +1,17 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+export type DeliveryAttemptSummary = {
+  id: string;
+  channel: string;
+  status: string;
+  external_message_id: string | null;
+  error_code: string | null;
+  error_message: string | null;
+  response_payload: unknown;
+  created_at: string;
+  parent_id: string;
+};
+
 export type DeliveryAttemptInsert = {
   owner_user_id: string;
   parent_id: string;
@@ -36,6 +48,18 @@ export async function getDeliveryAttemptById(
   const { data, error } = await supabase.from("delivery_attempts").select("*").eq("id", id).maybeSingle();
   if (error) throw error;
   return data as DeliveryAttempt | null;
+}
+
+export async function listDeliveryAttempts(
+  supabase: SupabaseClient
+): Promise<DeliveryAttemptSummary[]> {
+  const { data, error } = await supabase
+    .from("delivery_attempts")
+    .select("id, channel, status, external_message_id, error_code, error_message, response_payload, created_at, parent_id")
+    .order("created_at", { ascending: false })
+    .limit(100);
+  if (error) throw error;
+  return (data ?? []) as DeliveryAttemptSummary[];
 }
 
 export async function updateDeliveryAttemptStatus(

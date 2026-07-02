@@ -9,6 +9,57 @@
 
 # 2026-07-02
 
+## Day19 — 발송 기록 대시보드 + Vercel 자동 알림 크론
+
+**계기**: Day17까지 SMS·음성 발송이 실제로 나가기 시작했지만, "어떤 상태인지"를 한눈에 볼 수 있는 화면이 없었다. `delivery_attempts` 테이블에 기록이 쌓이고 있어도 DB를 직접 들여다봐야만 확인할 수 있는 구조였다. 또한 매번 발송 버튼을 직접 눌러야 하는 "수동 발송" 구조를 벗어나, 예약된 시각이 지나면 자동으로 발송이 처리되는 크론 구조가 필요했다.
+
+**작업 내용** (PRD/tasks: `docs/PRD-day19-delivery-history-cron.md` / `tasks/tasks-day19-delivery-history-cron.md`):
+
+1. **`listDeliveryAttempts()` 데이터 레이어 신규** (`src/lib/supabase/delivery-attempts-repo.ts`): 기존 `delivery_attempts` 레포는 `createDeliveryAttempt`, `getDeliveryAttemptById`, `updateDeliveryAttemptStatus` 3개만 있었다. `DeliveryAttemptSummary` 타입(id · channel · status · external_message_id · error_code · error_message · response_payload · created_at · parent_id)과 `listDeliveryAttempts(supabase)` 함수를 추가했다. `created_at DESC`, limit 100 조회이며, RLS가 `owner_user_id` 기준으로 자동 필터링하므로 별도 where 조건 불필요.
+
+2. **`/dashboard/deliveries` 발송 기록 페이지**: Day18에서 확립한 Server Component 패턴을 그대로 적용했다.
+   - `page.tsx`(서버): `listDeliveryAttempts` + `listParentProfiles`를 `Promise.all`로 병렬 조회. `parentById: Record<string, ParentProfile>`을 서버에서 미리 구축해 `DeliveriesClient`에 전달. 클라이언트는 `parentById[attempt.parent_id]`로 수신자 이름·번호를 O(1)에 조회.
+   - `deliveries-client.tsx`(클라이언트): 채널 배지(`voice_call`→파랑, `sms`→초록, `kakao_alimtalk`→노랑), 상태 배지(`answered`→파랑, `sent`→초록, `failed`→빨강). 카드 클릭 → `DeliveryDetailModal` open(useState로 selected 관리).
+   - `loading.tsx`: pulse 스켈레톤, 4개 카드 형태.
+   - 빈 상태 안내: "아직 발송 기록이 없어요."
+
+3. **`DeliveryDetailModal`** (`src/components/deliveries/delivery-detail-modal.tsx`): `next/dynamic({ ssr: false })`로 lazy-load. 채널별 상세 분기:
+   - **음성(`voice_call`)**: `response_payload`를 `parseVoicePayload()`로 파싱해 `voiceReplied`(응답 여부) · `replyKey`(1번=완료/2번=도움 요청) · `voiceDuration`(통화 시간 초) 표시. Solapi 웹훅이 저장한 JSON 구조를 일반 타입으로 보여주는 레이어.
+   - **SMS**: Solapi `external_message_id`(메시지 ID) 표시.
+   - **실패 공통**: `error_code` + `error_message`를 빨간 박스로 강조.
+   - **원본 JSON 접기/펼치기**: HTML `<details>` 태그를 활용해 `response_payload` 전체를 `<pre>`로 표시하되 기본은 접힘. JS 없이 브라우저 기본 동작만으로 구현.
+   
+   **타입 처리 포인트**: `response_payload`가 `unknown`이라 JSX에서 `{attempt.response_payload && (...)}` 패턴을 쓰면 TypeScript가 "Type 'unknown' is not assignable to type 'ReactNode'" 에러를 발생시킨다. `{!!attempt.response_payload && (...)}` 로 `!!`을 붙여 boolean으로 단락 평가시켜야 한다.
+
+4. **대시보드 홈 카드 추가**: `/dashboard/page.tsx`의 nav grid에 "발송 기록 / SMS · 음성 발송 이력" 카드 추가. 모바일 하단 5탭은 기존 유지(발송 기록은 대시보드 홈 카드로만 진입).
+
+5. **Vercel Cron — 자동 알림 발송 (`checkDueTasks`)**: 
+   - `src/lib/silverlink/cron/check-due-tasks.ts`: 크론은 사용자 세션이 없어 쿠키 기반 `createSupabaseServerClient()`를 쓸 수 없다. 대신 `@supabase/supabase-js`의 `createClient(url, anonKey)`로 세션 없는 anon 클라이언트를 직접 생성하고, DB 접근은 **SECURITY DEFINER RPC 2개**를 통해서만 한다 — 이것이 Day9(어르신 익명 응답)·Day17(Solapi 웹훅)에서 확립한 패턴의 세 번째 적용.
+   - `fetch_due_queue_for_cron()`: `notification_queue` + `parent_profiles` JOIN, `status='prepared'` AND `scheduled_for <= now()` 필터. 사용자 세션 없이도 anon이 호출 가능.
+   - `record_cron_attempt()`: `delivery_attempts` INSERT + `notification_queue.status` UPDATE를 한 트랜잭션으로 묶음. 부분 성공 방지.
+   - 두 RPC 모두 `docs/cron-setup.sql`에 정의. Supabase 대시보드 → SQL 에디터에서 한 번 실행해야 활성화됨.
+   - `ENABLE_REAL_SMS` / `ENABLE_REAL_CALLS` 플래그를 크론도 그대로 따른다 — 플래그가 false면 크론이 실행돼도 실제 발송 없음.
+
+6. **`/api/cron/check-due-tasks` 라우트 + `vercel.json`**:
+   - `Authorization: Bearer <CRON_SECRET>` 헤더 검증. 헤더 없거나 틀리면 401. `CRON_SECRET` 미설정이면 503.
+   - `export const maxDuration = 60`: Vercel Function 기본 타임아웃이 10초라 크론처럼 여러 건을 처리하는 함수는 이 값으로 늘려야 한다.
+   - `vercel.json` 신규: `"schedule": "0 0 * * *"` (UTC 00:00 = 한국 09:00) 크론 등록. Vercel에 배포하면 Cron Jobs 탭에서 스케줄이 자동으로 나타난다.
+   - 수동 트리거: `curl -X POST https://silverlink-ai.vercel.app/api/cron/check-due-tasks -H "Authorization: Bearer <CRON_SECRET>"` 로 테스트.
+
+**🤖 AI 활용 팁**:
+- **세션 없는 서버 로직의 DB 접근 패턴**: Next.js의 `createSupabaseServerClient()`는 쿠키(사용자 세션)가 있어야 RLS가 올바르게 동작한다. 세션이 없는 환경(Vercel Cron, 외부 Webhook)에서는 ① anon key로 직접 `createClient()`, ② DB 조작은 SECURITY DEFINER RPC로 캡슐화가 정석이다. Service Role Key를 쓰는 것보다 DB 권한 범위가 정확히 제한되고 코드 감사도 쉽다.
+- **`SECURITY DEFINER` 함수 설계 원칙**: 함수 안에서만 필요한 테이블 행만 다루도록 WHERE 조건을 반드시 포함한다. `fetch_due_queue_for_cron()`이 `scheduled_for <= now()` 조건 없이 전체를 반환하면 크론이 전체 큐를 재처리하는 버그가 생긴다. SECURITY DEFINER는 RLS를 우회하므로, WHERE 조건이 RLS 역할을 대신한다는 점을 의식해서 설계한다.
+- **Vercel Cron `maxDuration` 필수**: Vercel Function의 기본 실행 시간 제한은 10초다. 크론처럼 여러 건을 루프 처리하거나 외부 API(Solapi)를 여러 번 호출하는 함수는 반드시 `export const maxDuration = 60`을 라우트 파일에 선언해야 한다. 선언하지 않으면 처리 중 강제 종료된다.
+- **`!!unknown`으로 ReactNode 타입 문제 해결**: TypeScript에서 `unknown && <JSX>` 패턴은 "단락 평가 시 `unknown`이 ReactNode에 할당 불가"라는 에러를 낸다. `{!!value && <JSX>}`로 `!!`를 붙이면 boolean으로 변환된 뒤 단락 평가가 일어나 에러가 사라진다.
+
+**검증**: `npx tsc --noEmit` 클린, `npx next build` 정상 완료. `/dashboard/deliveries` 및 `/api/cron/check-due-tasks` 모두 `ƒ (Dynamic) server-rendered on demand` 빌드.
+
+**변경 파일**:
+- 신규: `src/app/(protected)/dashboard/deliveries/page.tsx`, `src/app/(protected)/dashboard/deliveries/deliveries-client.tsx`, `src/app/(protected)/dashboard/deliveries/loading.tsx`, `src/components/deliveries/delivery-detail-modal.tsx`, `src/lib/silverlink/cron/check-due-tasks.ts`, `src/app/api/cron/check-due-tasks/route.ts`, `vercel.json`, `docs/cron-setup.sql`
+- 수정: `src/lib/supabase/delivery-attempts-repo.ts`(타입+함수 추가), `src/app/(protected)/dashboard/page.tsx`(카드 추가), `.env.example`(CRON_SECRET 추가)
+
+---
+
 ## Day18 — 앱 친화성 개선 + 로딩 속도 2배+ 최적화
 
 **계기**: Day17까지 기능을 쌓으면서 대시보드의 모든 페이지가 `"use client"` + `useEffect` + `fetch` 패턴으로 되어 있었다. 이는 Next.js App Router에서 가장 비효율적인 데이터 페칭 방식으로, 페이지가 빈 HTML로 로드된 뒤 JS가 실행되고 나서야 API를 호출해 데이터를 가져오는 구조였다. 모바일에서 체감 로딩이 느렸고, 앱처럼 느껴지려면 기존 기능은 건드리지 않으면서 속도와 UX만 개선해야 했다.
