@@ -2,6 +2,7 @@ export type DeliveryRequest = {
   channel: string;
   message_text?: string;
   call_script?: string;
+  to_phone_number?: string;
 };
 
 export type DeliveryResult = {

@@ -9,6 +9,7 @@ export class MockDeliveryProvider implements DeliveryProvider {
       channel: request.channel,
       message_text: request.message_text ?? null,
       call_script: request.call_script ?? null,
+      to_phone_number: request.to_phone_number ?? null,
     };
 
     return {

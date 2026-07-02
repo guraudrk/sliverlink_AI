@@ -2,7 +2,10 @@ import { ZodError } from "zod";
 import { notificationQueueInputSchema } from "@/lib/silverlink/delivery/schema";
 import { generateResponseToken, getDefaultExpiresAt } from "@/lib/silverlink/delivery/response-token";
 import { MockDeliveryProvider } from "@/lib/silverlink/delivery/mock-provider";
+import { SolapiSmsProvider } from "@/lib/silverlink/delivery/solapi-provider";
+import { SolapiVoiceProvider } from "@/lib/silverlink/delivery/solapi-voice-provider";
 import { getOwnCareTask, updateCareTaskNotificationStatus } from "@/lib/supabase/care-tasks-repo";
+import { getParentProfileById } from "@/lib/supabase/parent-profiles-repo";
 import { createNotificationQueueEntry } from "@/lib/supabase/notification-queue-repo";
 import { createDeliveryAttempt } from "@/lib/supabase/delivery-attempts-repo";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -15,6 +18,10 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 const mockProvider = new MockDeliveryProvider();
+const solapiSmsProvider = new SolapiSmsProvider();
+const solapiVoiceProvider = new SolapiVoiceProvider();
+const enableRealSms = process.env.ENABLE_REAL_SMS === "true";
+const enableRealCalls = process.env.ENABLE_REAL_CALLS === "true";
 
 export async function POST(request: Request) {
   const supabase = await createSupabaseServerClient();
@@ -52,6 +59,28 @@ export async function POST(request: Request) {
     return jsonResponse({ ok: false, error: "care_task_not_found" }, 403);
   }
 
+  // 실제 SMS/전화 발송 시 수신번호 필요 — 부모님 프로필에서 조회
+  const needsPhone =
+    (enableRealSms && input.channel === "sms") ||
+    (enableRealCalls && input.channel === "voice_call");
+
+  let toPhoneNumber: string | undefined;
+  if (needsPhone) {
+    const parentProfile = await getParentProfileById(supabase, careTask.parent_id);
+    toPhoneNumber = parentProfile?.phone ?? undefined;
+    if (!toPhoneNumber) {
+      return jsonResponse(
+        { ok: false, error: "missing_phone", message: "부모님 프로필에 전화번호가 등록되지 않았습니다. /dashboard/parents에서 먼저 등록해 주세요." },
+        400
+      );
+    }
+  }
+
+  const provider =
+    enableRealSms && input.channel === "sms" ? solapiSmsProvider :
+    enableRealCalls && input.channel === "voice_call" ? solapiVoiceProvider :
+    mockProvider;
+
   const responseToken = generateResponseToken();
   const queueInput = { ...input, expires_at: input.expires_at ?? getDefaultExpiresAt() };
 
@@ -64,10 +93,11 @@ export async function POST(request: Request) {
       queueInput
     );
 
-    const deliveryResult = await mockProvider.send({
+    const deliveryResult = await provider.send({
       channel: input.channel,
       message_text: input.message_text,
       call_script: input.call_script,
+      to_phone_number: toPhoneNumber,
     });
 
     const attempt = await createDeliveryAttempt(supabase, {

@@ -7,6 +7,70 @@
 
 ---
 
+# 2026-07-02
+
+## Day17 — 실제 SMS 발송 (Solapi) + AI 자동 메시지 구성 + 챗봇 SMS 연동
+
+**계기**: 지금까지의 모든 발송(SMS·전화)이 Mock이었다 — 실제 문자 한 통도 나가지 않는 상태로 MVP 시연을 하기 어렵다는 판단 아래, "실제 발송 연동"을 Day17 핵심 목표로 잡았다. 같은 날 참석한 **창업진흥원 스타트업 원스톱 브릿지데이 (2026-07-01, SVC Seoul)** 전문가 상담에서 받은 방향 피드백도 반영했다: ① 챗봇을 중심 허브로(SMS·전화·카카오톡을 챗봇 하나에서 처리), ② 공공기관 연계 확장 가능 구조는 post-MVP, ③ 쌍방향 AI도 post-MVP.
+
+**결정 사항**:
+- **SMS 공급사 = Solapi**: 국내 레퍼런스, REST API 안정성, KakaoTalk 알림톡을 같은 계정에서 추가 가능한 점 고려.
+- **전화 공급사 = Twilio → 알리고(aligo.in)으로 방향 변경**: Twilio는 발신 번호가 국제번호(+1)라 어르신이 "국제전화입니다" 안내 후 거부하는 문제가 있어, 국내 ARS 서비스인 알리고로 대체하기로 결정.
+- **ENABLE_REAL_SMS 플래그**: 기본값 `false`(Mock 동작 보장) — 실제 발송 테스트는 사용자가 명시적으로 요청할 때만.
+
+**작업 내용** (PRD/tasks: `docs/PRD-day17-real-sms-voice.md` / `tasks/tasks-day17-real-sms-voice.md`):
+
+1. **DeliveryRequest 타입 확장**: `provider.ts`에 `to_phone_number?: string` 필드 추가 — Solapi 같은 실제 공급사는 수신번호가 필수라, 추상화 타입 자체에 확장했다. `mock-provider.ts`도 해당 필드를 `request_payload` 기록에 포함하도록 업데이트.
+
+2. **SolapiSmsProvider 신규 구현** (`src/lib/silverlink/delivery/solapi-provider.ts`): Node.js 내장 `crypto`(HMAC-SHA256)로 인증 헤더를 생성하고 Solapi REST API를 호출. 환경변수(`SOLAPI_API_KEY` / `SOLAPI_API_SECRET` / `SOLAPI_SENDER_NUMBER`) 누락 시 `status: "failed"` 반환(네트워크 호출 없이 안전하게). 외부 패키지를 추가로 설치하지 않았다(Node.js 내장 `crypto`만 사용).
+
+3. **`/api/delivery/preview` 라우트 업데이트**: `ENABLE_REAL_SMS=true` + `channel="sms"` 조건이면 `getParentProfileById`로 수신번호를 조회해서 `SolapiSmsProvider.send()`로 라우팅. 그 외 모든 경우는 `MockDeliveryProvider` 그대로. 전화번호 미등록 시 `400 missing_phone` 에러를 반환해 문제를 빠르게 진단 가능.
+
+4. **실제 SMS 발송 확인**: 스크래치패드에서 `test-solapi.mjs`를 작성해 사용자 번호로 직접 테스트 → HTTP 200, `statusCode: "2000"`, `messageId: "M4V20260702110157NZHQKVEKQIPNVFC"` — 실제 문자가 폰에 도착 확인. 헤맨 점: 스크래치패드 경로에서 `path.resolve`가 프로젝트 루트를 잘못 계산해(`C:\Users\user\AppData\dev\...`) `.env.local`을 못 읽었다 — 절대 경로 하드코딩으로 해결.
+
+5. **가이드 아이콘 팝업** (`src/components/app/dashboard-nav-bar.tsx` → Client Component 변환, `src/components/app/parent-guide-modal.tsx` 신규): `DashboardNavBar`에 `usePathname()`을 추가해 `/dashboard/parents` 또는 `/parents` 경로일 때만 `?` 버튼을 "대시보드로" 옆에 표시. 클릭하면 반응형 바텀시트(모바일) / 센터 모달(데스크톱)이 열리며 ① AI SMS 자동 구성 원리, ② AI 전화 스크립트, ③ 챗봇 명령 예시를 설명. ESC 키와 배경 클릭으로 닫힘.
+
+6. **Gemini 자동 메시지 구성** (`/api/delivery/compose` 신규): 부모님 프로필(돌봄 내용·복약 정보·일상 루틴·소통 방식)을 Gemini 컨텍스트로 주고 `compose_type`(`sms` / `call_script`)에 따라 50자·100자 이내의 맞춤 문구를 자동 생성. `GEMINI_API_KEY` 미설정 시 503 반환(Mock 운영 시에도 빌드·테스트 가능). `SendNotificationModal`에 "AI 초안 생성" 버튼 추가 — 누르면 자동 구성된 텍스트가 textarea에 바로 채워짐.
+
+7. **챗봇 실제 SMS 연동** (`action-executor.ts` 업데이트): `executeSendCareMessage`에서 `ENABLE_REAL_SMS=true` + `channel="sms"` 조건이면 부모님 프로필에서 전화번호를 조회해 `SolapiSmsProvider`로 실제 발송. 챗봇에서 "문자 보내줘"라고 명령하면 실제 SMS가 나간다.
+
+**🤖 AI 활용 팁**:
+- **인증 라이브러리 없이 HMAC-SHA256 직접 구현**: Solapi 같은 국내 서비스는 전용 Node SDK가 없거나 있어도 관리가 덜 되는 경우가 많다. Node.js 내장 `crypto`로 HMAC 서명을 직접 구현하면 외부 패키지 의존성 없이 안전하게 연동할 수 있다 — API 문서의 서명 알고리즘(date + salt → HMAC-SHA256)을 그대로 코드로 옮기면 끝.
+- **플래그 패턴으로 안전 우선 실제 연동**: `ENABLE_REAL_SMS=false`(기본)로 두면 테스트/개발 중에는 절대 실제 문자가 나가지 않는다. 실제 발송을 확인하고 싶을 때만 스크래치패드에서 별도 스크립트로 검증하고, 확인 후 플래그를 켜는 방식이 안전하다.
+- **AI 자동 구성 + 사람 확인 패턴**: 완전 자동 발송보다 "AI가 초안을 생성하고 사람이 보고 보내는" 구조가 MVP에서 훨씬 안전하다. 텍스트가 틀렸을 때 사람이 수정할 수 있고, 어르신에게 부적절한 내용이 나가는 사고를 막는다.
+
+**검증**: `npx tsc --noEmit` 클린, `npx vitest run` 153/153 통과. 실제 SMS 발송은 스크래치패드 테스트 스크립트로 폰 수신 확인.
+
+**변경 파일**: `src/lib/silverlink/delivery/provider.ts`, `src/lib/silverlink/delivery/mock-provider.ts`, `src/lib/silverlink/delivery/solapi-provider.ts`(신규), `src/app/api/delivery/preview/route.ts`, `src/app/api/delivery/compose/route.ts`(신규), `src/lib/silverlink/rag/action-executor.ts`, `src/components/app/dashboard-nav-bar.tsx`, `src/components/app/parent-guide-modal.tsx`(신규), `src/components/tasks/send-notification-modal.tsx`, `.env.example`, `docs/PRD-day17-real-sms-voice.md`(신규), `tasks/tasks-day17-real-sms-voice.md`(신규)
+
+**Day17 추가 작업 (세션 2)**:
+
+8. **Solapi Voice Provider 신규 구현** (`src/lib/silverlink/delivery/solapi-voice-provider.ts`): `solapi` npm SDK를 설치해 `SolapiMessageService.send({ type: "VOICE", voiceOptions: { voiceType: "FEMALE", replyRange: 2 } })`로 TTS 음성 전화 발신. 어르신이 1번(완료) 또는 2번(도움 요청)을 누를 수 있는 키패드 응답 수집 설정 포함. 응답 타입의 `groupInfo.groupId` 사용(최초 오타: `result.groupId`로 잘못 접근해 TS 에러 → `result.groupInfo.groupId`로 수정). 알리고 검토 → 사업자등록번호 필요로 사용 불가 → Solapi가 SMS와 동일 계정으로 음성도 지원함을 SDK 타입 파일(`node_modules/solapi/dist/index.d.ts`)에서 직접 확인해 방향 전환.
+
+9. **음성 채널 채팅봇 연동** (`action-executor.ts`): `ENABLE_REAL_CALLS=true` + `channel="voice_call"` 조건이면 `SolapiVoiceProvider`로 실제 음성 발신. 기존 `channel === "voice"` 오타 → 스키마가 `"voice_call"` 임을 확인해 수정.
+
+10. **챗봇 인라인 메시지 수정 UX** (`care-assistant-panel.tsx`): 챗봇이 "이렇게 보낼까요?" 확인 카드를 표시할 때 사용자가 텍스트를 직접 수정할 수 있는 textarea 추가. "AI 초안 생성" 버튼으로 Gemini 작성도 가능. "발송 모달에서 수정" 버튼으로 기존 `SendNotificationModal` 연결. `overrideMessageText` 필드를 schema/confirm-action route/action-service에 추가해 수정된 텍스트가 실제 발송에 반영되도록.
+
+11. **음성 키패드 응답 수집 엔드포인트**:
+    - **폴링 방식** (`/api/voice/sync-status`): 사용자가 "응답 확인" 버튼을 누르면 Solapi `getMessages({ groupId })` API를 호출해 `voiceReplied` + `voiceOptions`의 실제 눌린 키 번호를 확인하고 `delivery_attempts` 상태를 갱신. 인증된 사용자만 자신의 delivery_attempt 조회 가능(RLS 보장).
+    - **웹훅 방식** (`/api/voice/solapi-status`): Solapi 콘솔의 상태보고 URL로 등록하면 발신 완료 시 Solapi가 직접 POST. `SOLAPI_WEBHOOK_SECRET`으로 요청 출처 검증. DB 갱신은 SECURITY DEFINER RPC(`handle_voice_callback`)로 anon 클라이언트에서 처리 — service role key 없이도 DB를 갱신할 수 있는 Supabase 공식 패턴(`/api/responses/[token]`에서 이미 사용 중). SQL은 `docs/voice-webhook-setup.sql` 참고.
+
+12. **`SendNotificationModal` 음성 채널 추가**: `voice_call` 채널 선택 탭 추가. 음성 선택 시 "TTS 스크립트" 레이블·`call_script` 파라미터 전송·"키패드 안내" 문구 표시. 발신 성공 후 별도 "발신 완료" 화면으로 전환해 "응답 확인" 버튼 제공(결과: 어르신이 눌렀는지 여부 + 눌린 키 번호 표시).
+
+13. **배포 가이드 갱신** (`docs/deployment-guide.md`): Day17 Solapi 환경변수 등록, DB 함수 설정, Solapi 콘솔 상태보고 URL 등록 절차 추가.
+
+**🤖 AI 활용 팁**:
+- **npm SDK 타입 파일로 문서 대체**: WebFetch로 공식 docs에 접근이 안 될 때 `node_modules/패키지명/dist/index.d.ts`를 직접 읽으면 모든 타입·파라미터·반환값을 확인할 수 있다. 특히 중첩 타입(`result.groupInfo.groupId` 같은)은 d.ts를 읽어야 실수 없이 구현 가능하다.
+- **웹훅 인증에 SECURITY DEFINER RPC 패턴**: 외부 서비스 콜백(Solapi, Stripe 등)은 사용자 세션이 없어 RLS를 통과할 수 없다. service role key 없이 해결하는 방법: ① DB에 SECURITY DEFINER 함수 생성 → ② anon 롤에 EXECUTE 권한 부여 → ③ URL secret으로 요청 출처 검증 → ④ anon 클라이언트로 RPC 호출. 이 패턴은 이미 `/api/responses/[token]`(토큰 기반 어르신 응답)에서 검증된 방식이다.
+
+**검증**: `npx tsc --noEmit` 클린, `npx vitest run` 153/153 통과.
+
+**변경 파일 (추가)**: `src/lib/silverlink/delivery/solapi-voice-provider.ts`(신규), `src/app/api/delivery/preview/route.ts`, `src/lib/silverlink/rag/action-executor.ts`, `src/lib/silverlink/rag/schema.ts`, `src/lib/silverlink/rag/action-service.ts`, `src/app/api/rag/confirm-action/route.ts`, `src/components/rag/care-assistant-panel.tsx`, `src/components/app/dashboard-nav-bar.tsx`, `src/components/app/parent-guide-modal.tsx`(신규), `src/app/api/voice/sync-status/route.ts`(신규), `src/app/api/voice/solapi-status/route.ts`(신규), `src/lib/supabase/delivery-attempts-repo.ts`, `src/components/tasks/send-notification-modal.tsx`, `docs/voice-webhook-setup.sql`(신규), `docs/deployment-guide.md`, `.env.example`
+
+**커밋**: 미완료
+
+---
+
 # 2026-06-27
 
 ## 오늘 하루 정리 (Day14 백로그 마무리 + Day15 보안 검증 + 회원가입 폼 개선)

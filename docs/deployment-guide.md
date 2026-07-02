@@ -59,7 +59,45 @@
 
 Vercel은 모든 배포본을 보관합니다. 문제가 생기면 Vercel 대시보드 → Deployments 탭에서 정상 동작했던 이전 배포를 찾아 "Promote to Production"(또는 "Redeploy")으로 즉시 되돌릴 수 있습니다 — `git revert` 없이도 가능한 가장 빠른 비상 대응입니다.
 
-## 7. 다음에 연결되는 작업
+## 7. Day17: Solapi SMS + 음성 전화 활성화
+
+Day17 이후 실제 발송을 사용하려면 아래 절차를 따릅니다.
+
+### 7-1. Vercel 환경변수 추가
+
+Vercel Project Settings → Environment Variables에 다음을 추가:
+
+| 변수 | 설명 |
+|---|---|
+| `ENABLE_REAL_SMS` | `true`로 설정하면 SMS 실제 발송 활성화 (기본 `false`) |
+| `ENABLE_REAL_CALLS` | `true`로 설정하면 Solapi 음성 TTS 실제 발신 활성화 (기본 `false`) |
+| `SOLAPI_API_KEY` | Solapi 콘솔 → API Key 관리에서 발급 |
+| `SOLAPI_API_SECRET` | Solapi 콘솔 → API Key 관리에서 발급 |
+| `SOLAPI_SENDER_NUMBER` | 발신번호 (Solapi 콘솔에서 본인인증 후 등록한 번호, 예: `01012345678`) |
+| `SOLAPI_WEBHOOK_SECRET` | 임의 문자열(예: `openssl rand -hex 16` 결과) — 웹훅 인증에 사용 |
+
+### 7-2. Supabase DB 함수 등록 (음성 웹훅 활성화 시 필수)
+
+1. Supabase 대시보드 → SQL Editor 열기
+2. `docs/voice-webhook-setup.sql` 파일 전체 내용을 붙여넣고 Run
+3. "Success. No rows returned." 메시지 확인
+
+### 7-3. Solapi 음성 상태보고 URL 등록
+
+1. Solapi 콘솔(solapi.com) 로그인 → 설정 → 상태보고(콜백) URL
+2. 음성 상태보고 URL에 아래 형식으로 등록:
+   ```
+   https://silverlink-ai.vercel.app/api/voice/solapi-status?secret=<SOLAPI_WEBHOOK_SECRET 값>
+   ```
+3. 저장 후 테스트 발신으로 콜백 수신 확인
+
+### 7-4. 폴링 대안 (웹훅 없이)
+
+웹훅을 설정하지 않아도 발신 모달의 "응답 확인" 버튼으로 수동 폴링이 가능합니다.
+- 음성 전화 발신 후 → 발신 완료 화면 → "응답 확인" 버튼 클릭
+- `/api/voice/sync-status`가 Solapi API를 직접 조회해 `voiceReplied` 상태를 갱신함
+
+## 8. 다음에 연결되는 작업
 
 - 지금 도메인(`*.vercel.app`)은 무료 서브도메인입니다. 실제 도메인을 사서 연결하게 되면 Vercel Project Settings → Domains에서 추가하고, 4장의 리다이렉트 URL을 새 도메인으로 다시 갱신해야 합니다.
 - 이메일 발신 도메인 인증(Resend, 로드맵 다음 단계)은 이 Vercel 도메인과는 별개 트랙입니다 — Resend는 실제 보유 도메인의 DNS 레코드가 필요해서, `*.vercel.app` 서브도메인으로는 인증이 불가능합니다. 다음 단계 착수 시 이 문제를 먼저 짚고 갑니다.

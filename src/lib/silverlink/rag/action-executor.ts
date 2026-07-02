@@ -4,6 +4,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildCallScript, formatCallScriptText } from "../calls/call-script-builder";
 import { generateResponseToken, getDefaultExpiresAt } from "../delivery/response-token";
 import { MockDeliveryProvider } from "../delivery/mock-provider";
+import { SolapiSmsProvider } from "../delivery/solapi-provider";
+import { SolapiVoiceProvider } from "../delivery/solapi-voice-provider";
 import { createCareTask, createMessageLog, getOwnCareTask, updateCareTaskNotificationStatus } from "../../supabase/care-tasks-repo";
 import { getParentProfileById } from "../../supabase/parent-profiles-repo";
 import { createCareCallAttempt, updateCareCallAttempt } from "../../supabase/care-call-attempts-repo";
@@ -19,6 +21,10 @@ export type RagActionResult =
   | { ok: false; error: "care_task_not_found" | "parent_not_found" | "execution_failed" };
 
 const mockDeliveryProvider = new MockDeliveryProvider();
+const solapiSmsProvider = new SolapiSmsProvider();
+const solapiVoiceProvider = new SolapiVoiceProvider();
+const enableRealSms = process.env.ENABLE_REAL_SMS === "true";
+const enableRealCalls = process.env.ENABLE_REAL_CALLS === "true";
 
 // decideTurn(assistant-response.ts)이 판단한 의도를 실제로 실행한다. 기존 /api/care-calls/preview+start,
 // /api/delivery/preview의 로직을 그대로 재사용한다(HTTP 자기호출이 아니라 같은 repo 함수를 직접 호출) —
@@ -118,7 +124,8 @@ async function executeRequestCareCall(supabase: SupabaseClient, ownerUserId: str
   }
 }
 
-// /api/delivery/preview와 동일한 흐름(큐 생성 → MockDeliveryProvider 발송 → 발송 시도 기록).
+// /api/delivery/preview와 동일한 흐름(큐 생성 → 발송 → 발송 시도 기록).
+// ENABLE_REAL_SMS=true이고 channel="sms"이면 SolapiSmsProvider로 실제 발송, 아니면 Mock.
 async function executeSendCareMessage(
   supabase: SupabaseClient,
   ownerUserId: string,
@@ -128,6 +135,20 @@ async function executeSendCareMessage(
     const careTask = await getOwnCareTask(supabase, intent.careTaskId);
     if (!careTask) return { ok: false, error: "care_task_not_found" };
 
+    let toPhoneNumber: string | undefined;
+    const useRealSms = enableRealSms && intent.channel === "sms";
+    const useRealVoice = enableRealCalls && intent.channel === "voice_call";
+    if (useRealSms || useRealVoice) {
+      const profile = await getParentProfileById(supabase, careTask.parent_id);
+      if (!profile) return { ok: false, error: "parent_not_found" };
+      toPhoneNumber = profile.phone ?? undefined;
+    }
+
+    const provider =
+      useRealSms ? solapiSmsProvider :
+      useRealVoice ? solapiVoiceProvider :
+      mockDeliveryProvider;
+
     const responseToken = generateResponseToken();
     const queue = await createNotificationQueueEntry(supabase, ownerUserId, careTask.parent_id, responseToken, {
       care_task_id: careTask.id,
@@ -136,7 +157,11 @@ async function executeSendCareMessage(
       expires_at: getDefaultExpiresAt(),
     });
 
-    const deliveryResult = await mockDeliveryProvider.send({ channel: intent.channel, message_text: intent.messageText });
+    const deliveryResult = await provider.send({
+      channel: intent.channel,
+      message_text: intent.messageText,
+      to_phone_number: toPhoneNumber,
+    });
 
     const attempt = await createDeliveryAttempt(supabase, {
       owner_user_id: ownerUserId,

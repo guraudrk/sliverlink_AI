@@ -14,6 +14,11 @@ export type DeliveryAttemptInsert = {
   error_message?: string;
 };
 
+export type DeliveryAttempt = DeliveryAttemptInsert & {
+  id: string;
+  created_at: string;
+};
+
 export async function createDeliveryAttempt(
   supabase: SupabaseClient,
   input: DeliveryAttemptInsert
@@ -21,4 +26,23 @@ export async function createDeliveryAttempt(
   const { data, error } = await supabase.from("delivery_attempts").insert(input).select("id").single();
   if (error) throw error;
   return data as { id: string };
+}
+
+// RLS가 소유권을 보장한다 — 내 것이 아니면 null 반환
+export async function getDeliveryAttemptById(
+  supabase: SupabaseClient,
+  id: string
+): Promise<DeliveryAttempt | null> {
+  const { data, error } = await supabase.from("delivery_attempts").select("*").eq("id", id).maybeSingle();
+  if (error) throw error;
+  return data as DeliveryAttempt | null;
+}
+
+export async function updateDeliveryAttemptStatus(
+  supabase: SupabaseClient,
+  id: string,
+  patch: { status: string; response_payload?: unknown }
+): Promise<void> {
+  const { error } = await supabase.from("delivery_attempts").update(patch).eq("id", id);
+  if (error) throw error;
 }

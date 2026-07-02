@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     // 다시 조회해서 그 사이 완료/변경된 일정이면 confirmActionIntent가 거부하게 한다.
     const tasks = await listCareTasks(supabase);
     const candidateTasks = selectActionCandidates(tasks, input.parentId);
-    const answer = await confirmActionIntent(supabase, userData.user.id, input.intent, candidateTasks);
+    const answer = await confirmActionIntent(supabase, userData.user.id, input.intent, candidateTasks, input.overrideMessageText);
     return jsonResponse({ ok: true, category: "action", answer });
   } catch {
     return jsonResponse({ ok: false, error: "confirm_action_failed" }, 500);

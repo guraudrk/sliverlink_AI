@@ -14,7 +14,8 @@ export async function confirmActionIntent(
   supabase: SupabaseClient,
   ownerUserId: string,
   intent: RagActionIntent,
-  candidateTasks: CareTaskCandidate[]
+  candidateTasks: CareTaskCandidate[],
+  overrideMessageText?: string
 ): Promise<RagAnswer> {
   if (intent.type !== "create_care_task") {
     const stillValid = candidateTasks.some((task) => task.id === intent.careTaskId);
@@ -28,7 +29,12 @@ export async function confirmActionIntent(
     }
   }
 
-  const result = await executeActionIntent(supabase, ownerUserId, intent);
+  const resolvedIntent =
+    overrideMessageText && intent.type === "send_care_message"
+      ? { ...intent, messageText: overrideMessageText }
+      : intent;
+
+  const result = await executeActionIntent(supabase, ownerUserId, resolvedIntent);
   return buildActionAnswer(result);
 }
 

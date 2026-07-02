@@ -7,6 +7,8 @@ import type { RagAnswer, RagEvidence } from "@/lib/silverlink/rag/types";
 import type { DeliveryChannel, RagActionIntent } from "@/lib/silverlink/rag/action-tools";
 import { EvidenceDetailModal } from "./evidence-detail-modal";
 import { CATEGORY_META, IMPORTANCE_BADGE_CLASS, SOURCE_TYPE_META } from "./rag-ui-meta";
+import { SendNotificationModal } from "@/components/tasks/send-notification-modal";
+import type { CareTaskSummary } from "@/lib/supabase/care-tasks-repo";
 
 const QUICK_QUESTIONS = [
   { label: "최근 상태 요약", query: "최근 상태 요약해줘" },
@@ -51,6 +53,7 @@ export function CareAssistantPanel({ parentProfiles }: { parentProfiles: ParentP
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedEvidence, setSelectedEvidence] = useState<RagEvidence | null>(null);
+  const [notifyModalTask, setNotifyModalTask] = useState<CareTaskSummary | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // 마운트 시 sessionStorage 복원이 끝나기 전에는 쓰기 effect가 먼저 돌아 빈 상태로 덮어쓸 수 있어
@@ -151,7 +154,8 @@ export function CareAssistantPanel({ parentProfiles }: { parentProfiles: ParentP
   }
 
   // 확인 버튼 — 같은 메시지 자리에서 category/answer를 실행 결과로 바꿔치기한다(새 메시지 추가 X).
-  async function confirmAction(messageId: string) {
+  // editedText: 사용자가 챗봇 확인 카드에서 직접 수정한 메시지 내용(send_care_message에만 적용).
+  async function confirmAction(messageId: string, editedText?: string) {
     const target = messages.find((message) => message.id === messageId);
     if (!target || target.role !== "assistant" || !target.pendingAction || busy) return;
 
@@ -161,7 +165,11 @@ export function CareAssistantPanel({ parentProfiles }: { parentProfiles: ParentP
       const res = await fetch("/api/rag/confirm-action", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ parentId: parentId || undefined, intent: target.pendingAction }),
+        body: JSON.stringify({
+          parentId: parentId || undefined,
+          intent: target.pendingAction,
+          overrideMessageText: editedText || undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok || !data.ok) {
@@ -180,6 +188,23 @@ export function CareAssistantPanel({ parentProfiles }: { parentProfiles: ParentP
     } finally {
       setBusy(false);
     }
+  }
+
+  // 챗봇 확인 카드에서 "발송 모달에서 수정" 버튼을 눌렀을 때 — SendNotificationModal을 열어
+  // AI 초안 생성·채널 선택·내용 편집·실제 발송을 모달에서 처리하게 한다.
+  function openNotifyModal(careTaskId: string, messageText: string) {
+    setNotifyModalTask({
+      id: careTaskId,
+      parent_id: "",
+      target_person: null,
+      original_request: messageText,
+      status: "scheduled",
+      priority: null,
+      task_type: null,
+      completed_at: null,
+      notification_status: null,
+      created_at: new Date().toISOString(),
+    });
   }
 
   // 취소는 서버에 아무것도 실행하지 않았으니 API 호출 없이 화면에서만 정리한다.
@@ -280,9 +305,10 @@ export function CareAssistantPanel({ parentProfiles }: { parentProfiles: ParentP
                 pendingAction={message.pendingAction}
                 busy={busy}
                 onSelectEvidence={setSelectedEvidence}
-                onConfirm={() => confirmAction(message.id)}
+                onConfirm={(editedText) => confirmAction(message.id, editedText)}
                 onCancel={() => cancelAction(message.id)}
                 onStartFollowUpNotify={(channel) => startFollowUpNotify(message.id, channel)}
+                onOpenNotifyModal={(careTaskId, messageText) => openNotifyModal(careTaskId, messageText)}
               />
             )
           )
@@ -331,6 +357,13 @@ export function CareAssistantPanel({ parentProfiles }: { parentProfiles: ParentP
       </div>
 
       {selectedEvidence ? <EvidenceDetailModal evidence={selectedEvidence} onClose={() => setSelectedEvidence(null)} /> : null}
+      {notifyModalTask ? (
+        <SendNotificationModal
+          task={notifyModalTask}
+          onClose={() => setNotifyModalTask(null)}
+          onSent={() => setNotifyModalTask(null)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -344,18 +377,47 @@ function AssistantMessage({
   onConfirm,
   onCancel,
   onStartFollowUpNotify,
+  onOpenNotifyModal,
 }: {
   category: string;
   answer: RagAnswer;
   pendingAction?: RagActionIntent;
   busy: boolean;
   onSelectEvidence: (evidence: RagEvidence) => void;
-  onConfirm: () => void;
+  onConfirm: (editedText?: string) => void;
   onCancel: () => void;
   onStartFollowUpNotify: (channel: DeliveryChannel) => void;
+  onOpenNotifyModal: (careTaskId: string, messageText: string) => void;
 }) {
   const [evidenceOpen, setEvidenceOpen] = useState(false);
+  const [editedText, setEditedText] = useState<string>(() =>
+    pendingAction?.type === "send_care_message" ? pendingAction.messageText : ""
+  );
+  const [composing, setComposing] = useState(false);
   const categoryMeta = CATEGORY_META[category] ?? CATEGORY_META.open;
+
+  // pendingAction이 바뀌면(예: followUpNotify) editedText를 새 내용으로 초기화
+  useEffect(() => {
+    if (pendingAction?.type === "send_care_message") {
+      setEditedText(pendingAction.messageText);
+    }
+  }, [pendingAction]);
+
+  async function handleAiCompose() {
+    if (!pendingAction || pendingAction.type !== "send_care_message") return;
+    setComposing(true);
+    try {
+      const res = await fetch("/api/delivery/compose", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ care_task_id: pendingAction.careTaskId, compose_type: "sms" }),
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) setEditedText(data.text);
+    } finally {
+      setComposing(false);
+    }
+  }
 
   return (
     <div className="animate-rag-fade-in-up space-y-3">
@@ -374,23 +436,65 @@ function AssistantMessage({
           <p className="whitespace-pre-line text-base leading-relaxed text-slate-800">{answer.answerText}</p>
 
           {pendingAction ? (
-            <div className="flex gap-2 pt-1">
-              <button
-                type="button"
-                disabled={busy}
-                onClick={onConfirm}
-                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-blue-200 transition-all hover:-translate-y-0.5 hover:bg-blue-700 disabled:cursor-not-allowed disabled:translate-y-0 disabled:bg-slate-300"
-              >
-                확인
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={onCancel}
-                className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm ring-1 ring-slate-200 transition-all hover:-translate-y-0.5 hover:bg-slate-50 disabled:cursor-not-allowed disabled:translate-y-0"
-              >
-                취소
-              </button>
+            <div className="space-y-3 pt-1">
+              {pendingAction.type === "send_care_message" ? (
+                <div className="space-y-2 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-slate-500">보낼 내용 (직접 수정 가능)</p>
+                    <button
+                      type="button"
+                      onClick={handleAiCompose}
+                      disabled={composing || busy}
+                      className="flex items-center gap-1 rounded-lg bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700 transition-colors hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {composing ? "AI 작성 중..." : "✨ AI 초안 생성"}
+                    </button>
+                  </div>
+                  <textarea
+                    rows={3}
+                    value={editedText}
+                    onChange={(e) => setEditedText(e.target.value)}
+                    className="w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-base text-slate-800 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  />
+                </div>
+              ) : null}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() =>
+                    pendingAction.type === "send_care_message"
+                      ? onConfirm(editedText.trim() || undefined)
+                      : onConfirm()
+                  }
+                  className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-blue-200 transition-all hover:-translate-y-0.5 hover:bg-blue-700 disabled:cursor-not-allowed disabled:translate-y-0 disabled:bg-slate-300"
+                >
+                  확인
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={onCancel}
+                  className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm ring-1 ring-slate-200 transition-all hover:-translate-y-0.5 hover:bg-slate-50 disabled:cursor-not-allowed disabled:translate-y-0"
+                >
+                  취소
+                </button>
+                {pendingAction.type === "send_care_message" ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() =>
+                      onOpenNotifyModal(
+                        (pendingAction as Extract<RagActionIntent, { type: "send_care_message" }>).careTaskId,
+                        editedText || pendingAction.messageText
+                      )
+                    }
+                    className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-slate-200 disabled:cursor-not-allowed disabled:translate-y-0"
+                  >
+                    발송 모달에서 수정
+                  </button>
+                ) : null}
+              </div>
             </div>
           ) : null}
 

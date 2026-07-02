@@ -34,6 +34,9 @@ export type RagActionIntentInput = z.infer<typeof ragActionIntentSchema>;
 export const ragConfirmActionRequestSchema = z.object({
   parentId: z.string().uuid("parentId는 올바른 UUID여야 합니다.").optional(),
   intent: ragActionIntentSchema,
+  // 챗봇 확인 단계에서 사용자가 메시지 내용을 수정했을 때 덮어쓸 텍스트.
+  // send_care_message intent에만 적용되며, 비어 있으면 intent.messageText를 그대로 사용한다.
+  overrideMessageText: z.string().trim().optional(),
 });
 
 export type RagConfirmActionRequest = z.infer<typeof ragConfirmActionRequestSchema>;
