@@ -221,7 +221,7 @@ export function CareAssistantPanel({ parentProfiles }: { parentProfiles: ParentP
   // 새 일정 등록 직후 "지금 알려드리기" 버튼(채널 선택)을 눌렀을 때 — 새 API 호출 없이 같은 메시지에
   // send_care_message 의도를 pendingAction으로 얹어, 기존 확인/실행 흐름(confirmAction)을 그대로 재사용한다.
   function startFollowUpNotify(messageId: string, channel: DeliveryChannel) {
-    const channelLabel = channel === "sms" ? "SMS" : "카카오 알림톡";
+    const channelLabel = channel === "sms" ? "SMS" : channel === "voice_call" ? "AI 안부전화" : "카카오 알림톡";
     setMessages((prev) =>
       prev.map((message) => {
         if (message.id !== messageId || message.role !== "assistant" || !message.answer.createdCareTask) return message;
@@ -508,6 +508,14 @@ function AssistantMessage({
                 className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-blue-200 transition-all hover:-translate-y-0.5 hover:bg-blue-700 disabled:cursor-not-allowed disabled:translate-y-0 disabled:bg-slate-300"
               >
                 SMS로 알리기
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => onStartFollowUpNotify("voice_call")}
+                className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-indigo-200 transition-all hover:-translate-y-0.5 hover:bg-indigo-700 disabled:cursor-not-allowed disabled:translate-y-0 disabled:bg-slate-300"
+              >
+                AI 안부전화 걸기
               </button>
               <button
                 type="button"
