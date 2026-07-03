@@ -4,6 +4,7 @@ import { generateResponseToken, getDefaultExpiresAt } from "@/lib/silverlink/del
 import { MockDeliveryProvider } from "@/lib/silverlink/delivery/mock-provider";
 import { SolapiSmsProvider } from "@/lib/silverlink/delivery/solapi-provider";
 import { SolapiVoiceProvider } from "@/lib/silverlink/delivery/solapi-voice-provider";
+import { SolapiKakaoProvider } from "@/lib/silverlink/delivery/solapi-kakao-provider";
 import { getOwnCareTask, updateCareTaskNotificationStatus } from "@/lib/supabase/care-tasks-repo";
 import { getParentProfileById } from "@/lib/supabase/parent-profiles-repo";
 import { createNotificationQueueEntry } from "@/lib/supabase/notification-queue-repo";
@@ -20,8 +21,10 @@ function jsonResponse(body: unknown, status = 200) {
 const mockProvider = new MockDeliveryProvider();
 const solapiSmsProvider = new SolapiSmsProvider();
 const solapiVoiceProvider = new SolapiVoiceProvider();
+const solapiKakaoProvider = new SolapiKakaoProvider();
 const enableRealSms = process.env.ENABLE_REAL_SMS === "true";
 const enableRealCalls = process.env.ENABLE_REAL_CALLS === "true";
+const enableRealKakao = process.env.ENABLE_REAL_KAKAO === "true";
 
 export async function POST(request: Request) {
   const supabase = await createSupabaseServerClient();
@@ -59,10 +62,11 @@ export async function POST(request: Request) {
     return jsonResponse({ ok: false, error: "care_task_not_found" }, 403);
   }
 
-  // 실제 SMS/전화 발송 시 수신번호 필요 — 부모님 프로필에서 조회
+  // 실제 SMS/전화/카카오 발송 시 수신번호 필요 — 부모님 프로필에서 조회
   const needsPhone =
     (enableRealSms && input.channel === "sms") ||
-    (enableRealCalls && input.channel === "voice_call");
+    (enableRealCalls && input.channel === "voice_call") ||
+    (enableRealKakao && input.channel === "kakao_alimtalk");
 
   let toPhoneNumber: string | undefined;
   if (needsPhone) {
@@ -79,6 +83,7 @@ export async function POST(request: Request) {
   const provider =
     enableRealSms && input.channel === "sms" ? solapiSmsProvider :
     enableRealCalls && input.channel === "voice_call" ? solapiVoiceProvider :
+    enableRealKakao && input.channel === "kakao_alimtalk" ? solapiKakaoProvider :
     mockProvider;
 
   const responseToken = generateResponseToken();

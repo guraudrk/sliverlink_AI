@@ -7,7 +7,73 @@
 
 ---
 
+# 2026-07-03
+
+## Day20 — 카카오 알림톡 Provider 구현 (SolapiKakaoProvider)
+
+**계기**: Day17에서 SMS와 음성 전화 실제 발송을 완성했지만, 발송 모달에 카카오 알림톡 탭이 있어도 실제 Provider가 없어 Mock만 동작했다. 카카오 알림톡은 비즈니스 채널 사전 승인 + 템플릿 심사가 필요하기 때문에 코드를 먼저 완성하고, 환경변수가 없을 때 graceful fallback으로 처리하는 구조로 만들었다.
+
+**작업 내용**:
+
+1. **`SolapiKakaoProvider` 신규 구현** (`src/lib/silverlink/delivery/solapi-kakao-provider.ts`): `SolapiVoiceProvider`와 동일한 `solapi` SDK 패턴. `type: "ATA"`, `kakaoOptions: { pfId, templateId, variables: { "#{message}": messageText } }`. 환경변수 부재 시 graceful 처리:
+   - `SOLAPI_API_KEY` / `SOLAPI_API_SECRET` / `SOLAPI_SENDER_NUMBER` 없음 → `missing_env`
+   - `SOLAPI_KAKAO_PF_ID` 없음 → `KAKAO_PF_ID_MISSING` (카카오 비즈니스 채널 미승인)
+   - `SOLAPI_KAKAO_TEMPLATE_ID` 없음 → `KAKAO_TEMPLATE_ID_MISSING` (템플릿 미등록)
+   - 세 단계 모두 실제 API 호출 없이 즉시 `status: "failed"` 반환 → 실수로 환경변수 없이 실제 발송을 시도해도 안전함
+
+2. **`/api/delivery/preview` 분기 추가**: `enableRealKakao` 플래그(`ENABLE_REAL_KAKAO === "true"`) + `channel === "kakao_alimtalk"` 조건 시 `SolapiKakaoProvider`로 라우팅. 기본값 `false`이므로 환경변수 없이는 여전히 Mock 동작.
+
+3. **`.env.example` 업데이트**: `ENABLE_REAL_KAKAO`, `SOLAPI_KAKAO_PF_ID`, `SOLAPI_KAKAO_TEMPLATE_ID` 세 변수 추가 (주석으로 심사 절차 안내 포함).
+
+4. **`docs/deployment-guide.md` 업데이트**: 카카오 비즈니스 채널 신청 절차 + 알림톡 템플릿 등록 방법 섹션 추가.
+
+**검증**: `npx tsc --noEmit` 클린, `npx next build` 클린 (전체 라우트 정상 빌드 확인).
+
+**🤖 AI 활용 팁**:
+- **외부 승인 의존 기능의 graceful fallback 설계**: 카카오 알림톡처럼 "코드는 지금 작성하지만 실제 사용은 외부 심사 통과 후"인 경우, 환경변수 체크를 단계적으로 쌓아 각 단계에서 의미 있는 `error_code`를 반환하게 하면 — 나중에 환경변수를 추가할 때마다 "다음 단계까지 진행됐다"는 피드백을 명확하게 얻을 수 있다. 환경변수 하나 추가할 때마다 에러 코드가 `missing_env` → `KAKAO_PF_ID_MISSING` → `KAKAO_TEMPLATE_ID_MISSING` → 실제 API 호출 순서로 바뀌기 때문에 진행 상황을 바로 알 수 있다.
+- **SMS Provider와 동일한 SDK 인스턴스 캐싱**: `SolapiMessageService`를 모듈 레벨 `cachedService` 변수에 캐싱하면 서버리스 환경(Vercel Edge/Lambda)에서 콜드 스타트 이후 같은 인스턴스를 재사용할 수 있다. Provider 클래스 안이 아닌 모듈 스코프에 두는 게 핵심이다.
+
+**변경 파일**:
+- 신규: `src/lib/silverlink/delivery/solapi-kakao-provider.ts`
+- 수정: `src/app/api/delivery/preview/route.ts`(카카오 분기 추가), `.env.example`(카카오 환경변수), `docs/deployment-guide.md`(카카오 설정 가이드)
+
+---
+
 # 2026-07-02
+
+## UX 개선 — 네비게이션 진행 바 + 입장 애니메이션 + 페이지 가이드 버튼 통합
+
+**계기**: Day18에서 Server Component 전환으로 로딩 속도를 높였지만, 페이지 이동 중 아무 피드백이 없고, 데이터가 나타날 때 딱 하고 한 번에 나오는 느낌이 거슬렸다. 또한 각 페이지 기능에 대한 설명(?) 아이콘이 없어 처음 쓰는 사람이 페이지 목적을 바로 파악하기 어려웠다. 세 가지 개선을 순서대로 진행했다.
+
+**작업 내용**:
+
+1. **네비게이션 진행 바 + 로딩 스피너** (`src/components/app/navigation-progress.tsx` 신규): Next.js App Router에는 `router.events`가 없다. 대신 DOM 이벤트 캡처 방식(`addEventListener("click", handler, true)`)으로 `<a>` 클릭을 감지해 "loading" 상태로 전환하고, `usePathname()` 변경을 감지해 "finishing" → "idle"로 전환하는 3-state 상태 기계를 구현했다. 화면 최상단에 얇은 파란 바(h-0.5)가 늘어나고, 모바일은 우하단·데스크톱은 우상단에 spinner 배지가 붙는다. `useRef<T | undefined>(undefined)` — 이 Next.js 버전은 useRef의 no-arg overload를 지원하지 않아 반드시 초기값을 명시해야 한다.
+
+2. **전역 CSS 애니메이션 추가** (`src/app/globals.css`):
+   - `@keyframes nav-bar-grow`: 0 → 85% 폭 성장 (6초, ease-in-out)
+   - `@keyframes skeleton-fade-in`: opacity + translateY로 스켈레톤 fade 등장
+
+3. **로딩 스켈레톤 개선** (5개 `loading.tsx` 파일): 중앙 spinner(border-t-blue-500 animate-spin) + 스켈레톤 카드에 `animate-skeleton-in` + 순차 delay 적용. 데이터 로딩 중에도 "뭔가 처리 중"이라는 시각적 피드백.
+
+4. **페이지·팝업 입장 애니메이션**: 기존에 이미 있던 `animate-rag-fade-in-up`(opacity 0 + translateY 8px → 1 + 0, 0.4s ease-out)을 모든 페이지·모달에 적용. CSS `animation ... both`를 쓰면 조건부 렌더 컴포넌트가 마운트되는 순간 자동 재생되므로 별도 key 리셋 불필요. 목록 항목은 `style={{ animationDelay: \`${baseMs + i * 55}ms\` }}` 패턴으로 stagger 처리. 적용 범위:
+   - 대시보드 홈, 오늘의 일정, 응답 기록, 발송 기록, 안부전화, AI 비서, 새 일정, 어르신 개별 현황, 발송 미리보기, 로그인, 회원가입
+   - 팝업: `delivery-detail-modal`에 `animate-rag-fade-in`(오버레이) + `animate-rag-pop-in`(카드) 추가 (이전에 누락됐던 유일한 팝업)
+   - 부모님 목록: `parent-profile-list.tsx`의 카드 항목도 stagger 적용
+
+5. **`?` 페이지 가이드 버튼 컴포넌트** (`src/components/app/page-guide-button.tsx` 신규): 페이지별 설명을 팝업으로 보여주는 Client Component. title + children을 받고, ESC 키·배경 클릭으로 닫기, `animate-rag-fade-in`(오버레이) + `animate-rag-pop-in`(카드)으로 입장 애니메이션. 처음에 각 페이지 파일 안에 개별 배치했다가 —
+
+6. **`?` 버튼을 NavBar로 통합** (`src/components/app/nav-page-guide.tsx` 신규, `dashboard-nav-bar.tsx` 수정): "모든 페이지에서 '대시보드로' 바로 옆"이라는 요청에 따라 리팩터. `NavPageGuide`는 `usePathname()`으로 현재 경로를 읽고 `getGuide(pathname)` 함수로 10개 라우트 각각에 맞는 title + 가이드 내용을 반환. `DashboardNavBar`에서 기존의 pathname 조건부 `ParentGuideModal` 로직을 완전히 제거하고 `<NavPageGuide />`로 대체. 개별 9개 페이지에서 `PageGuideButton` import + JSX 블록 일괄 제거.
+
+**🤖 AI 활용 팁**:
+- **App Router 네비게이션 감지**: `router.events`가 없는 Next.js 13+ App Router에서 페이지 전환을 감지하려면 DOM 이벤트 캡처(`addEventListener("click", fn, true)`)로 의도 시점을, `usePathname()` + `useRef` 비교로 완료 시점을 잡는 것이 가장 안정적인 패턴이다. 라이브러리 없이 50줄 내외로 구현 가능.
+- **CSS `animation ... both` 활용**: `animation-fill-mode: both`를 주면 조건부 렌더(`loading ? null : <Content />`)에서 `<Content />`가 마운트될 때 애니메이션이 자동 실행된다. React key를 리셋하거나 클래스를 동적으로 토글할 필요가 없다.
+- **전역 NavBar 컴포넌트에 pathname-aware 서브컴포넌트 삽입**: 페이지마다 공통 기능(?) 아이콘, 도움말, breadcrumb 등)을 NavBar에서 `usePathname()`으로 분기하면 — 개별 페이지 파일을 전혀 건드리지 않고 전체에 일관된 UX를 추가할 수 있다. 기능 추가 = 1개 컴포넌트, 제거 = 1개 컴포넌트 삭제.
+
+**변경 파일**:
+- 신규: `src/components/app/navigation-progress.tsx`, `src/components/app/page-guide-button.tsx`, `src/components/app/nav-page-guide.tsx`
+- 수정: `src/app/globals.css`(keyframes 추가), `src/app/(protected)/layout.tsx`(`<NavigationProgress />` 추가), `src/components/app/dashboard-nav-bar.tsx`(NavPageGuide 통합), `src/components/deliveries/delivery-detail-modal.tsx`(애니메이션 추가), `src/components/parents/parent-profile-list.tsx`(stagger), 로딩 파일 5개, 페이지 파일 9개(stagger + PageGuideButton 제거)
+
+---
 
 ## Day19 — 발송 기록 대시보드 + Vercel 자동 알림 크론
 

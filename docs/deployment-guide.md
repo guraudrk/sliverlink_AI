@@ -97,7 +97,31 @@ Vercel Project Settings → Environment Variables에 다음을 추가:
 - 음성 전화 발신 후 → 발신 완료 화면 → "응답 확인" 버튼 클릭
 - `/api/voice/sync-status`가 Solapi API를 직접 조회해 `voiceReplied` 상태를 갱신함
 
-## 8. 다음에 연결되는 작업
+## 8. 카카오 알림톡 연동 (Day20)
+
+### 8-1. 카카오 비즈니스 채널 신청
+
+1. [카카오 for business](https://business.kakao.com) → 채널 만들기
+2. 채널 생성 후 Solapi 콘솔 → 카카오 서비스 → 채널 연동 → pfId 확인
+3. Vercel 환경변수에 추가:
+
+| 변수 | 설명 |
+|---|---|
+| `ENABLE_REAL_KAKAO` | `true`로 설정하면 카카오 알림톡 실제 발송 활성화 (기본 `false`) |
+| `SOLAPI_KAKAO_PF_ID` | Solapi 콘솔에서 채널 연동 후 확인한 pfId |
+| `SOLAPI_KAKAO_TEMPLATE_ID` | 알림톡 템플릿 심사 완료 후 발급된 템플릿 ID |
+
+### 8-2. 알림톡 템플릿 등록
+
+1. Solapi 콘솔 → 카카오 서비스 → 알림톡 템플릿 → 새 템플릿 등록
+2. 본문에 `#{message}` 변수 포함 (예: `#{message}`)
+3. 카카오 심사 제출 → 영업일 1~3일 소요, 반려 시 수정 후 재제출 가능
+4. 심사 완료 후 발급된 템플릿 ID를 `SOLAPI_KAKAO_TEMPLATE_ID`에 등록
+
+> ⚠️ 알림톡은 사전 승인된 템플릿만 사용 가능. pfId 또는 templateId 미등록 상태에서 발송 시
+> 코드가 `KAKAO_PF_ID_MISSING` / `KAKAO_TEMPLATE_ID_MISSING` 에러를 반환하며 실제 API 호출은 하지 않습니다.
+
+## 9. 다음에 연결되는 작업
 
 - 지금 도메인(`*.vercel.app`)은 무료 서브도메인입니다. 실제 도메인을 사서 연결하게 되면 Vercel Project Settings → Domains에서 추가하고, 4장의 리다이렉트 URL을 새 도메인으로 다시 갱신해야 합니다.
 - 이메일 발신 도메인 인증(Resend, 로드맵 다음 단계)은 이 Vercel 도메인과는 별개 트랙입니다 — Resend는 실제 보유 도메인의 DNS 레코드가 필요해서, `*.vercel.app` 서브도메인으로는 인증이 불가능합니다. 다음 단계 착수 시 이 문제를 먼저 짚고 갑니다.
