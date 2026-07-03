@@ -9,6 +9,51 @@
 
 # 2026-07-03
 
+## Day20 — 앱 아이콘 교체 (SilverLink 브랜드 로고)
+
+**계기**: 탭 상단 아이콘이 파란 하트 placeholder였다. 사용자가 SilverLink 브랜드 로고(어르신·자녀 두 얼굴 + 하트 + S 링크, 민트→파랑 그라디언트)로 교체 요청.
+
+**작업 내용**:
+
+1. **정적 PNG 파일로 교체**: 기존 `icon.tsx` / `apple-icon.tsx`는 `next/og` ImageResponse로 아이콘을 동적 생성하는 방식이었다. 브랜드 이미지를 그대로 쓰려면 정적 파일이 더 간단하므로, `src/app/icon.png` / `src/app/apple-icon.png`로 교체하고 `.tsx` 파일을 삭제했다.
+
+2. **Next.js App Router 파일 컨벤션**: `app/` 디렉터리에 `icon.png`를 두면 Next.js가 자동으로 `<link rel="icon">` 메타태그를 생성한다. `apple-icon.png`는 iOS Safari 홈 화면 아이콘으로 연결된다 — 별도 설정 없이 파일명만으로 동작.
+
+**🤖 AI 활용 팁**:
+- **동적 생성 vs 정적 파일**: `icon.tsx`(ImageResponse)는 아이콘을 코드로 그릴 때 유용하지만, 디자이너가 만든 실제 이미지가 있으면 `app/icon.png` 정적 파일이 훨씬 간단하다. 두 방식이 공존하면 충돌이 날 수 있으니 `.tsx`를 반드시 삭제한다.
+- **파일 확장자 중복 주의**: Windows에서 `.png` 파일을 `logo.png`로 저장하면 실제로 `logo.png.png`가 되는 경우가 있다(탐색기가 확장자를 숨기는 설정). `ls`로 실제 파일명을 먼저 확인하는 습관이 필요하다.
+
+**변경 파일**:
+- 삭제: `src/app/icon.tsx`, `src/app/apple-icon.tsx`
+- 신규: `src/app/icon.png`, `src/app/apple-icon.png`
+
+---
+
+## Day20 — 버그 픽스: 상세보기 투명도 · 로그인 전환 오버레이
+
+**계기**: 앞서 구현한 두 기능이 실제 배포에서 동작하지 않았다. (1) Mock 안부전화 기록 항목을 클릭해도 상세 내용이 펼쳐지지 않음. (2) 로그인 후 대시보드 전환 시 여전히 화면이 뜨지 않음.
+
+**근본 원인 분석**:
+
+1. **상세보기 미동작**: `animate-rag-fade-in-up`이 `animation-fill-mode: both`로 정의되어 있어, 요소가 DOM에 추가되는 순간 `opacity: 0`(from 상태)부터 시작한다. 클릭은 실제로 동작하고 있었지만 0.4초 애니메이션 동안 투명해서 안 보이는 것처럼 느껴진 것. 또한 `line-clamp-2` 클래스가 Tailwind v4 환경에서 인식되지 않을 가능성이 있어 인라인 스타일로 대체했다.
+
+2. **로그인 전환 미동작**: `(protected)/dashboard/loading.tsx`는 layout의 async 인증 체크가 끝난 후에야 Suspense가 활성화된다. 로그인에서 대시보드로 이동할 때는 이전 UI(로그인 페이지) 자체가 없는 전환이라, 서버 렌더가 완료될 때까지 흰 화면이 뜬다. 또한 `router.refresh()`를 `router.push()` 직후 호출하던 것이 불필요한 상태였다(Supabase 클라이언트 SDK가 로그인 시 이미 쿠키를 세팅하므로).
+
+**수정 내용**:
+
+1. **`care-call-panel.tsx`**: 펼침 영역에서 `animate-rag-fade-in-up` 제거 → 클릭 즉시 내용 표시. `line-clamp-2` → 인라인 스타일(`-webkit-line-clamp`)로 교체.
+
+2. **`login-form.tsx`**: `"redirecting"` 상태 추가. 로그인 성공 직후 `setStatus("redirecting")`으로 전체 화면 스피너 오버레이를 클라이언트에서 즉시 렌더링 → `router.push("/dashboard")`. 불필요한 `router.refresh()` 제거.
+
+**🤖 AI 활용 팁**:
+- **`animation-fill-mode: both`의 함정**: `both`는 애니메이션 시작 전(backwards)에도 `from` 상태를 적용한다. 조건부 렌더(`{isExpanded ? <div> : null}`)로 새로 마운트되는 요소에 이 애니메이션을 붙이면 처음 0ms에 `opacity: 0`이라 "렌더됐지만 안 보이는" 상황이 생긴다. 펼침/닫힘 토글처럼 즉각적인 피드백이 필요한 UI에는 이 애니메이션을 쓰지 않는다.
+- **loading.tsx의 적용 범위**: Next.js의 `loading.tsx`는 페이지 Server Component를 Suspense로 감싸지만, 같은 경로 트리의 레이아웃이 async면 레이아웃이 먼저 resolve될 때까지 대기한다. "레이아웃 포함 전체 전환"에서 즉각적인 로딩 피드백이 필요하면, 이전 페이지의 클라이언트 컴포넌트에서 직접 오버레이를 렌더하는 것이 더 확실하다.
+
+**변경 파일**:
+- 수정: `src/components/calls/care-call-panel.tsx`(애니메이션·line-clamp 수정), `src/components/auth/login-form.tsx`(redirecting 오버레이, router.refresh 제거)
+
+---
+
 ## Day20 — 속도 개선 · 로그인 로딩 화면 · Mock 통화 상세보기
 
 **계기**: 세 가지 UX 문제가 한 번에 들어왔다. (1) 전반적 속도를 50% 이상 개선하라는 요청 — layout.tsx와 dashboard/page.tsx가 같은 요청에서 `getUser()`를 각각 Supabase에 호출하는 이중 네트워크 왕복 구조가 있었다. (2) 로그인 후 대시보드 전환 시 아무 피드백 없이 흰 화면이 잠깐 뜨는 문제. (3) `/dashboard/calls` 모의 안부전화 기록에서 항목을 클릭해도 상세 내용이 안 보이는 불편함.
