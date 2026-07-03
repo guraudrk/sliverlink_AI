@@ -2,6 +2,21 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
+function AiChatIcon() {
+  return (
+    <svg viewBox="0 0 40 40" fill="none" className="h-9 w-9" aria-hidden="true">
+      <rect x="3" y="5" width="28" height="22" rx="5" fill="white" fillOpacity="0.2" stroke="white" strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M3 27l5-5" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M31 27l-5-5" stroke="white" strokeWidth="0" />
+      <path d="M11 27v5l6-5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="11" cy="16" r="2" fill="white" />
+      <circle cx="17" cy="16" r="2" fill="white" />
+      <circle cx="23" cy="16" r="2" fill="white" />
+      <path d="M30 2l.9 2.6L33.5 5.5l-2.6.9L30 9l-.9-2.6L26.5 5.5l2.6-.9L30 2z" fill="white" />
+    </svg>
+  );
+}
+
 export default async function DashboardPage() {
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase.auth.getUser();
@@ -36,6 +51,21 @@ export default async function DashboardPage() {
           </form>
         </div>
 
+        <Link
+          href="/dashboard/assistant"
+          className="flex items-center justify-between gap-4 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition-colors hover:ring-blue-300 sm:p-8 animate-rag-fade-in-up"
+          style={{ animationDelay: "60ms" }}
+        >
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-widest text-blue-600">AI Assistant</p>
+            <h2 className="mt-1 text-2xl font-bold text-slate-900">돌봄 기록 AI 비서</h2>
+            <p className="mt-1 text-slate-500">질문하면 근거를 찾아 정리해드려요</p>
+          </div>
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md shadow-blue-200/60">
+            <AiChatIcon />
+          </div>
+        </Link>
+
         <nav className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {[
             { href: "/parents", title: "부모님 관리", sub: "등록 · 조회" },
@@ -51,7 +81,7 @@ export default async function DashboardPage() {
               key={href}
               href={href}
               className="rounded-2xl bg-white p-5 text-center shadow-sm ring-1 ring-slate-200 transition-colors hover:ring-blue-300 animate-rag-fade-in-up"
-              style={{ animationDelay: `${60 + i * 45}ms` }}
+              style={{ animationDelay: `${120 + i * 45}ms` }}
             >
               <p className="font-semibold text-slate-800">{title}</p>
               <p className="mt-1 text-sm text-slate-500">{sub}</p>

@@ -242,7 +242,7 @@ export function CareAssistantPanel({ parentProfiles }: { parentProfiles: ParentP
 
   return (
     <div
-      className="flex w-full max-w-2xl flex-col overflow-hidden rounded-3xl bg-white/90 shadow-lg shadow-slate-200/60 ring-1 ring-slate-200 backdrop-blur-sm"
+      className="mx-auto flex w-full max-w-2xl flex-col overflow-hidden rounded-3xl bg-white/90 shadow-lg shadow-slate-200/60 ring-1 ring-slate-200 backdrop-blur-sm"
       style={{ height: "min(720px, 75vh)" }}
     >
       <div className="shrink-0 space-y-3 border-b border-slate-100 p-4 sm:px-6 sm:py-5">
