@@ -499,32 +499,34 @@ function AssistantMessage({
           ) : null}
 
           {answer.createdCareTask ? (
-            <div className="flex flex-wrap items-center gap-2 pt-1">
+            <div className="space-y-1.5 pt-1">
               <p className="text-sm font-medium text-slate-600">지금 알려드릴까요?</p>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => onStartFollowUpNotify("sms")}
-                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-blue-200 transition-all hover:-translate-y-0.5 hover:bg-blue-700 disabled:cursor-not-allowed disabled:translate-y-0 disabled:bg-slate-300"
-              >
-                SMS로 알리기
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => onStartFollowUpNotify("voice_call")}
-                className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-indigo-200 transition-all hover:-translate-y-0.5 hover:bg-indigo-700 disabled:cursor-not-allowed disabled:translate-y-0 disabled:bg-slate-300"
-              >
-                AI 안부전화 걸기
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => onStartFollowUpNotify("kakao_alimtalk")}
-                className="rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-amber-200 transition-all hover:-translate-y-0.5 hover:bg-amber-600 disabled:cursor-not-allowed disabled:translate-y-0 disabled:bg-slate-300"
-              >
-                카카오 알림톡으로 알리기
-              </button>
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => onStartFollowUpNotify("sms")}
+                  className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm shadow-blue-200 transition-all hover:-translate-y-0.5 hover:bg-blue-700 disabled:cursor-not-allowed disabled:translate-y-0 disabled:bg-slate-300"
+                >
+                  SMS로 알리기
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => onStartFollowUpNotify("voice_call")}
+                  className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm shadow-indigo-200 transition-all hover:-translate-y-0.5 hover:bg-indigo-700 disabled:cursor-not-allowed disabled:translate-y-0 disabled:bg-slate-300"
+                >
+                  AI 안부전화 걸기
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => onStartFollowUpNotify("kakao_alimtalk")}
+                  className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm shadow-amber-200 transition-all hover:-translate-y-0.5 hover:bg-amber-600 disabled:cursor-not-allowed disabled:translate-y-0 disabled:bg-slate-300"
+                >
+                  카카오 알림톡으로 알리기
+                </button>
+              </div>
             </div>
           ) : null}
 

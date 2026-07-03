@@ -36,12 +36,12 @@ export function PageGuideButton({ title, children }: Props) {
           role="dialog"
           aria-modal="true"
           aria-label={title}
-          className="animate-rag-fade-in fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 backdrop-blur-sm sm:items-center sm:p-4"
+          className="animate-rag-fade-in fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm"
           onClick={() => setOpen(false)}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="animate-rag-pop-in max-h-[85vh] w-full overflow-y-auto rounded-t-3xl bg-white p-6 shadow-2xl ring-1 ring-slate-200 sm:max-w-lg sm:rounded-3xl sm:p-8"
+            className="animate-rag-pop-in max-h-[85vh] w-full overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl ring-1 ring-slate-200 sm:max-w-lg sm:p-8"
           >
             <div className="mb-5 flex items-start justify-between gap-3">
               <h2 className="text-xl font-bold text-slate-900">{title}</h2>

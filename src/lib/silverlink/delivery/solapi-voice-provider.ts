@@ -92,13 +92,15 @@ export class SolapiVoiceProvider implements DeliveryProvider {
         response_payload: result,
       };
     } catch (e) {
+      const failedList = (e as Record<string, unknown>)?.failedMessageList as Array<{ statusCode?: string; statusMessage?: string }> | undefined;
+      const firstFail = failedList?.[0];
       return {
         provider: this.name,
         status: "failed",
-        error_code: "sdk_error",
-        error_message: e instanceof Error ? e.message : "Solapi SDK 오류",
+        error_code: firstFail?.statusCode ?? "sdk_error",
+        error_message: firstFail?.statusMessage ?? (e instanceof Error ? e.message : "Solapi SDK 오류"),
         request_payload: requestPayload,
-        response_payload: {},
+        response_payload: failedList ? { failedMessageList: failedList } : {},
       };
     }
   }
