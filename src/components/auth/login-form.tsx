@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { GoogleSignInButton } from "./google-signin-button";
 
-type Status = "idle" | "submitting" | "error";
+type Status = "idle" | "submitting" | "redirecting" | "error";
 
 export function LoginForm() {
   const router = useRouter();
@@ -15,6 +15,7 @@ export function LoginForm() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const isSubmitting = status === "submitting";
+  const isRedirecting = status === "redirecting";
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -30,8 +31,17 @@ export function LoginForm() {
       return;
     }
 
+    setStatus("redirecting");
     router.push("/dashboard");
-    router.refresh();
+  }
+
+  if (isRedirecting) {
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-slate-50">
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-slate-200 border-t-blue-500" />
+        <p className="text-sm font-semibold text-slate-500">대시보드로 이동하는 중...</p>
+      </div>
+    );
   }
 
   return (

@@ -222,10 +222,10 @@ export function CareCallPanel({
                   <button
                     type="button"
                     onClick={() => setExpandedId(isExpanded ? null : item.id)}
-                    className="w-full p-4 text-left transition-colors hover:bg-slate-50"
+                    className="w-full p-4 text-left transition-colors hover:bg-slate-50 active:bg-slate-100"
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <p className="text-sm text-slate-600 line-clamp-2">{item.call_script}</p>
+                      <p className="text-sm text-slate-600" style={{ overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{item.call_script}</p>
                       <div className="flex shrink-0 items-center gap-2">
                         <span
                           className={`rounded-full px-3 py-1 text-xs font-semibold ${RISK_BADGE_CLASS[item.risk_level] ?? "bg-slate-100 text-slate-600"}`}
@@ -239,7 +239,7 @@ export function CareCallPanel({
                   </button>
 
                   {isExpanded ? (
-                    <div className="border-t border-slate-100 bg-slate-50 p-4 space-y-3 animate-rag-fade-in-up">
+                    <div className="border-t border-slate-100 bg-slate-50 p-4 space-y-3">
                       <div>
                         <p className="text-xs font-semibold text-slate-500 mb-1">전화 스크립트</p>
                         <p className="text-sm text-slate-700 whitespace-pre-wrap">{item.call_script}</p>
