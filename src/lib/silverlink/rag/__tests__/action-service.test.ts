@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { buildActionAnswer } from "../action-service";
 
 describe("buildActionAnswer", () => {
-  it("안부전화 실행 성공 시 확인 문구와 다음 행동을 반환한다", () => {
-    const answer = buildActionAnswer({ type: "request_care_call", ok: true, attemptId: "attempt-1" });
-    expect(answer.answerText).toContain("안부전화를 걸었어요");
+  it("모의 안부전화 실행 성공 시 확인 문구와 다음 행동을 반환한다", () => {
+    const answer = buildActionAnswer({ type: "request_mock_call", ok: true, attemptId: "attempt-1" });
+    expect(answer.answerText).toContain("모의 안부전화를 걸었어요");
     expect(answer.nextSteps).toContainEqual({ label: "안부전화 기록에서 응답 확인하기", href: "/dashboard/calls" });
     expect(answer.hasSufficientEvidence).toBe(true);
   });
@@ -24,7 +24,7 @@ describe("buildActionAnswer", () => {
   });
 
   it("메시지 발송 성공 시 확인 문구를 반환한다", () => {
-    const answer = buildActionAnswer({ type: "send_care_message", ok: true, deliveryAttemptId: "d-1", deliveryStatus: "sent" });
+    const answer = buildActionAnswer({ type: "send_care_message", ok: true, deliveryAttemptId: "d-1", deliveryStatus: "sent", channel: "sms" });
     expect(answer.answerText).toContain("메시지를 보냈어요");
     expect(answer.hasSufficientEvidence).toBe(true);
   });

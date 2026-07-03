@@ -15,8 +15,8 @@ import { classifyTaskType, type TaskType } from "../care-tasks/task-type";
 import type { RagActionIntent } from "./action-tools";
 
 export type RagActionResult =
-  | { type: "request_care_call"; ok: true; attemptId: string }
-  | { type: "send_care_message"; ok: true; deliveryAttemptId: string; deliveryStatus: string }
+  | { type: "request_mock_call"; ok: true; attemptId: string }
+  | { type: "send_care_message"; ok: true; deliveryAttemptId: string; deliveryStatus: string; channel: string }
   | { type: "create_care_task"; ok: true; careTaskId: string; taskType: TaskType; originalRequest: string }
   | { ok: false; error: "care_task_not_found" | "parent_not_found" | "execution_failed" };
 
@@ -35,7 +35,10 @@ export async function executeActionIntent(
   intent: RagActionIntent
 ): Promise<RagActionResult> {
   if (intent.type === "request_care_call") {
-    return executeRequestCareCall(supabase, ownerUserId, intent.careTaskId);
+    return executeRequestRealCall(supabase, ownerUserId, intent.careTaskId);
+  }
+  if (intent.type === "request_mock_call") {
+    return executeRequestMockCall(supabase, ownerUserId, intent.careTaskId);
   }
   if (intent.type === "create_care_task") {
     return executeCreateCareTask(
@@ -98,10 +101,23 @@ async function executeCreateCareTask(
   }
 }
 
-// /api/care-calls/preview + /api/care-calls/[attemptId]/start를 한 번에 수행한다. "전화 걸어줘"라는
-// 명령은 통화를 거는 행위까지지, 어르신의 응답을 대신 지어내는 게 아니라서 respond 단계는 호출하지 않는다
-// — 응답 확인은 기존 /dashboard/calls 화면에서 그대로 진행한다.
-async function executeRequestCareCall(supabase: SupabaseClient, ownerUserId: string, careTaskId: string): Promise<RagActionResult> {
+// "전화 걸어줘" → 실제 Solapi TTS 발신 (ENABLE_REAL_CALLS=true 일 때) — 기존 delivery 흐름 재사용.
+async function executeRequestRealCall(supabase: SupabaseClient, ownerUserId: string, careTaskId: string): Promise<RagActionResult> {
+  const careTask = await getOwnCareTask(supabase, careTaskId);
+  if (!careTask) return { ok: false, error: "care_task_not_found" };
+  const profile = await getParentProfileById(supabase, careTask.parent_id);
+  if (!profile) return { ok: false, error: "parent_not_found" };
+  const ttsText = formatCallScriptText(buildCallScript(profile, careTask));
+  return executeSendCareMessage(supabase, ownerUserId, {
+    type: "send_care_message",
+    careTaskId,
+    channel: "voice_call",
+    messageText: ttsText,
+  });
+}
+
+// "모의전화로 걸어줘" → /dashboard/calls 모의 흐름 (care_call_attempts 테이블, 실제 발신 없음).
+async function executeRequestMockCall(supabase: SupabaseClient, ownerUserId: string, careTaskId: string): Promise<RagActionResult> {
   try {
     const careTask = await getOwnCareTask(supabase, careTaskId);
     if (!careTask) return { ok: false, error: "care_task_not_found" };
@@ -118,7 +134,7 @@ async function executeRequestCareCall(supabase: SupabaseClient, ownerUserId: str
     });
     await updateCareCallAttempt(supabase, attempt.id, { status: "answered", started_at: new Date().toISOString() });
 
-    return { type: "request_care_call", ok: true, attemptId: attempt.id };
+    return { type: "request_mock_call", ok: true, attemptId: attempt.id };
   } catch {
     return { ok: false, error: "execution_failed" };
   }
@@ -179,7 +195,7 @@ async function executeSendCareMessage(
 
     await updateCareTaskNotificationStatus(supabase, careTask.id, deliveryResult.status);
 
-    return { type: "send_care_message", ok: true, deliveryAttemptId: attempt.id, deliveryStatus: deliveryResult.status };
+    return { type: "send_care_message", ok: true, deliveryAttemptId: attempt.id, deliveryStatus: deliveryResult.status, channel: intent.channel };
   } catch {
     return { ok: false, error: "execution_failed" };
   }

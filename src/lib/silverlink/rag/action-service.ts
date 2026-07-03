@@ -52,9 +52,9 @@ export function buildActionAnswer(result: RagActionResult): RagAnswer {
     return { answerText: `${reason} 잠시 후 다시 시도해 주세요.`, evidence: [], nextSteps: [], hasSufficientEvidence: false };
   }
 
-  if (result.type === "request_care_call") {
+  if (result.type === "request_mock_call") {
     return {
-      answerText: "안부전화를 걸었어요. 어르신 응답은 안부전화 기록에서 확인할 수 있어요.",
+      answerText: "모의 안부전화를 걸었어요. 어르신 응답 시뮬레이션은 안부전화 기록에서 확인할 수 있어요.",
       evidence: [],
       nextSteps: [{ label: "안부전화 기록에서 응답 확인하기", href: "/dashboard/calls" }],
       hasSufficientEvidence: true,
@@ -72,10 +72,19 @@ export function buildActionAnswer(result: RagActionResult): RagAnswer {
     };
   }
 
+  if (result.type === "send_care_message" && result.channel === "voice_call") {
+    return {
+      answerText: "AI 안부전화를 요청했어요. 발송 결과는 발송 기록에서 확인할 수 있어요.",
+      evidence: [],
+      nextSteps: [{ label: "발송 기록에서 결과 확인하기", href: "/dashboard/deliveries" }],
+      hasSufficientEvidence: true,
+    };
+  }
+
   return {
     answerText: "메시지를 보냈어요. 발송 결과는 발송 기록에서 확인할 수 있어요.",
     evidence: [],
-    nextSteps: [{ label: "발송 기록에서 확인하기", href: "/dashboard/tasks" }],
+    nextSteps: [{ label: "발송 기록에서 확인하기", href: "/dashboard/deliveries" }],
     hasSufficientEvidence: true,
   };
 }

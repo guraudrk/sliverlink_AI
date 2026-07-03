@@ -3,6 +3,7 @@ import { DELIVERY_CHANNEL_OPTIONS } from "../delivery/schema";
 import { TASK_TYPE_LABELS, TASK_TYPE_OPTIONS, classifyTaskType, type TaskType } from "../care-tasks/task-type";
 
 export const REQUEST_CARE_CALL_TOOL = "request_care_call";
+export const REQUEST_MOCK_CALL_TOOL = "request_mock_call";
 export const SEND_CARE_MESSAGE_TOOL = "send_care_message";
 export const CREATE_CARE_TASK_TOOL = "create_care_task";
 
@@ -10,6 +11,7 @@ export type DeliveryChannel = (typeof DELIVERY_CHANNEL_OPTIONS)[number];
 
 export type RagActionIntent =
   | { type: "request_care_call"; careTaskId: string }
+  | { type: "request_mock_call"; careTaskId: string }
   | { type: "send_care_message"; careTaskId: string; channel: DeliveryChannel; messageText: string }
   | { type: "create_care_task"; parentId: string; senderName: string; originalRequest: string; taskType?: TaskType };
 
@@ -64,13 +66,28 @@ export const ACTION_TOOL_DECLARATIONS: FunctionDeclaration[] = [
   {
     name: REQUEST_CARE_CALL_TOOL,
     description:
-      '특정 일정에 대해 어르신께 안부전화를 건다(Mock 전화, 실제 통신사 발신 없음). 자녀가 "전화 걸어줘", "전화해서 확인해줘"처럼 명확하게 전화를 요청했을 때만 호출한다.',
+      '특정 일정에 대해 어르신께 실제 AI 안부전화(TTS)를 건다. 자녀가 "전화 걸어줘", "전화해서 확인해줘"처럼 명확하게 전화를 요청했을 때만 호출한다.',
     parametersJsonSchema: {
       type: "object",
       properties: {
         care_task_id: {
           type: "string",
           description: "안부전화를 걸 대상 일정의 id. 반드시 아래 제공된 일정 목록에 있는 id 중 하나여야 한다.",
+        },
+      },
+      required: ["care_task_id"],
+    },
+  },
+  {
+    name: REQUEST_MOCK_CALL_TOOL,
+    description:
+      '특정 일정에 대해 모의 안부전화(실제 통신사 발신 없음)를 건다. 자녀가 "모의전화", "테스트 전화", "시뮬레이션"처럼 명확하게 모의 전화를 요청했을 때만 호출한다.',
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        care_task_id: {
+          type: "string",
+          description: "모의전화를 걸 대상 일정의 id. 반드시 아래 제공된 일정 목록에 있는 id 중 하나여야 한다.",
         },
       },
       required: ["care_task_id"],
@@ -165,7 +182,11 @@ export function describeActionIntent(
   const taskLabel = task?.originalRequest ?? "선택한 일정";
 
   if (intent.type === "request_care_call") {
-    return `"${taskLabel}" 일정으로 안부전화를 걸까요?`;
+    return `"${taskLabel}" 일정으로 실제 AI 안부전화를 걸까요?`;
+  }
+
+  if (intent.type === "request_mock_call") {
+    return `"${taskLabel}" 일정으로 모의 안부전화를 걸까요? (실제 전화 발신 없음)`;
   }
 
   return `"${taskLabel}" 일정으로 ${CHANNEL_CONFIRM_LABELS[intent.channel]} 메시지를 보낼까요?\n내용: ${intent.messageText}`;
@@ -206,6 +227,10 @@ export function parseActionIntent(
 
   if (functionCall.name === REQUEST_CARE_CALL_TOOL) {
     return { type: "request_care_call", careTaskId };
+  }
+
+  if (functionCall.name === REQUEST_MOCK_CALL_TOOL) {
+    return { type: "request_mock_call", careTaskId };
   }
 
   if (functionCall.name === SEND_CARE_MESSAGE_TOOL) {

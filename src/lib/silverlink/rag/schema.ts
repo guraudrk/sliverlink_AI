@@ -13,6 +13,10 @@ export const ragActionIntentSchema = z.discriminatedUnion("type", [
     careTaskId: z.string().uuid("careTaskId는 올바른 UUID여야 합니다."),
   }),
   z.object({
+    type: z.literal("request_mock_call"),
+    careTaskId: z.string().uuid("careTaskId는 올바른 UUID여야 합니다."),
+  }),
+  z.object({
     type: z.literal("send_care_message"),
     careTaskId: z.string().uuid("careTaskId는 올바른 UUID여야 합니다."),
     channel: z.enum(DELIVERY_CHANNEL_OPTIONS),
