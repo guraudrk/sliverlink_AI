@@ -110,7 +110,7 @@ export function CareCallPanel({
   }
 
   return (
-    <div className="w-full max-w-2xl space-y-8">
+    <div className="mx-auto w-full max-w-2xl space-y-8">
       <div className="space-y-6 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 sm:p-10">
         <div className="space-y-1">
           <h2 className="text-xl font-bold text-slate-800 sm:text-2xl">안부전화 Mock</h2>
