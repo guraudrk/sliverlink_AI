@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { getServerUser } from "@/lib/supabase/server-user";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 function AiChatIcon() {
@@ -18,10 +19,10 @@ function AiChatIcon() {
 }
 
 export default async function DashboardPage() {
-  const supabase = await createSupabaseServerClient();
-  const { data } = await supabase.auth.getUser();
+  // getServerUser는 React.cache()로 감싸져 있어 layout.tsx에서 이미 호출했으면 재사용한다.
+  const user = await getServerUser();
 
-  if (!data.user) {
+  if (!user) {
     redirect("/login");
   }
 
@@ -39,7 +40,7 @@ export default async function DashboardPage() {
           <div>
             <p className="text-sm font-semibold uppercase tracking-widest text-blue-600">SilverLink AI</p>
             <h1 className="mt-1 text-2xl font-bold text-slate-900">안녕하세요</h1>
-            <p className="mt-1 text-slate-500">{data.user.email}</p>
+            <p className="mt-1 text-slate-500">{user.email}</p>
           </div>
           <form action={logout}>
             <button

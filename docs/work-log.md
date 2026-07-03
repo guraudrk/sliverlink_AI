@@ -9,6 +9,30 @@
 
 # 2026-07-03
 
+## Day20 — 속도 개선 · 로그인 로딩 화면 · Mock 통화 상세보기
+
+**계기**: 세 가지 UX 문제가 한 번에 들어왔다. (1) 전반적 속도를 50% 이상 개선하라는 요청 — layout.tsx와 dashboard/page.tsx가 같은 요청에서 `getUser()`를 각각 Supabase에 호출하는 이중 네트워크 왕복 구조가 있었다. (2) 로그인 후 대시보드 전환 시 아무 피드백 없이 흰 화면이 잠깐 뜨는 문제. (3) `/dashboard/calls` 모의 안부전화 기록에서 항목을 클릭해도 상세 내용이 안 보이는 불편함.
+
+**작업 내용**:
+
+1. **`React.cache()` 적용 — getUser() 중복 호출 제거** (`src/lib/supabase/server-user.ts` 신규): Next.js App Router의 Server Component는 하나의 HTTP 요청 안에서 동일 함수를 여러 번 호출해도 React가 결과를 재사용한다(`React.cache()`). `getServerUser()`를 만들어 layout.tsx와 dashboard/page.tsx가 공유하도록 했다. 기존에는 두 군데서 각각 `createSupabaseServerClient()` 생성 → `supabase.auth.getUser()` 호출을 반복했으므로, 요청당 Supabase 인증 왕복이 2→1로 줄었다.
+
+2. **`/dashboard/loading.tsx` 신규 생성** (로그인→대시보드 전환 로딩 화면): 대시보드 메인 페이지에만 `loading.tsx`가 없었다. 이 파일이 없으면 `router.push("/dashboard")` 후 Next.js가 Server Component 렌더링을 완료할 때까지 흰 화면이 보인다. 스켈레톤 카드(환영 카드 + AI 어시스턴트 카드 + 메뉴 그리드)를 즉시 보여주도록 구현. 반응형이므로 모바일/데스크톱 모두 동일하게 동작한다.
+
+3. **`care-call-panel.tsx` — 과거 기록 클릭 시 상세보기**: `expandedId` 상태를 추가해 항목 클릭 시 접힘/펼침 토글. 펼쳐지면 전화 스크립트 전문 + 어르신 응답 + 요약 + 위험도 + 시작/종료 시각이 `animate-rag-fade-in-up`과 함께 나타난다. 상태 레이블도 `status` 원본 값("help_requested") 대신 한국어("도움 요청")로 표시하도록 `STATUS_LABEL` 맵 추가.
+
+**검증**: `npx tsc --noEmit` 클린.
+
+**🤖 AI 활용 팁**:
+- **`React.cache()`는 요청 스코프 메모이제이션**: `unstable_cache`(Next.js)가 요청 간 캐시라면, `React.cache()`는 같은 서버 렌더 트리 안에서만 살아있는 단기 캐시다. 사용자별 데이터(인증 토큰 기반)라 요청 간 캐시를 쓰면 안 되지만, 한 요청 내 중복 호출은 확실히 제거할 수 있다. layout + page처럼 트리 상·하위가 같은 함수를 호출하는 패턴에 딱 맞는다.
+- **loading.tsx 누락은 흰 화면 버그**: 페이지 `loading.tsx`가 없으면 Next.js App Router는 Server Component 렌더가 끝날 때까지 이전 UI를 유지하려 하지만, 로그인 직후처럼 이전 UI 자체가 없는 전환에서는 흰 화면이 된다. "로딩 중"이라는 피드백이 필요한 모든 경로에 `loading.tsx`를 먼저 만들어 두는 것이 방어적 관행이다.
+
+**변경 파일**:
+- 신규: `src/lib/supabase/server-user.ts`, `src/app/(protected)/dashboard/loading.tsx`
+- 수정: `src/app/(protected)/layout.tsx`(getServerUser 사용), `src/app/(protected)/dashboard/page.tsx`(getServerUser 사용), `src/components/calls/care-call-panel.tsx`(상세보기 토글)
+
+---
+
 ## Day20 — 카카오 알림톡 Provider 구현 (SolapiKakaoProvider)
 
 **계기**: Day17에서 SMS와 음성 전화 실제 발송을 완성했지만, 발송 모달에 카카오 알림톡 탭이 있어도 실제 Provider가 없어 Mock만 동작했다. 카카오 알림톡은 비즈니스 채널 사전 승인 + 템플릿 심사가 필요하기 때문에 코드를 먼저 완성하고, 환경변수가 없을 때 graceful fallback으로 처리하는 구조로 만들었다.

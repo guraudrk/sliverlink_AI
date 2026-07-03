@@ -2,13 +2,12 @@ import { redirect } from "next/navigation";
 import { DashboardNavBar } from "@/components/app/dashboard-nav-bar";
 import { MobileBottomNav } from "@/components/app/mobile-bottom-nav";
 import { NavigationProgress } from "@/components/app/navigation-progress";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getServerUser } from "@/lib/supabase/server-user";
 
 export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createSupabaseServerClient();
-  const { data } = await supabase.auth.getUser();
+  const user = await getServerUser();
 
-  if (!data.user) {
+  if (!user) {
     redirect("/login");
   }
 
