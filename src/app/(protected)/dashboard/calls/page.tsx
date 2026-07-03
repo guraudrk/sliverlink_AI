@@ -31,12 +31,12 @@ export default async function DashboardCallsPage() {
   return (
     <div className="flex flex-1 flex-col items-center bg-slate-50 px-4 py-10 sm:py-16">
 
-      <div className="mb-8 max-w-2xl text-center animate-rag-fade-in-up">
+      <div className="mx-auto mb-8 max-w-2xl text-center animate-rag-fade-in-up">
         <p className="text-sm font-semibold uppercase tracking-widest text-blue-600">SilverLink AI</p>
         <h1 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">안부전화 (Mock)</h1>
         <p className="mt-2 text-slate-500">실제 전화 없이 AI 비서 안부전화 흐름을 미리 검증해요.</p>
       </div>
-      <div className="animate-rag-fade-in-up w-full" style={{ animationDelay: "80ms" }}>
+      <div className="mx-auto w-full max-w-2xl animate-rag-fade-in-up" style={{ animationDelay: "80ms" }}>
         <CareCallPanel careTasks={careTasks} initialAttempts={attempts} />
       </div>
     </div>
