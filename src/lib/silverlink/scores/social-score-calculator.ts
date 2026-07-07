@@ -1,6 +1,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { upsertSocialScore } from "@/lib/supabase/social-scores-repo";
 
+type WeekBucket = {
+  parentId: string;
+  weekStart: string;
+  callRows: { status: string; parent_response: string | null }[];
+  responseRows: unknown[];
+};
+
 /** 주어진 날짜가 속한 주의 월요일을 "YYYY-MM-DD"로 반환 */
 function getWeekStart(date: Date): string {
   const d = new Date(date);
@@ -68,4 +75,70 @@ export async function recalculateWeekScore(
     answered_count: answeredCount,
     response_count: responseCount,
   });
+}
+
+/**
+ * 유저의 모든 과거 통화/링크응답 데이터를 주별로 소급 집계해 social_scores에 upsert한다.
+ * "기존 데이터 반영" 버튼에서 호출.
+ */
+export async function recalculateAllHistory(
+  supabase: SupabaseClient,
+  ownerId: string
+): Promise<number> {
+  const [{ data: callRows }, { data: respRows }] = await Promise.all([
+    supabase
+      .from("care_call_attempts")
+      .select("parent_id, status, parent_response, created_at")
+      .eq("owner_user_id", ownerId),
+    supabase
+      .from("notification_queue")
+      .select("parent_id, created_at")
+      .eq("owner_user_id", ownerId)
+      .eq("status", "responded"),
+  ]);
+
+  const buckets = new Map<string, WeekBucket>();
+
+  const getOrCreate = (parentId: string, weekStart: string) => {
+    const key = `${parentId}__${weekStart}`;
+    if (!buckets.has(key)) {
+      buckets.set(key, { parentId, weekStart, callRows: [], responseRows: [] });
+    }
+    return buckets.get(key)!;
+  };
+
+  for (const row of callRows ?? []) {
+    const ws = getWeekStart(new Date(row.created_at));
+    getOrCreate(row.parent_id, ws).callRows.push(row);
+  }
+  for (const row of respRows ?? []) {
+    const ws = getWeekStart(new Date(row.created_at));
+    getOrCreate(row.parent_id, ws).responseRows.push(row);
+  }
+
+  let count = 0;
+  for (const bucket of buckets.values()) {
+    const callCount = bucket.callRows.length;
+    const answeredCount = bucket.callRows.filter(
+      (c) => c.status === "completed" && c.parent_response !== "no_answer"
+    ).length;
+    const responseCount = bucket.responseRows.length;
+
+    const callScore = callCount > 0 ? (answeredCount / callCount) * 70 : 0;
+    const responseScore = Math.min(responseCount, 3) * 10;
+    const score = Math.round(callScore + responseScore);
+
+    await upsertSocialScore(supabase, {
+      owner_user_id: ownerId,
+      parent_id: bucket.parentId,
+      week_start: bucket.weekStart,
+      score,
+      call_count: callCount,
+      answered_count: answeredCount,
+      response_count: responseCount,
+    });
+    count++;
+  }
+
+  return count;
 }

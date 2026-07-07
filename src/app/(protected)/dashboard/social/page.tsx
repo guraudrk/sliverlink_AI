@@ -2,6 +2,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { listParentProfiles } from "@/lib/supabase/parent-profiles-repo";
 import { listSocialScores } from "@/lib/supabase/social-scores-repo";
 import { SocialScoreCard } from "@/components/social/social-score-card";
+import { RecalculateButton } from "@/components/social/recalculate-button";
 
 export default async function DashboardSocialPage() {
   const supabase = await createSupabaseServerClient();
@@ -34,6 +35,12 @@ export default async function DashboardSocialPage() {
         </div>
       ) : (
         <div className="mx-auto w-full max-w-2xl space-y-4">
+          {/* 기존 데이터 소급 반영 */}
+          <div className="flex items-center justify-between rounded-xl bg-white px-4 py-3 shadow-sm ring-1 ring-slate-200 animate-rag-fade-in-up">
+            <p className="text-sm text-slate-500">과거 안부전화 기록을 점수에 반영할 수 있어요.</p>
+            <RecalculateButton />
+          </div>
+
           {/* 점수 기준 안내 */}
           <div className="flex gap-3 rounded-xl bg-white px-4 py-3 text-xs text-slate-500 shadow-sm ring-1 ring-slate-200 animate-rag-fade-in-up">
             <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-emerald-400" />70점 이상: 활발</span>
