@@ -100,6 +100,7 @@ export default async function DashboardPage() {
             { href: "/dashboard/assistant", title: "돌봄 기록 AI 비서", sub: "질문하면 근거를 정리해드려요" },
             { href: "/dashboard/alerts", title: "안전 알림", sub: "안부전화 안전 우려사항" },
             { href: "/dashboard/social", title: "사회 연결 점수", sub: "8주 추이 · 연결 상태" },
+            { href: "/dashboard/timeline", title: "케어 여정 타임라인", sub: "통화·알림·브리핑 시간순" },
           ].map(({ href, title, sub }, i) => (
             <Link
               key={href}
