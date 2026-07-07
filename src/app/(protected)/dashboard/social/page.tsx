@@ -4,6 +4,35 @@ import { listSocialScores } from "@/lib/supabase/social-scores-repo";
 import { SocialScoreCard } from "@/components/social/social-score-card";
 import { RecalculateButton } from "@/components/social/recalculate-button";
 
+function SocialScoreIcon() {
+  return (
+    <svg viewBox="0 0 40 40" fill="none" className="h-9 w-9" aria-hidden="true">
+      {/* 상승 바 차트 */}
+      <rect x="4" y="24" width="5" height="10" rx="1.5" fill="white" fillOpacity="0.5" />
+      <rect x="12" y="18" width="5" height="16" rx="1.5" fill="white" fillOpacity="0.7" />
+      <rect x="20" y="12" width="5" height="22" rx="1.5" fill="white" fillOpacity="0.85" />
+      <rect x="28" y="6" width="5" height="28" rx="1.5" fill="white" />
+      {/* 트렌드 라인 */}
+      <polyline
+        points="6.5,29 14.5,23 22.5,17 30.5,9"
+        stroke="white"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeOpacity="0.9"
+      />
+      {/* 끝점 강조 */}
+      <circle cx="30.5" cy="9" r="2.2" fill="white" />
+      {/* 별 (점수 상징) */}
+      <path
+        d="M36 4l.6 1.8L38.5 5.9l-1.9.6L36 8.4l-.6-1.9L33.5 5.9l1.9-.1L36 4z"
+        fill="white"
+        fillOpacity="0.85"
+      />
+    </svg>
+  );
+}
+
 export default async function DashboardSocialPage() {
   const supabase = await createSupabaseServerClient();
   const parents = await listParentProfiles(supabase);
@@ -15,11 +44,19 @@ export default async function DashboardSocialPage() {
 
   return (
     <div className="flex flex-1 flex-col items-center bg-slate-50 px-4 py-10 sm:py-16">
-      <div className="mx-auto mb-8 max-w-2xl text-center animate-rag-fade-in-up">
-        <p className="text-sm font-semibold uppercase tracking-widest text-blue-600">SilverLink AI</p>
-        <h1 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">사회적 연결 점수</h1>
-        <p className="mt-2 text-slate-500">
+      <div className="mx-auto mb-8 max-w-2xl animate-rag-fade-in-up">
+        <div className="flex items-center gap-5">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md shadow-blue-200/60">
+            <SocialScoreIcon />
+          </div>
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-widest text-blue-600">SilverLink AI</p>
+            <h1 className="mt-0.5 text-2xl font-bold text-slate-900 sm:text-3xl">사회적 연결 점수</h1>
+          </div>
+        </div>
+        <p className="mt-4 text-slate-500">
           안부전화 응답률과 링크 응답 빈도를 바탕으로 어르신의 사회적 연결 상태를 0~100점으로 나타내요.
+          주간 추이를 통해 변화를 한눈에 파악할 수 있어요.
         </p>
       </div>
 
