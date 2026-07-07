@@ -7,6 +7,8 @@ import { generateFamilyBrief } from "@/lib/silverlink/calls/family-brief-generat
 import { createCallFamilyBrief } from "@/lib/supabase/call-family-briefs-repo";
 import { analyzeSafetyAlerts } from "@/lib/silverlink/calls/safety-alert-analyzer";
 import { createSafetyAlerts } from "@/lib/supabase/safety-alerts-repo";
+import { listPushSubscriptions } from "@/lib/supabase/push-subscriptions-repo";
+import { sendPushToSubscriptions } from "@/lib/silverlink/push/web-push-sender";
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -131,6 +133,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ att
           );
         } catch {
           // 알림 저장 실패 무시
+        }
+
+        // 안전 알림이 생성됐으면 등록된 디바이스에 Push 전송
+        try {
+          const pushSubs = await listPushSubscriptions(supabase);
+          if (pushSubs.length > 0) {
+            const count = alertItems.value.length;
+            await sendPushToSubscriptions(pushSubs, {
+              title: "🚨 SilverLink 안전 알림",
+              body: `안부전화에서 ${count}건의 안전 우려사항이 감지됐어요.`,
+              url: "/dashboard/alerts",
+            });
+          }
+        } catch {
+          // push 실패는 무시
         }
       }
     }

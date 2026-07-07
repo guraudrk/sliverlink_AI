@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { listSafetyAlerts } from "@/lib/supabase/safety-alerts-repo";
 import { AlertList } from "@/components/alerts/alert-list";
+import { PushPermissionButton } from "@/components/push/push-permission-button";
 
 export default async function DashboardAlertsPage() {
   const supabase = await createSupabaseServerClient();
@@ -22,6 +23,9 @@ export default async function DashboardAlertsPage() {
           <p className="mt-2 text-slate-500">
             안부전화 분석 결과 감지된 안전 우려사항이에요.
           </p>
+          <div className="mt-4">
+            <PushPermissionButton />
+          </div>
         </div>
       </div>
 
