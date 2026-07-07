@@ -434,7 +434,20 @@ function getGuide(pathname: string): Guide | null {
           </section>
           <section>
             <h3 className="mb-1.5 flex items-center gap-2 font-bold text-slate-800">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">3</span>
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-700">3</span>
+              사회 연결 점수란?
+            </h3>
+            <p className="leading-relaxed">이번 주 <strong>안부전화 응답 여부(70%)와 링크 응답 빈도(30%)</strong>를 합산한 0~100점 지표예요. 단순한 통화 횟수가 아니라 "어르신이 실제로 연락에 반응하고 있는가"를 측정합니다.</p>
+            <ul className="mt-2 space-y-1 text-sm leading-relaxed">
+              <li><span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">70점 이상</span> 활발 — 연락이 잘 이루어지고 있어요</li>
+              <li><span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">40~69점</span> 보통 — 간간이 응답이 있어요</li>
+              <li><span className="rounded-full bg-rose-100 px-2 py-0.5 text-xs font-semibold text-rose-700">39점 이하</span> 낮음 — 사회적 고립 신호일 수 있어요</li>
+            </ul>
+            <p className="mt-2 text-xs text-slate-500">※ 점수가 여러 주 연속 낮아지면 직접 연락해 보세요. 사회적 고립은 치매·우울 위험과 높은 상관관계가 있습니다.</p>
+          </section>
+          <section>
+            <h3 className="mb-1.5 flex items-center gap-2 font-bold text-slate-800">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">4</span>
               트렌드 차트 읽는 법
             </h3>
             <ul className="space-y-1 leading-relaxed">
@@ -445,7 +458,7 @@ function getGuide(pathname: string): Guide | null {
           </section>
           <section>
             <h3 className="mb-1.5 flex items-center gap-2 font-bold text-slate-800">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">4</span>
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">5</span>
               타임라인 이벤트 아이콘
             </h3>
             <ul className="space-y-1 leading-relaxed">
