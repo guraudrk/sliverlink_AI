@@ -35,7 +35,7 @@ export async function sendPushToSubscriptions(
     title: payload.title,
     body: payload.body,
     url: payload.url ?? "/dashboard/alerts",
-    icon: payload.icon ?? "/logo.png.png",
+    icon: payload.icon ?? "/notification-icon.png",
   });
 
   await Promise.allSettled(
