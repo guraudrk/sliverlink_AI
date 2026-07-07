@@ -4,7 +4,7 @@ self.addEventListener("push", function (event) {
   event.waitUntil(
     self.registration.showNotification(data.title || "SilverLink 알림", {
       body: data.body || "",
-      icon: data.icon || "/notification-icon.png",
+      icon: data.icon || "/icon-192.png",
       vibrate: [200, 100, 200],
       data: { url: data.url || "/dashboard/alerts" },
     })
