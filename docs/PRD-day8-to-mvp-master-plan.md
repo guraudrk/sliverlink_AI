@@ -18,6 +18,11 @@
 | Day 13 | RAG-lite 챗봇 | 현재 웹사이트에 부모님별 assistant 결합 |
 | Day 14 | 벡터 RAG 또는 Voice Agent 선택 | pgvector 또는 실제 음성 에이전트 실험 |
 | Day 15 | 최소 MVP 데모 | 링크 응답 + 안부전화 Mock + RAG 요약 데모 |
+| Day 21 | 통화 후 가족 브리핑 | `call_family_briefs` + Gemini 브리핑 생성 + 탭 UI |
+| Day 22 | 긴급 안전 알림 | `safety_alerts` + 4가지 급성 신호 감지 + 즉시 알림 |
+| Day 23 | 사회적 연결 점수 | `social_events` + `social_scores` + 주간 점수 차트 |
+| Day 24 | 케어 여정 타임라인 | `monthly_aggregates` + 가족 주석 + AI 분기 요약 |
+| Day 25 | 실제 전화 연동 테스트 | Solapi Voice 실발신 검증 (→ `PRD-day25-real-call-test.md`) |
 
 ## 2. 제품 방향 — 세 가지 응답 채널
 
