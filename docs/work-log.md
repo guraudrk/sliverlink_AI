@@ -7,6 +7,181 @@
 
 ---
 
+# 2026-07-07
+
+## 학술 연구 분석 — 가족 보호자 원격 모니터링 111편 리서치 + 신규 기능 5종 도출
+
+**계기**: MVP가 99% 완성된 시점에서 "기존 전화 방식과 무엇이 다르냐"는 현실적인 피드백이 들어왔다. 단순 AI 통화 앱을 넘어, 가족이 노부모를 원격으로 '관리'하는 데 필요한 데이터 제공이라는 관점에서 신규 기능을 연구·도출하기로 함.
+
+**연구 방법**: 총 50개 검색 쿼리를 사용해 국내외 주요 대학 및 연구기관의 논문 111편을 수집·분석. 18개 카테고리 커버.
+
+**참고 논문 목록** (총 111편, 카테고리별):
+
+### A. 가족 보호자 정보 니즈 & 대시보드
+1. Using co-design to understand consumer's health information-seeking behaviours for a digital clinical dashboard in aged care — Univ. New South Wales (2024)
+2. Identifying Needs and Support Services for Family Caregivers of Older Community-Based Family Members — Univ. Alberta (2025)
+3. Capturing Home Care Information Management and Communication Processes Among Caregivers of Older Adults — Univ. Waterloo (2024)
+4. Technology and Caregiving: Emerging Interventions and Directions for Research — UC Berkeley (2020)
+5. Assessment of burden and needs of family caregivers for the elderly, a scoping review — Fondation St Hélier / Rennes 2 Univ. (2025)
+6. Usability and Acceptability of Clinical Dashboards in Aged Care: Systematic Review — Western Sydney Univ. (2023)
+7. Family Physicians' Feedback on the Feature Design of a Digital Health Platform to Streamline the Care of Older Adults — Univ. Alberta (2024)
+8. Understanding the Support Needs and Challenges Faced by Family Caregivers in the Care of Their Older Adults at Home — 다기관 (2024)
+
+### B. 성인 자녀의 원격 모니터링
+9. Why Older Adults and Their Children Disagree About In-Home Surveillance Technology, Sensors, and Tracking — Univ. Washington (2019)
+10. Adult Children's Monitoring, Knowledge, and Intergenerational Ambivalence — US (2021)
+11. Stakeholder Perspectives on In-home Passive Remote Monitoring to Support Aging in Place in New Brunswick — Canada (2022)
+12. Perspectives of only children on the use of smart technologies for transnational family care — EU (2025)
+13. Distance caregiving using smart home technologies: balancing ethical priorities in family decision-making by only children — Oxford Univ. (2025)
+14. In-Home Monitoring Technology for Aging in Place: Scoping Review — Iowa State Univ. (2022)
+15. A Systematic Review of In-Home Smart Technology Adoption to Improve Older Adult Health and Family Caregiving — Univ. Missouri (2020)
+16. Caring Near and Far by Connecting Community-Based Clients and Family Caregivers Using Passive Remote Monitoring: Protocol for a Pragmatic RCT — Canada (2020)
+
+### C. 치매 보호자 원격 활동 모니터링 (Gaugler 연구 시리즈)
+17. "It's Like a Cyber-Security Blanket": The Utility of Remote Activity Monitoring in Family Dementia Care — Univ. Minnesota (2018)
+18. Six-Month Effectiveness of Remote Activity Monitoring for Persons Living With Dementia and Their Family Caregivers — Univ. Minnesota (2018)
+19. Caregiver Responses to Remote Activity Monitor Alerts of Persons with Dementia — Univ. Minnesota (2019)
+20. Dementia Caregivers' Experiences and Reactions to Remote Activity Monitoring System Alerts — Univ. Minnesota (2021)
+21. Remote activity monitoring for family caregivers of persons living with dementia: a mixed methods RCT evaluation — Univ. Minnesota (2021)
+22. The Effects of Remote Activity Monitoring on Family Caregivers of People Living With Dementia Over an 18-Month Period — Univ. Minnesota (2021)
+23. Outcomes of remote activity monitoring for persons living with dementia over an 18-month period — Univ. Minnesota (2022)
+
+### D. 스마트홈 활동 감지 & 이상 패턴 탐지
+24. Detecting Anomalies in Daily Activity Routines of Older Persons in Single Resident Smart Homes — Luleå Univ. Technology (2022)
+25. Automatically detecting activities of daily living from in-home sensors as indicators of routine behaviour — Dublin City Univ. (2023)
+26. Smart home-assisted anomaly detection for older adults: deep learning approach — European (2025)
+27. Evaluation of 1-Year in-Home Monitoring Technology by Home-Dwelling Older Adults, Family Caregivers, and Nurses — Scandinavian (2020)
+28. HomeSense: Design of an ambient home health and wellness monitoring platform for older adults — US (2019)
+29. Investigating an Intelligent System to Monitor & Explain Abnormal Activity Patterns of Older Adults — International (2025)
+30. Smart Aging System: Uncovering the Hidden Wellness Parameter for Well-Being Monitoring and Anomaly Detection — US (2019)
+
+### E. 원격의료 & 보호자 부담 경감
+31. Efficacy of digital technology-based interventions for reducing caregiver burden and stress: systematic review and meta-analysis — Portuguese (2025)
+32. Effectiveness of telehealth interventions for family caregivers of older adults with multiple diseases: systematic review — International (2025)
+33. A systematic review of telehealth tools and interventions to support family caregivers — International (2015)
+34. Telehealth Interventions for Family Caregivers of Persons with Chronic Health Conditions: Systematic Review of RCTs — International (2021)
+35. Low-Tech Telemedicine Reduces Caregiver Burden and Improves Outcomes in Older Adults — Romania (2025)
+36. Effects of an Automated Telephone Support System on Caregiver Burden and Anxiety: REACH for TLC Study — US (2003)
+37. The Role of Telemedicine Centers and Digital Health Applications in Home Care — European (2025)
+38. Passive Remote Monitoring Technologies' Influence on Home Care Clients' Ability to Stay Home: Multiprovincial RCT — Canada (2025)
+
+### F. 낙상 감지 & 가족 알림
+39. Exploring factors affecting the acceptance of fall detection technology among older adults and their families — International (2024)
+40. Attitudes Toward Technology and Use of Fall Alert Wearables in Caregiving: Survey Study — US (2021)
+41. Effectiveness Evaluation of Smart Home Technology in Preventing and Detecting Falls: Systematic Review and Meta-Analysis — International (2024)
+42. A ZigBee-Based Location-Aware Fall Detection System for Improving Elderly Telecare — Taiwan (2014)
+43. Explainable Fall Risk Prediction in Older Adults Using Gait and Geriatric Assessments — Netherlands (2022)
+44. Emerging Digital Technologies Used for Fall Detection in Older Adults in Aged Care: Scoping Review — International (2024)
+
+### G. 투약 순응 모니터링
+45. Medication adherence support of an in-home electronic medication dispensing system: pilot RCT — US (2021)
+46. Key Features of Smart Medication Adherence Products: Updated Scoping Review — International (2023)
+47. An In-Home Medication Dispensing System to Support Medication Adherence for Patients With Chronic Conditions — US (2022)
+48. MedHerent: Improving Medication Adherence in Older Adults With Contextually Sensitive Alerts — International (2025)
+
+### H. 수면 패턴 모니터링
+49. Objective sleep monitoring at home in older adults: A scoping review — International (2025)
+50. Assessment of sleep patterns in dementia cohorts using passive in-home monitoring technologies — UK (2024)
+51. Contactless and longitudinal monitoring of nocturnal sleep and daytime naps in older adults — International (2023)
+52. Home-Based Sleep Sensor Measurements in an Older Australian Population — Australia (2021)
+
+### I. 한국 노인 케어 기술 & 정부 이니셔티브
+53. Present and Future of AI-IoT-Based Healthcare Services for Senior Citizens in Local Communities: South Korean Government Initiatives — Korea MOHW/KHPI (2024)
+54. A Qualitative Study on the Experience of Smart Care Technology Utilization Among Older Adults in Korea — Pusan National Univ. (2024)
+55. The Korean Long-Term Care System: 2024 Update — Korea (2024)
+56. Voice-Based Remote Care Program for Vulnerable Older Adults in a Rural Community: Single-Arm Pilot — Korea (2025)
+57. Career Disruption and Employment Status of Korean Family Caregivers of Older Adults Using Home-Based Care — Korea (2024)
+58. Bridging the Digital Gap for Older Adults in Korea: Direct Care Workers as Mediators — Korea (2025)
+59. Digital Health Technology Use Among Older Adults: Impact of Frailty on Utilization in Korea — Korea JKMS (2024)
+
+### J. 사회적 고립 & 외로움 감지
+60. Loneliness and Social Isolation Detection Using Passive Sensing Techniques: Scoping Review — Ireland (2022)
+61. Technological Solutions for Social Isolation Monitoring of the Elderly — International (2022)
+62. Perceptions and Attitudes Toward Loneliness Detection Using Passive Sensing Technologies in Older Adults — US (2024)
+63. Sensor-Based Assessment of Social Isolation and Loneliness in Older Adults: A Survey — International (2022)
+64. The use of technology to address loneliness and social isolation among older adults — UK, BMC Public Health (2023)
+
+### K. 프라이버시, 윤리 & 신뢰
+65. Monitored and Cared for at Home? Privacy Concerns When Using Smart Home Health Technologies — International (2024)
+66. Aging 4.0? Rethinking the ethical framing of technology-assisted eldercare — Univ. Göttingen (2021)
+67. User Perception of Smart Home Surveillance Among Adults Aged 50 Years and Older: Scoping Review — International (2024)
+68. Older adults' privacy perceptions of passive in-home monitoring technologies: comprehensive scoping review — International (2024)
+69. Analyzing technology acceptance and perception of privacy in ambient assisted living — International (2022)
+70. Mapping ethical issues in the use of smart home health technologies: systematic review — International (2023)
+71. Benefits and barriers associated with the use of smart home health technologies: systematic review — International (2024)
+
+### L. AI 기반 모니터링 & 의사결정 지원
+72. AI-Powered Solutions to Support Informal Caregivers in Their Decision-Making: Systematic Review — OBM Geriatrics (2023)
+73. Artificial Intelligence Support for Informal Patient Caregivers: Systematic Review — MDPI (2024)
+74. Family caregivers' acceptance of Artificial Intelligence-enabled technologies — BMC Geriatrics (2025)
+75. Developing an AI-Enabled Integrated Care Platform for Frailty — International (2022)
+76. Utility of artificial intelligence-based conversation voice analysis for detecting cognitive decline — Japan, PLOS ONE (2025)
+77. Voiceprints of cognitive impairment: analyzing digital voice for early detection of Alzheimer's — npj Dementia (2025)
+78. Redefining Elderly Care with Agentic AI: Challenges and Opportunities — arXiv (2025)
+79. Sensor-Enhanced Care Coordination to Address Older Adult Health — US (2023)
+
+### M. 가족 보호자용 대시보드 & 인터페이스 설계
+80. Acceptability of a Health Care App With 3 User Interfaces for Older Adults and Their Caregivers — JMIR Human Factors (2023)
+81. Multi-part quality evaluation of a customized mobile application for monitoring elderly patients — BMC Med Inform (2019)
+82. Design and Evaluation of a User-Centered Mobile Application for Elderly Activity Monitoring — International (2025)
+83. Barriers and Facilitators to Older Adults' Acceptance of Camera-Based Active and Assisted Living Technologies — Innovation in Aging (2025)
+84. Preparing the Home and Community Based Workforce for Remote Monitoring Technology — US (2025)
+85. Simple but complex: aged care professionals' perspectives on digital falls dashboard design — BMC Med Inform (2025)
+
+### N. 일상활동(ADL) & 영양 모니터링
+86. Monitoring Activities of Daily Living of the Elderly: Potential for Telecare and Telehealth — International (2014)
+87. Recognition of Basic Activities of Daily Living Using Wearable Devices for Older Adults: Scoping Review — International (2025)
+88. Ambient assisted living for frail people through human activity recognition — Frontiers Neurosci (2023)
+89. Ambient Assisted Living: Scoping Review of AI Models, Domains, Technology, and Concerns — JMIR (2022)
+90. Systematic Literature Review of Food-Intake Monitoring in an Aging Population — Sensors MDPI (2019)
+91. Meal-Monitoring Systems Using Weight and Temperature Sensors for Elder Residents — International (2022)
+
+### O. 배회·화장실·안전 사건 모니터링
+92. Wearable and Portable GPS Solutions for Monitoring Mobility in Dementia: Systematic Review — International (2022)
+93. Night-Time Monitoring System (eNightLog) for Elderly Wandering Behavior — International (2021)
+94. Recognition of Bathroom Activities in Older Adults Using Wearable Sensors: Systematic Review — International (2021)
+95. Efficacy of Remote Health Monitoring in Reducing Hospital Readmissions Among High-Risk Patients — JMIR Formative (2024)
+96. A Remote Medication Monitoring System for Chronic Heart Failure Patients to Reduce Readmissions — US (2016)
+
+### P. 기술 매개 가족 소통
+97. Technology-Mediated Enrichment in Aged Care: Survey and Interview Study — International (2022)
+98. Video Calls for Older Adults: Narrative Review of Experiments in Elderly Care — International (2022)
+99. Talk2Care: Facilitating Asynchronous Patient-Provider Communication with Large-Language-Model — US, arXiv (2024)
+100. Family Caregiver Perspectives on Digital Methods to Measure Stress: Qualitative Descriptive Study — US (2025)
+101. Internet-Based Supportive Interventions for Family Caregivers of People With Dementia: Systematic Review and Meta-Analysis — JMIR (2020)
+
+### Q. 음성 기반 케어 기술
+102. Voice-Based Remote Care Program for Vulnerable Older Adults in a Rural Community: Single-Arm Pilot — JMIR Aging, Korea (2025)
+103. Advancing Remote Monitoring for Patients With Alzheimer Disease and Related Dementias: Systematic Review — JMIR Aging (2025)
+104. The Impact of Educational Intervention on the Anxiety of Family Caregivers of the Elderly with Dementia: RCT — International (2020)
+105. Navigating the future of artificial intelligence technologies for improving the care of older adults — Innovation in Aging (2025)
+
+### R. 한국·국제 보완 연구
+106. The Robotic Multi-Care Network: A Field Study of a "Robot Grandchild" in South Korea — Tandfonline (2024)
+107. IoT supported smart home for the elderly: enabling devices for remote care — ScienceDirect (2020)
+108. The Impact of Telepresence Robots on Family Caregivers and Residents in Long-Term Care — International (2025)
+109. Engaging Older Adults to Guide the Development of Passive Home Health Monitoring — US (2025)
+110. Caring Near and Far: Passive Remote Monitoring Protocol (Pragmatic RCT Protocol) — Canada (2020)
+111. Internet-Based Supportive Interventions for Family Caregivers of People With Dementia: RCT — JMIR Aging (2024)
+
+**도출된 신규 기능 5종** (시급도 순):
+
+| 순위 | 기능명 | 시급한 이유 | 난이도 |
+|------|--------|------------|--------|
+| 1 | 통화 기반 긴급 안전 알림 | 낙상·의료 위기가 7일 후 리포트에야 가족에게 전달됨 — 생명 직결 | Medium |
+| 2 | 다중 통화 행동 패턴 이상 경보 | 수 주 걸친 점진적 악화가 가족에게 완전 불투명 — 입원 예방 가능 | Hard |
+| 3 | 사회적 연결 점수 추적 | 한국 노인 자살률 OECD 1위, 고립이 최대 원인인데 가족이 모름 | Medium |
+| 4 | 통화 후 가족 브리핑 + 대화 제안 | 부모와 무슨 이야기를 해야 할지 몰라 소통 단절 | Easy |
+| 5 | 케어 여정 타임라인 | 수개월 궤적 없어 호전/악화 판단 불가 — 장기 의사결정 지원 | Medium |
+
+**🤖 AI 활용 팁**:
+- **하드웨어 없는 모니터링**: 스마트홈 센서·카메라 기반 연구가 다수지만, 한국 가정의 홈 센서 설치 거부 문화(#9, #54)를 고려하면 이미 있는 통화 트랜스크립트 데이터만으로 구현하는 것이 현실적이다. 논문이 센서 기반이어도 "이 신호를 음성 대화에서 뽑아낼 수 있나"로 재해석하면 100% 전용 인프라 없이 동일 가치를 구현할 수 있다.
+- **리서치 → 기능 도출 프레임**: 논문 100편+ 서칭 시 카테고리(A~R)를 미리 정하고 각 쿼리를 카테고리에 배치하면 중복 제거와 누락 파악이 쉽다. 기능 도출 단계에서는 "기존 계획 기능과 어떻게 다른가"를 차별성 표로 정리해야 범위 중복을 막을 수 있다.
+
+**변경 파일**: 없음 (리서치·기획 단계)
+
+---
+
 # 2026-07-03
 
 ## Day20 — 앱 아이콘 교체 (SilverLink 브랜드 로고)

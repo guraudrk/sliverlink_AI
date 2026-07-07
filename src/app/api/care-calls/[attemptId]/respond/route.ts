@@ -3,6 +3,8 @@ import { respondCallAttemptInputSchema } from "@/lib/silverlink/calls/schema";
 import { getOwnCareCallAttempt, updateCareCallAttempt } from "@/lib/supabase/care-call-attempts-repo";
 import { updateCareTaskStatus } from "@/lib/supabase/care-tasks-repo";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { generateFamilyBrief } from "@/lib/silverlink/calls/family-brief-generator";
+import { createCallFamilyBrief } from "@/lib/supabase/call-family-briefs-repo";
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -87,7 +89,31 @@ export async function POST(request: Request, { params }: { params: Promise<{ att
       });
     }
 
-    return jsonResponse({ ok: true, attempt: updated });
+    // 완료/도움요청 시 가족 브리핑 생성 (no_answer는 어르신 응답 없으므로 생략)
+    let brief = null;
+    if (updated.call_script && input.action !== "no_answer") {
+      try {
+        const briefResult = await generateFamilyBrief(
+          updated.call_script,
+          updated.parent_response,
+          updated.status
+        );
+        if (briefResult) {
+          brief = await createCallFamilyBrief(supabase, {
+            call_id: updated.id,
+            elder_id: updated.parent_id,
+            owner_user_id: userData.user.id,
+            mind_points: briefResult.mind_points,
+            conversation_starters: briefResult.conversation_starters,
+            attention_item: briefResult.attention_item,
+          });
+        }
+      } catch {
+        // 브리핑 생성 실패는 통화 응답 자체를 막지 않는다
+      }
+    }
+
+    return jsonResponse({ ok: true, attempt: updated, brief });
   } catch {
     return jsonResponse({ ok: false, error: "update_failed" }, 500);
   }
