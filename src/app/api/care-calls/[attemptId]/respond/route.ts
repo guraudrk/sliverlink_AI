@@ -5,6 +5,8 @@ import { updateCareTaskStatus } from "@/lib/supabase/care-tasks-repo";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { generateFamilyBrief } from "@/lib/silverlink/calls/family-brief-generator";
 import { createCallFamilyBrief } from "@/lib/supabase/call-family-briefs-repo";
+import { analyzeSafetyAlerts } from "@/lib/silverlink/calls/safety-alert-analyzer";
+import { createSafetyAlerts } from "@/lib/supabase/safety-alerts-repo";
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -89,31 +91,51 @@ export async function POST(request: Request, { params }: { params: Promise<{ att
       });
     }
 
-    // 완료/도움요청 시 가족 브리핑 생성 (no_answer는 어르신 응답 없으므로 생략)
+    // 브리핑 + 안전분석을 병렬로 실행 (어느 쪽 실패도 응답을 막지 않는다)
     let brief = null;
-    if (updated.call_script && input.action !== "no_answer") {
-      try {
-        const briefResult = await generateFamilyBrief(
-          updated.call_script,
-          updated.parent_response,
-          updated.status
-        );
-        if (briefResult) {
+    let safetyAlerts: unknown[] = [];
+
+    if (updated.call_script) {
+      const [briefResult, alertItems] = await Promise.allSettled([
+        input.action !== "no_answer"
+          ? generateFamilyBrief(updated.call_script, updated.parent_response, updated.status)
+          : Promise.resolve(null),
+        analyzeSafetyAlerts(updated.call_script, updated.parent_response, updated.status),
+      ]);
+
+      if (briefResult.status === "fulfilled" && briefResult.value) {
+        try {
           brief = await createCallFamilyBrief(supabase, {
             call_id: updated.id,
             elder_id: updated.parent_id,
             owner_user_id: userData.user.id,
-            mind_points: briefResult.mind_points,
-            conversation_starters: briefResult.conversation_starters,
-            attention_item: briefResult.attention_item,
+            mind_points: briefResult.value.mind_points,
+            conversation_starters: briefResult.value.conversation_starters,
+            attention_item: briefResult.value.attention_item,
           });
+        } catch {
+          // 브리핑 저장 실패 무시
         }
-      } catch {
-        // 브리핑 생성 실패는 통화 응답 자체를 막지 않는다
+      }
+
+      if (alertItems.status === "fulfilled" && alertItems.value.length > 0) {
+        try {
+          safetyAlerts = await createSafetyAlerts(
+            supabase,
+            alertItems.value.map((item) => ({
+              ...item,
+              call_id: updated.id,
+              elder_id: updated.parent_id,
+              owner_user_id: userData.user.id,
+            }))
+          );
+        } catch {
+          // 알림 저장 실패 무시
+        }
       }
     }
 
-    return jsonResponse({ ok: true, attempt: updated, brief });
+    return jsonResponse({ ok: true, attempt: updated, brief, safety_alerts: safetyAlerts });
   } catch {
     return jsonResponse({ ok: false, error: "update_failed" }, 500);
   }

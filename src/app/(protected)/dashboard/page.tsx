@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getServerUser } from "@/lib/supabase/server-user";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { countUnacknowledgedAlerts } from "@/lib/supabase/safety-alerts-repo";
 
 function AiChatIcon() {
   return (
@@ -25,6 +26,9 @@ export default async function DashboardPage() {
   if (!user) {
     redirect("/login");
   }
+
+  const supabase = await createSupabaseServerClient();
+  const unreadAlertCount = await countUnacknowledgedAlerts(supabase);
 
   async function logout() {
     "use server";
@@ -67,6 +71,23 @@ export default async function DashboardPage() {
           </div>
         </Link>
 
+        {unreadAlertCount > 0 ? (
+          <Link
+            href="/dashboard/alerts"
+            className="flex items-center justify-between gap-4 rounded-2xl bg-rose-50 px-5 py-4 ring-1 ring-rose-200 transition-colors hover:ring-rose-400 animate-rag-fade-in-up"
+            style={{ animationDelay: "100ms" }}
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-xl">🚨</span>
+              <div>
+                <p className="font-semibold text-rose-700">안전 알림 {unreadAlertCount}건</p>
+                <p className="text-sm text-rose-500">미확인 안전 우려사항이 있어요</p>
+              </div>
+            </div>
+            <span className="text-rose-400 text-sm font-semibold">확인하기 →</span>
+          </Link>
+        ) : null}
+
         <nav className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {[
             { href: "/parents", title: "부모님 관리", sub: "등록 · 조회" },
@@ -77,6 +98,7 @@ export default async function DashboardPage() {
             { href: "/dashboard/calls", title: "안부전화 (Mock)", sub: "AI 비서 전화 시뮬레이션" },
             { href: "/dashboard/deliveries", title: "발송 기록", sub: "SMS · 음성 발송 이력" },
             { href: "/dashboard/assistant", title: "돌봄 기록 AI 비서", sub: "질문하면 근거를 정리해드려요" },
+            { href: "/dashboard/alerts", title: "안전 알림", sub: "안부전화 안전 우려사항" },
           ].map(({ href, title, sub }, i) => (
             <Link
               key={href}
