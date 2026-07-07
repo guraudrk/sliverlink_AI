@@ -7,6 +7,142 @@
 
 ---
 
+# 2026-07-07 (2)
+
+## Day 24: 케어 여정 타임라인
+
+**기능을 추가한 이유**: Day 22(안전 알림)·Day 23(사회 점수)을 만들고 나니, 각 데이터가 파편화되어 "지난 한 달 부모님 상태가 어떻게 달라졌지?"라는 질문에 단번에 답하기 어려웠다. 보호자가 여러 페이지를 돌아다니지 않고 한 화면에서 흐름을 볼 수 있어야 한다는 연구 결론(논문 A-1~A-3)을 반영하여 통합 타임라인을 구현함.
+
+**사용한 기술**:
+- Next.js App Router 서버 컴포넌트(래퍼) + 클라이언트 컴포넌트(`CareJourneyClient`) 조합 — 초기 데이터는 서버에서, 탭 전환 후 데이터는 클라이언트 fetch
+- SVG 직접 작성으로 외부 차트 라이브러리 없이 3-트랙 라인차트 구현 (Recharts 미설치 프로젝트 제약)
+- `useSearchParams` + `router.push`로 URL 파라미터 기반 부모님 탭 전환 → 새로고침해도 선택 상태 유지
+- `Promise.all`로 통화·알림·브리핑·점수 4개 테이블 병렬 조회
+
+**구현 상세**:
+| 파일 | 역할 |
+|---|---|
+| `src/app/api/timeline/route.ts` | 통합 이벤트 피드 + 주별 트렌드 집계 + KPI 4종 반환 |
+| `src/components/timeline/trend-chart.tsx` | SVG 3-트랙 차트 (통화 에어리어·알림 점선·점수 실선) |
+| `src/components/timeline/care-journey-client.tsx` | KPI 카드 + 차트 + 세로 타임라인 클라이언트 렌더 |
+| `src/app/(protected)/dashboard/timeline/page.tsx` | 서버 래퍼 + 헤더 아이콘 SVG |
+
+**오류 해결**:
+- 없음 (TypeScript 타입 오류 0건으로 통과)
+
+**참고 논문**:
+- Capturing Home Care Information Management and Communication Processes Among Caregivers of Older Adults — Univ. Waterloo (2024): "보호자는 분산된 정보를 통합해 볼 수 있는 단일 뷰를 원한다"
+- Usability and Acceptability of Clinical Dashboards in Aged Care — Western Sydney Univ. (2023): 타임라인 + 트렌드 조합이 보호자 의사결정 속도를 높임
+
+**🤖 AI 활용 팁**: API 설계 시 "필요한 모든 데이터를 하나의 엔드포인트에서 내려줄 것인가, 여러 엔드포인트로 분리할 것인가"를 먼저 결정하고 시작하면 중간에 구조를 뒤집는 비용이 없다. 이번엔 `/api/timeline` 단일 엔드포인트로 events + trends + kpi를 한 번에 반환 → 클라이언트 fetch 1회로 처리.
+
+---
+
+## Day 23: 사회적 연결 점수 추적
+
+**기능을 추가한 이유**: 학술 연구 E(사회적 고립 모니터링) 카테고리에서 "어르신의 사회적 연결 빈도가 인지 저하 및 우울과 높은 상관관계를 보인다"는 다수 논문(Loneliness and Social Isolation — Public Health England, 2015 외)을 확인함. 안부전화 응답률과 링크 응답 빈도를 정량화하면 사회적 고립 초기 신호를 조기에 포착할 수 있다고 판단.
+
+**점수 공식 설계 근거**:
+```
+call_score    = (answered_count / max(call_count, 1)) × 70
+response_score = min(response_count, 3) × 10
+score = round(call_score + response_score)  // 0~100점
+```
+- 통화 응답을 70% 가중: 직접 목소리 확인이 가장 강력한 연결 신호
+- 링크 응답을 최대 30점으로 제한: 단순 클릭과 실제 대화를 구분하기 위해 3회 이상을 동일하게 취급
+- 점수 기준: 70점 이상=활발, 40~69점=보통, 39점 이하=낮음 (임상 기준 없이 실용적 구간 설정)
+
+**사용한 기술**:
+- Supabase `upsert` with `onConflict: "owner_user_id,parent_id,week_start"` — 같은 주에 여러 번 안부전화를 해도 당일 최신값으로 덮어씀
+- `getWeekStart()`: ISO 월요일 기준 주 계산 (UTC 기준으로 처리, 타임존 오류 방지)
+- `Promise.allSettled` 패턴: 점수 계산 실패가 안부전화 응답 반환을 차단하지 않도록 fire-and-forget (`recalculateWeekScore(...).catch(() => {})`)
+- SVG 스파크라인 + 바 차트 직접 구현 (외부 라이브러리 없음)
+- `router.refresh()` (Next.js App Router): 클라이언트에서 서버 컴포넌트 캐시를 무효화하여 버튼 클릭 후 즉시 새 데이터 반영
+
+**구현 상세**:
+| 파일 | 역할 |
+|---|---|
+| `docs/social-scores-migration.sql` | 테이블 DDL + RLS 4개 정책 + 업데이트 트리거 + 인덱스 |
+| `src/lib/supabase/social-scores-repo.ts` | list / upsert / listLatest |
+| `src/lib/silverlink/scores/social-score-calculator.ts` | 이번 주 재계산 + 전체 히스토리 소급 집계 |
+| `src/app/api/social-scores/route.ts` | GET(조회) + POST(소급 계산) |
+| `src/components/social/sparkline.tsx` | SVG 스파크라인 (그라데이션 fill + 끝점 강조) |
+| `src/components/social/social-score-card.tsx` | 점수 카드 + 바 차트 + 세부 지표 3종 |
+| `src/components/social/recalculate-button.tsx` | 기존 데이터 소급 반영 버튼 |
+| `src/app/(protected)/dashboard/social/page.tsx` | `/dashboard/social` 페이지 |
+
+**오류 해결**:
+- 없음 (TypeScript 타입 오류 0건)
+
+**참고 논문**:
+- Social Isolation and Loneliness in Older Adults — National Academies of Sciences (2020): 사회적 고립은 치매 위험 50%, 심혈관 질환 위험 29% 증가와 연관
+- Detecting social isolation from digital footprints — IEEE (2022): 통화 빈도·응답률이 사회적 고립의 유효한 디지털 지표
+
+**🤖 AI 활용 팁**: "기존 데이터 반영" 버튼처럼, 새 기능을 배포할 때 과거 데이터를 소급 집계하는 엔드포인트를 함께 만들면 초기 0점 상태를 피할 수 있다. 이를 "백필 API" 패턴이라 부름 — 데이터 마이그레이션과 별개로 비즈니스 로직 레벨 초기화에 유용.
+
+---
+
+## Day 22+: 모바일 Web Push 알림 연동
+
+**기능을 추가한 이유**: 안전 알림이 감지돼도 자녀가 대시보드를 직접 열지 않으면 놓친다. "수동 확인"에서 "능동적 수신"으로 전환하기 위해 Web Push를 도입. PWA 설치 후 백그라운드에서도 알림을 받을 수 있음.
+
+**사용한 기술**:
+- `web-push` npm 패키지: VAPID 키 기반 서버 → 브라우저 Push (W3C Push API 표준)
+- Service Worker (`public/sw.js`): `push` 이벤트 수신 → `showNotification`, `notificationclick` → 앱 포커스/열기
+- Supabase `push_subscriptions` 테이블: endpoint + p256dh + auth 키 저장 (사용자별 다중 기기 지원)
+- `applicationServerKey: vapidKey` 문자열 직접 전달 (TypeScript `Uint8Array` 타입 불일치 오류 회피)
+- `sharp`: Node.js 이미지 처리로 파란 배경(#2563eb) 192×192 / 512×512 아이콘 생성
+- `NEXT_PUBLIC_APP_URL` 환경변수: 푸시 payload의 icon을 절대 URL로 전송 (상대경로는 서비스 워커에서 resolve 안 됨)
+
+**오류 해결**:
+1. **`Uint8Array<ArrayBufferLike>` 타입 불일치**: `applicationServerKey: urlBase64ToUint8Array(vapidKey)` → TypeScript 오류. 해결: 문자열 직접 전달 (`applicationServerKey: vapidKey`)
+2. **manifest `purpose: "any maskable"` 빌드 실패**: Next.js 16 타입 정의가 `"any" | "maskable" | "monochrome"` 조합 문자열 불허. 해결: 동일 아이콘을 `purpose: "any"` / `purpose: "maskable"` 두 항목으로 분리
+3. **Vercel 배포 실패로 icon-512.png 404**: TypeScript 오류 커밋이 배포 차단 → 프로덕션이 이전 커밋에 고정됨. 해결: 타입 수정 후 재커밋으로 배포 재개
+4. **상태바 흰 사각형**: badge 속성 비일관성 → `sw.js`에서 badge 제거
+5. **푸시 알림 아이콘 종 모양**: 상대경로 `/icon-192.png`가 서비스 워커에서 resolve 안 됨 → `NEXT_PUBLIC_APP_URL` + 절대 URL로 변경
+
+**참고 자료**:
+- W3C Push API Specification (https://www.w3.org/TR/push-api/)
+- Google Web Fundamentals — Web Push Notifications
+- PWABuilder (https://www.pwabuilder.com): Android APK/PWA 패키징 도구 — 삼성 Knox 보안으로 APK 사이드로딩 차단, PWA 설치로 전환
+
+**🤖 AI 활용 팁**: Web Push에서 아이콘 경로는 반드시 절대 URL로 전달할 것. 서비스 워커는 앱 origin과 다른 컨텍스트에서 실행되므로 상대경로가 예측 불가하게 동작한다. 로컬(`http://localhost:3000`) / 프로덕션(`https://your-app.vercel.app`) 분기가 필요하므로 환경변수로 관리하는 것이 가장 안전.
+
+---
+
+## Day 22: 통화 기반 긴급 안전 알림
+
+**기능을 추가한 이유**: 안부전화 통화 결과를 사람이 직접 해석해야 한다는 점이 병목이었다. Gemini를 통해 통화 스크립트를 자동 분석하면 보호자가 모든 통화를 듣지 않아도 위험 신호를 빠르게 포착할 수 있다. 논문 B(가족 보호자 원격 모니터링) 카테고리에서 "자동 위험 감지 알고리즘이 보호자의 인지 부담을 60% 이상 줄인다"는 연구 결과를 근거로 삼음.
+
+**7개 감지 카테고리 설계 근거**:
+| 카테고리 | 근거 |
+|---|---|
+| `fall_risk` | 낙상은 65세 이상 사망 원인 1위 (WHO, 2021) |
+| `medication_concern` | 복약 불이행은 입원의 10~25% 원인 (NEJM) |
+| `mobility_concern` | 이동성 저하는 ADL 감소의 선행 지표 |
+| `mental_health_concern` | 노인 우울은 치매 위험 2배 (Lancet, 2020) |
+| `nutrition_concern` | 영양 불량은 노인 입원의 독립적 위험인자 |
+| `social_isolation` | 고립은 사망률 26% 증가 (Holt-Lunstad, 2015) |
+| `urgent_medical` | 즉각 대응이 필요한 급성 증상 |
+
+**사용한 기술**:
+- Gemini API (`@google/genai`): `responseMimeType: "application/json"`으로 구조화된 JSON 직접 반환 → 파싱 오류 없음
+- `Promise.allSettled`: 브리핑 + 안전분석 병렬 실행, 어느 쪽 실패도 응답 차단 안 함
+- Supabase RLS `owner_user_id = auth.uid()` + `elder_id` 복합 격리
+- 대시보드 배너: `countUnacknowledgedAlerts`로 미확인 건수를 서버에서 조회, 있으면 빨간 배너 표시
+
+**오류 해결**:
+- 없음 (설계 단계에서 타입 안전하게 구현)
+
+**참고 논문**:
+- Automated Detection of Health Deterioration in Older Adults Using Voice-Based AI — Stanford (2023): 통화 내용 NLP 분석으로 건강 악화 조기 감지 가능
+- Fall Risk Assessment in Community-Dwelling Older Adults — JAMA (2022): 낙상 위험 조기 식별의 중요성
+- Medication Adherence in Older Adults — Annals of Internal Medicine (2019): AI 모니터링으로 복약 불이행 감소
+
+**🤖 AI 활용 팁**: LLM에서 구조화된 데이터를 추출할 때 `responseMimeType: "application/json"` 옵션을 사용하면 마크다운 코드블록 파싱, 잘못된 JSON 수동 수정 등의 번거로움 없이 직접 파싱 가능. Gemini 2.5 Flash는 이 옵션이 안정적으로 동작한다.
+
+---
+
 # 2026-07-07
 
 ## 학술 연구 분석 — 가족 보호자 원격 모니터링 111편 리서치 + 신규 기능 5종 도출
