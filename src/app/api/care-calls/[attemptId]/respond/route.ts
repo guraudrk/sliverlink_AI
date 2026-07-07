@@ -9,6 +9,7 @@ import { analyzeSafetyAlerts } from "@/lib/silverlink/calls/safety-alert-analyze
 import { createSafetyAlerts } from "@/lib/supabase/safety-alerts-repo";
 import { listPushSubscriptions } from "@/lib/supabase/push-subscriptions-repo";
 import { sendPushToSubscriptions } from "@/lib/silverlink/push/web-push-sender";
+import { recalculateWeekScore } from "@/lib/silverlink/scores/social-score-calculator";
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -151,6 +152,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ att
         }
       }
     }
+
+    // 사회적 연결 점수 재계산 (실패해도 응답을 막지 않는다)
+    recalculateWeekScore(supabase, userData.user.id, updated.parent_id).catch(() => {});
 
     return jsonResponse({ ok: true, attempt: updated, brief, safety_alerts: safetyAlerts });
   } catch {

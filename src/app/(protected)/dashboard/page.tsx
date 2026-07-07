@@ -99,6 +99,7 @@ export default async function DashboardPage() {
             { href: "/dashboard/deliveries", title: "발송 기록", sub: "SMS · 음성 발송 이력" },
             { href: "/dashboard/assistant", title: "돌봄 기록 AI 비서", sub: "질문하면 근거를 정리해드려요" },
             { href: "/dashboard/alerts", title: "안전 알림", sub: "안부전화 안전 우려사항" },
+            { href: "/dashboard/social", title: "사회 연결 점수", sub: "8주 추이 · 연결 상태" },
           ].map(({ href, title, sub }, i) => (
             <Link
               key={href}

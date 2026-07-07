@@ -31,11 +31,16 @@ export async function sendPushToSubscriptions(
   if (!process.env.VAPID_PRIVATE_KEY || subscriptions.length === 0) return;
   ensureInitialized();
 
+  // 푸시 수신 시 서비스 워커가 상대경로를 못 찾는 경우가 있어 절대 URL 사용
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL ??
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
+
   const content = JSON.stringify({
     title: payload.title,
     body: payload.body,
     url: payload.url ?? "/dashboard/alerts",
-    icon: payload.icon ?? "/icon-192.png",
+    icon: `${appUrl}${payload.icon ?? "/icon-192.png"}`,
   });
 
   await Promise.allSettled(
