@@ -320,6 +320,145 @@ function getGuide(pathname: string): Guide | null {
     };
   }
 
+  if (pathname === "/dashboard/alerts") {
+    return {
+      title: "안전 알림 안내",
+      content: (
+        <>
+          <section>
+            <h3 className="mb-1.5 flex items-center gap-2 font-bold text-slate-800">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-rose-100 text-xs font-bold text-rose-700">1</span>
+              안전 알림이란?
+            </h3>
+            <p className="leading-relaxed">안부전화가 끝난 직후 AI가 통화 내용을 분석해, <strong>낙상 위험 · 복약 문제 · 우울 신호 등 7가지 안전 우려사항</strong>을 자동으로 감지해요. 자녀가 모든 통화를 듣지 않아도 위험 신호를 빠르게 파악할 수 있어요.</p>
+          </section>
+          <section>
+            <h3 className="mb-1.5 flex items-center gap-2 font-bold text-slate-800">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-rose-100 text-xs font-bold text-rose-700">2</span>
+              심각도 색상
+            </h3>
+            <ul className="space-y-1 leading-relaxed">
+              <li><span className="rounded-full bg-rose-100 px-2 py-0.5 text-xs font-semibold text-rose-700">높음</span> — 즉각 확인이 필요한 상황</li>
+              <li><span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-700">보통</span> — 주의 깊게 관찰 필요</li>
+              <li><span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">낮음</span> — 가볍게 확인하면 됨</li>
+            </ul>
+          </section>
+          <section>
+            <h3 className="mb-1.5 flex items-center gap-2 font-bold text-slate-800">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-rose-100 text-xs font-bold text-rose-700">3</span>
+              감지하는 7가지 유형
+            </h3>
+            <ul className="space-y-1 leading-relaxed text-xs">
+              <li>🦵 낙상 위험 &nbsp;💊 복약 문제 &nbsp;🚶 이동성 저하</li>
+              <li>😔 정신건강 우려 &nbsp;🥗 영양 문제</li>
+              <li>🏠 사회적 고립 &nbsp;🚨 긴급 의료 상황</li>
+            </ul>
+          </section>
+          <section>
+            <h3 className="mb-1.5 flex items-center gap-2 font-bold text-slate-800">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-rose-100 text-xs font-bold text-rose-700">4</span>
+              확인 완료 처리
+            </h3>
+            <p className="leading-relaxed">알림을 확인했으면 <strong>"확인 완료"</strong> 버튼을 눌러주세요. 대시보드 상단의 빨간 배너가 사라지고, 처리된 건과 미처리 건을 구분할 수 있어요.</p>
+          </section>
+        </>
+      ),
+    };
+  }
+
+  if (pathname === "/dashboard/social") {
+    return {
+      title: "사회적 연결 점수 안내",
+      content: (
+        <>
+          <section>
+            <h3 className="mb-1.5 flex items-center gap-2 font-bold text-slate-800">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">1</span>
+              점수란 무엇인가요?
+            </h3>
+            <p className="leading-relaxed">이번 주 <strong>안부전화 응답률(70%)과 링크 응답 빈도(30%)</strong>를 합산해 0~100점으로 나타낸 수치예요. 점수가 낮아지면 어르신이 외부와 단절되고 있다는 신호일 수 있어요.</p>
+          </section>
+          <section>
+            <h3 className="mb-1.5 flex items-center gap-2 font-bold text-slate-800">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">2</span>
+              점수 기준
+            </h3>
+            <ul className="space-y-1 leading-relaxed">
+              <li><span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">70점 이상 — 활발</span> 안부전화와 응답이 활발해요</li>
+              <li><span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">40~69점 — 보통</span> 간간이 응답이 있어요</li>
+              <li><span className="rounded-full bg-rose-100 px-2 py-0.5 text-xs font-semibold text-rose-700">39점 이하 — 낮음</span> 연락이 드문 상태예요</li>
+            </ul>
+          </section>
+          <section>
+            <h3 className="mb-1.5 flex items-center gap-2 font-bold text-slate-800">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">3</span>
+              언제 갱신되나요?
+            </h3>
+            <p className="leading-relaxed">안부전화 Mock 응답이 완료될 때마다 <strong>이번 주 점수가 자동으로 재계산</strong>돼요. 과거 데이터도 반영하려면 상단의 <strong>"기존 데이터 반영"</strong> 버튼을 눌러주세요.</p>
+          </section>
+          <section>
+            <h3 className="mb-1.5 flex items-center gap-2 font-bold text-slate-800">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">4</span>
+              차트 읽는 법
+            </h3>
+            <p className="leading-relaxed">카드 오른쪽의 꺾은선 그래프는 <strong>최근 8주 점수 추이</strong>예요. 선이 올라가면 연결이 활발해지고 있는 것, 내려가면 주의가 필요한 시기예요.</p>
+          </section>
+        </>
+      ),
+    };
+  }
+
+  if (pathname === "/dashboard/timeline") {
+    return {
+      title: "케어 여정 타임라인 안내",
+      content: (
+        <>
+          <section>
+            <h3 className="mb-1.5 flex items-center gap-2 font-bold text-slate-800">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">1</span>
+              이 페이지는 무엇인가요?
+            </h3>
+            <p className="leading-relaxed">안부전화 · 안전 알림 · AI 브리핑을 <strong>하나의 시간순 화면</strong>에서 볼 수 있어요. "지난달 부모님 상황이 어떻게 변했지?"라는 질문에 단번에 답해줍니다.</p>
+          </section>
+          <section>
+            <h3 className="mb-1.5 flex items-center gap-2 font-bold text-slate-800">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">2</span>
+              상단 숫자 카드 4개
+            </h3>
+            <ul className="space-y-1 leading-relaxed">
+              <li><strong>총 안부전화</strong> — 전체 통화 시도 횟수</li>
+              <li><strong>응답률</strong> — 어르신이 실제 응답한 비율</li>
+              <li><strong>안전 알림</strong> — AI가 감지한 우려사항 건수</li>
+              <li><strong>현재 연결 점수</strong> — 이번 주 사회 연결 점수</li>
+            </ul>
+          </section>
+          <section>
+            <h3 className="mb-1.5 flex items-center gap-2 font-bold text-slate-800">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">3</span>
+              트렌드 차트 읽는 법
+            </h3>
+            <ul className="space-y-1 leading-relaxed">
+              <li><span className="inline-block h-2 w-5 rounded bg-blue-400/60 align-middle" /> <strong>파란 영역</strong> — 주별 안부전화 횟수</li>
+              <li><span className="inline-block h-0.5 w-5 border-t-2 border-dashed border-rose-400 align-middle" /> <strong>빨간 점선</strong> — 주별 안전 알림 발생 수</li>
+              <li><span className="inline-block h-0.5 w-5 border-t-2 border-emerald-400 align-middle" /> <strong>초록 실선</strong> — 주별 사회 연결 점수</li>
+            </ul>
+          </section>
+          <section>
+            <h3 className="mb-1.5 flex items-center gap-2 font-bold text-slate-800">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">4</span>
+              타임라인 이벤트 아이콘
+            </h3>
+            <ul className="space-y-1 leading-relaxed">
+              <li>📞 <strong>파란 점</strong> — 안부전화 결과 (완료·도움 요청·무응답)</li>
+              <li>🚨 <strong>빨간 점</strong> — AI가 감지한 안전 우려사항</li>
+              <li>📋 <strong>보라 점</strong> — AI가 생성한 가족 브리핑</li>
+            </ul>
+          </section>
+        </>
+      ),
+    };
+  }
+
   if (pathname === "/delivery-preview") {
     return {
       title: "발송 미리보기 안내",
