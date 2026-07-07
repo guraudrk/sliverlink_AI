@@ -5,7 +5,7 @@ self.addEventListener("push", function (event) {
     self.registration.showNotification(data.title || "SilverLink 알림", {
       body: data.body || "",
       icon: data.icon || "/notification-icon.png",
-      badge: "/notification-icon.png",
+      badge: "/badge-icon.png",
       vibrate: [200, 100, 200],
       data: { url: data.url || "/dashboard/alerts" },
     })
