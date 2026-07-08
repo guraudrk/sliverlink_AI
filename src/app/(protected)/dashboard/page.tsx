@@ -95,6 +95,7 @@ export default async function DashboardPage() {
             { href: "/dashboard/tasks?unsent=1", title: "미발송 알림", sub: "바로 확인 · 발송" },
             { href: "/dashboard/tasks", title: "오늘의 일정", sub: "전체 현황" },
             { href: "/dashboard/responses", title: "어르신 응답 기록", sub: "링크 응답 모아보기" },
+            { href: "/dashboard/caseworker", title: "케어 관리", sub: "위험도 순 어르신 현황" },
             { href: "/dashboard/calls", title: "안부전화 (Mock)", sub: "AI 비서 전화 시뮬레이션" },
             { href: "/dashboard/deliveries", title: "발송 기록", sub: "SMS · 음성 발송 이력" },
             { href: "/dashboard/assistant", title: "돌봄 기록 AI 비서", sub: "질문하면 근거를 정리해드려요" },
