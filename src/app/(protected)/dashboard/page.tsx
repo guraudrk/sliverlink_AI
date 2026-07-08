@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getServerUser } from "@/lib/supabase/server-user";
@@ -9,7 +10,6 @@ function AiChatIcon() {
     <svg viewBox="0 0 40 40" fill="none" className="h-9 w-9" aria-hidden="true">
       <rect x="3" y="5" width="28" height="22" rx="5" fill="white" fillOpacity="0.2" stroke="white" strokeWidth="1.8" strokeLinejoin="round" />
       <path d="M3 27l5-5" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
-      <path d="M31 27l-5-5" stroke="white" strokeWidth="0" />
       <path d="M11 27v5l6-5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
       <circle cx="11" cy="16" r="2" fill="white" />
       <circle cx="17" cy="16" r="2" fill="white" />
@@ -19,16 +19,31 @@ function AiChatIcon() {
   );
 }
 
-export default async function DashboardPage() {
-  // getServerUser는 React.cache()로 감싸져 있어 layout.tsx에서 이미 호출했으면 재사용한다.
-  const user = await getServerUser();
-
-  if (!user) {
-    redirect("/login");
-  }
-
+async function AlertBanner() {
   const supabase = await createSupabaseServerClient();
-  const unreadAlertCount = await countUnacknowledgedAlerts(supabase);
+  const count = await countUnacknowledgedAlerts(supabase);
+  if (count === 0) return null;
+  return (
+    <Link
+      href="/dashboard/alerts"
+      className="flex items-center justify-between gap-4 rounded-2xl bg-rose-50 px-5 py-4 ring-1 ring-rose-200 transition-colors hover:ring-rose-400 animate-rag-fade-in-up"
+      style={{ animationDelay: "100ms" }}
+    >
+      <div className="flex items-center gap-3">
+        <span className="text-xl">🚨</span>
+        <div>
+          <p className="font-semibold text-rose-700">안전 알림 {count}건</p>
+          <p className="text-sm text-rose-500">미확인 안전 우려사항이 있어요</p>
+        </div>
+      </div>
+      <span className="text-rose-400 text-sm font-semibold">확인하기 →</span>
+    </Link>
+  );
+}
+
+export default async function DashboardPage() {
+  const user = await getServerUser();
+  if (!user) redirect("/login");
 
   async function logout() {
     "use server";
@@ -37,9 +52,27 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
+  const menuItems = [
+    { href: "/parents", title: "부모님 관리", sub: "등록 · 조회" },
+    { href: "/dashboard/create-task", title: "새 일정 만들기", sub: "요청 작성" },
+    { href: "/dashboard/tasks?unsent=1", title: "미발송 알림", sub: "바로 확인 · 발송" },
+    { href: "/dashboard/tasks", title: "오늘의 일정", sub: "전체 현황" },
+    { href: "/dashboard/responses", title: "어르신 응답 기록", sub: "링크 응답 모아보기" },
+    { href: "/dashboard/caseworker", title: "케어 관리", sub: "위험도 순 어르신 현황" },
+    { href: "/dashboard/calls", title: "안부전화 (Mock)", sub: "AI 비서 전화 시뮬레이션" },
+    { href: "/dashboard/deliveries", title: "발송 기록", sub: "SMS · 음성 발송 이력" },
+    { href: "/dashboard/assistant", title: "돌봄 기록 AI 비서", sub: "질문하면 근거를 정리해드려요" },
+    { href: "/dashboard/alerts", title: "안전 알림", sub: "안부전화 안전 우려사항" },
+    { href: "/dashboard/social", title: "사회 연결 점수", sub: "8주 추이 · 연결 상태" },
+    { href: "/dashboard/timeline", title: "케어 여정 타임라인", sub: "통화·알림·브리핑 시간순" },
+    { href: "/dashboard/settings", title: "설정", sub: "역할 전환 · 계정 관리" },
+    { href: "/dashboard/references", title: "학술 참조", sub: "이 서비스가 참고한 논문" },
+  ];
+
   return (
     <div className="flex flex-1 flex-col items-center bg-slate-50 px-4 py-10 sm:py-16">
       <div className="w-full max-w-xl space-y-6">
+        {/* 환영 카드 */}
         <div className="flex items-center justify-between gap-4 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 sm:p-8 animate-rag-fade-in-up">
           <div>
             <p className="text-sm font-semibold uppercase tracking-widest text-blue-600">SilverLink AI</p>
@@ -56,6 +89,7 @@ export default async function DashboardPage() {
           </form>
         </div>
 
+        {/* AI 어시스턴트 카드 */}
         <Link
           href="/dashboard/assistant"
           className="flex items-center justify-between gap-4 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition-colors hover:ring-blue-300 sm:p-8 animate-rag-fade-in-up"
@@ -71,45 +105,19 @@ export default async function DashboardPage() {
           </div>
         </Link>
 
-        {unreadAlertCount > 0 ? (
-          <Link
-            href="/dashboard/alerts"
-            className="flex items-center justify-between gap-4 rounded-2xl bg-rose-50 px-5 py-4 ring-1 ring-rose-200 transition-colors hover:ring-rose-400 animate-rag-fade-in-up"
-            style={{ animationDelay: "100ms" }}
-          >
-            <div className="flex items-center gap-3">
-              <span className="text-xl">🚨</span>
-              <div>
-                <p className="font-semibold text-rose-700">안전 알림 {unreadAlertCount}건</p>
-                <p className="text-sm text-rose-500">미확인 안전 우려사항이 있어요</p>
-              </div>
-            </div>
-            <span className="text-rose-400 text-sm font-semibold">확인하기 →</span>
-          </Link>
-        ) : null}
+        {/* 안전 알림 배너 — Suspense로 스트리밍. 페이지 나머지는 즉시 렌더링 */}
+        <Suspense fallback={null}>
+          <AlertBanner />
+        </Suspense>
 
+        {/* 메뉴 그리드 */}
         <nav className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {[
-            { href: "/parents", title: "부모님 관리", sub: "등록 · 조회" },
-            { href: "/dashboard/create-task", title: "새 일정 만들기", sub: "요청 작성" },
-            { href: "/dashboard/tasks?unsent=1", title: "미발송 알림", sub: "바로 확인 · 발송" },
-            { href: "/dashboard/tasks", title: "오늘의 일정", sub: "전체 현황" },
-            { href: "/dashboard/responses", title: "어르신 응답 기록", sub: "링크 응답 모아보기" },
-            { href: "/dashboard/caseworker", title: "케어 관리", sub: "위험도 순 어르신 현황" },
-            { href: "/dashboard/calls", title: "안부전화 (Mock)", sub: "AI 비서 전화 시뮬레이션" },
-            { href: "/dashboard/deliveries", title: "발송 기록", sub: "SMS · 음성 발송 이력" },
-            { href: "/dashboard/assistant", title: "돌봄 기록 AI 비서", sub: "질문하면 근거를 정리해드려요" },
-            { href: "/dashboard/alerts", title: "안전 알림", sub: "안부전화 안전 우려사항" },
-            { href: "/dashboard/social", title: "사회 연결 점수", sub: "8주 추이 · 연결 상태" },
-            { href: "/dashboard/timeline", title: "케어 여정 타임라인", sub: "통화·알림·브리핑 시간순" },
-            { href: "/dashboard/settings", title: "설정", sub: "역할 전환 · 계정 관리" },
-            { href: "/dashboard/references", title: "학술 참조", sub: "이 서비스가 참고한 논문" },
-          ].map(({ href, title, sub }, i) => (
+          {menuItems.map(({ href, title, sub }, i) => (
             <Link
               key={href}
               href={href}
               className="rounded-2xl bg-white p-5 text-center shadow-sm ring-1 ring-slate-200 transition-colors hover:ring-blue-300 animate-rag-fade-in-up"
-              style={{ animationDelay: `${120 + i * 45}ms` }}
+              style={{ animationDelay: `${120 + i * 20}ms` }}
             >
               <p className="font-semibold text-slate-800">{title}</p>
               <p className="mt-1 text-sm text-slate-500">{sub}</p>
