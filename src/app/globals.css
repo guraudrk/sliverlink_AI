@@ -1,8 +1,16 @@
 @import "tailwindcss";
 
+/* 클래스 기반 다크 모드 — <html class="dark"> 일 때 dark: 접두사 활성화 */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #f8fafc;
   --foreground: #0f172a;
+}
+
+.dark {
+  --background: #0f172a;
+  --foreground: #f1f5f9;
 }
 
 @theme inline {

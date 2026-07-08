@@ -63,7 +63,7 @@ export default async function DashboardPage() {
   }
 
   return (
-    <div className="flex flex-1 flex-col items-center bg-slate-100 px-4 py-8 sm:py-12">
+    <div className="flex flex-1 flex-col items-center bg-slate-100 px-4 py-8 sm:py-12 dark:bg-slate-950">
       <div className="w-full max-w-2xl space-y-4">
 
         {/* ── Hero 카드 (다크 그라디언트) ── */}
@@ -130,8 +130,8 @@ export default async function DashboardPage() {
               href={href}
               className={[
                 wide ? "col-span-2 flex items-center gap-4 sm:col-span-2" : "flex flex-col gap-3",
-                "group rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-100 transition-all",
-                "hover:-translate-y-0.5 hover:shadow-md hover:ring-blue-200 sm:p-5",
+                "group rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-100 transition-all dark:bg-slate-800 dark:ring-slate-700",
+                "hover:-translate-y-0.5 hover:shadow-md hover:ring-blue-200 sm:p-5 dark:hover:ring-blue-700",
               ].join(" ")}
             >
               <div
@@ -144,8 +144,8 @@ export default async function DashboardPage() {
                 {icon}
               </div>
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold leading-tight text-slate-800">{title}</p>
-                <p className="mt-0.5 truncate text-xs leading-tight text-slate-400">{sub}</p>
+                <p className="truncate text-sm font-semibold leading-tight text-slate-800 dark:text-slate-200">{title}</p>
+                <p className="mt-0.5 truncate text-xs leading-tight text-slate-400 dark:text-slate-500">{sub}</p>
               </div>
             </Link>
           ))}
