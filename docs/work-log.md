@@ -7,6 +7,118 @@
 
 ---
 
+# 2026-07-08
+
+## Day 28: 종합 뷰 · AI 케어 플랜 · 역할 구분 · 학술 참조 페이지
+
+**기능을 추가한 이유**: Day 27까지 쌓인 기능이 각각 독립 페이지로 분산되어 있었다. 보호자와 복지사라는 두 사용자 유형이 섞여 쓰고 있었고, 각 어르신의 데이터를 한 화면에서 조망할 방법이 없었으며, "이 기능이 어떤 연구에 근거하는지" 설명할 페이지도 없었다. 4가지를 하루에 묶어서 구현했다.
+
+**사용한 기술**:
+- **Server Component 종합 뷰**: `parents/[parentId]/page.tsx`를 Server Component로 전면 재작성. 7개 병렬 쿼리(`Promise.all`)로 profile · 점수 · 통화 · 알림 · 일정 · 로그 · 큐를 동시 조회. async params(`Promise<{ parentId: string }>`) 사용.
+- **인라인 SVG 스파크라인**: 외부 차트 라이브러리 없이 `Sparkline` 컴포넌트를 Server Component 안에 인라인으로 구현. 4주 점수 배열 → polyline, 트렌드(+/-/0)에 따라 emerald/rose/slate 색상 분기.
+- **Client Island 패턴**: 서버에서 모든 데이터를 fetch하고 인터랙티브 부분(모달, AI 패널)만 `ElderDetailClient` Client Component로 분리. props로 데이터 전달.
+- **Supabase user_metadata 역할 저장**: `supabase.auth.updateUser({ data: { role } })`로 `user_metadata.role`에 `"family" | "caseworker"` 저장. `UserRole` 타입을 `src/app/api/user/role/route.ts`에서 export.
+- **옵티미스틱 역할 전환**: 버튼 클릭 즉시 `setRole(next)` → 백그라운드 `fetch("/api/user/role")` → 실패 시 `setRole(old)` 롤백. `useTransition` 없이 순수 state로 구현.
+- **Gemini 스트리밍 케어 플랜**: `generateContentStream()` → `ReadableStream` → `text/plain` chunked response. 시스템 프롬프트(`CARE_PLAN_SYSTEM_PROMPT`) + 다음 주 날짜(nextMonday/nextSunday) 자동 계산.
+- **참조 아코디언**: `ReferenceAccordion` Client Component. `useState<string | null>`로 열린 항목 관리, chevron `rotate-180` transition. Google Scholar URL(`https://scholar.google.com/scholar?q=…`) 포함.
+- **역할 배지**: `layout.tsx`에서 `user_metadata.role`을 읽어 `DashboardNavBar`에 prop 전달. caseworker 모드이면 🏥 배지 표시.
+
+**구현 상세**:
+| 파일 | 역할 |
+|---|---|
+| `src/app/(protected)/dashboard/references/page.tsx` | 학술 참조 Server Component 페이지 |
+| `src/components/app/reference-accordion.tsx` | 아코디언 + Scholar 링크 (12편, 5섹션) |
+| `src/app/api/user/role/route.ts` | role GET/POST + `UserRole` 타입 export |
+| `src/components/app/role-toggle.tsx` | 옵티미스틱 역할 선택 UI |
+| `src/app/(protected)/dashboard/settings/page.tsx` | 설정 페이지 (RoleToggle 포함) |
+| `src/app/(protected)/dashboard/parents/[parentId]/page.tsx` | Server Component 종합 뷰 (Sparkline, CallDot, 3개 요약 카드) |
+| `src/components/app/elder-detail-client.tsx` | Client Island (모달 + CarePlanPanel 상태) |
+| `src/lib/caseworker/care-plan-prompt.ts` | 케어 플랜 시스템 프롬프트 + 프롬프트 빌더 |
+| `src/app/api/ai/care-plan/route.ts` | Gemini 스트리밍 케어 플랜 API |
+| `src/components/app/care-plan-panel.tsx` | 스트리밍 케어 플랜 슬라이드업 패널 |
+| `src/app/(protected)/layout.tsx` | role 읽어 DashboardNavBar에 prop 전달 |
+| `src/components/app/dashboard-nav-bar.tsx` | 역할 배지 + 설정 아이콘 + 참조 버튼 |
+
+**오류 해결**:
+- 없음 (TypeScript 0 오류)
+
+**참고 논문**:
+- Using co-design to understand consumer's health information-seeking behaviours for a digital clinical dashboard in aged care — UNSW (2024): 보호자가 필요로 하는 정보 우선순위 근거
+- AI-Powered Solutions to Support Informal Caregivers in Their Decision-Making — OBM Geriatrics (2023): AI 케어 플랜 자동화의 인지 부담 감소 효과
+
+**🤖 AI 활용 팁**: Server Component에서 인터랙션이 필요한 부분만 Client Island로 분리하면 — 서버에서 데이터를 미리 모두 fetch하고 클라이언트에 props로 내려주는 패턴 — 모달 열기/닫기처럼 상태만 관리하면 되는 클라이언트 컴포넌트를 매우 단순하게 유지할 수 있다. 데이터 페칭 로직이 클라이언트에 없으므로 useEffect + fetch + useState 삼중 복잡도가 사라진다.
+
+---
+
+## Day 27: AI 주간 케어 보고서 자동 생성
+
+**기능을 추가한 이유**: 사회복지사가 담당 어르신의 주간 케어 보고서를 매주 수동으로 작성하는 데 평균 30분~1시간이 걸린다는 케어 매니저 부담 연구(논문 E-32~E-34)를 바탕으로, 통화 기록·응답 로그·케어 태스크 3개 데이터를 합쳐 Gemini가 초안을 자동 작성하는 기능을 구현했다.
+
+**사용한 기술**:
+- Gemini streaming (`generateContentStream()`) — `ReadableStream` → chunked `text/plain`
+- `CARE_REPORT_SYSTEM_PROMPT`: 사회복지사가 읽는 공식 보고서 형식 + 마크다운 금지 지시
+- `buildCareReportPrompt()`: 최근 7일 통화 시도 · 응답 로그 · 미완료 케어 태스크를 3개 병렬 쿼리로 수집 → 구조화된 텍스트로 조합
+- `CareReportPanel` Client Component: 스트리밍 응답을 실시간 렌더, 복사·인쇄 버튼, 오류 시 재시도 버튼
+- `caseworker-client.tsx`의 케어 보고서 버튼에서 `parentId + elderName`을 받아 패널 열기
+
+**버그 수정 (Day 27 세션 재개 시 발견)**:
+1. `caseworker-client.tsx` — return문이 `<>` fragment로 열렸지만 `</>` 닫힘 태그 누락 → TypeScript 컴파일 오류
+2. `caseworker-elder-card.tsx` — 카드 래퍼가 `<div>`로 바뀌었는데 164번 줄 닫힘 태그가 `</Link>`로 남아 있음 → `</div>`로 수정
+
+**구현 상세**:
+| 파일 | 역할 |
+|---|---|
+| `src/lib/caseworker/care-report-prompt.ts` | 시스템 프롬프트 + 데이터 수집 함수 |
+| `src/app/api/ai/care-report/route.ts` | Gemini 스트리밍 API 라우트 |
+| `src/components/app/care-report-panel.tsx` | 스트리밍 보고서 패널 (복사/인쇄) |
+
+**오류 해결**:
+- `</>` 누락 / `</Link>` 오타: 두 파일 모두 `npx tsc --noEmit` 0 오류로 확인 후 커밋
+
+**참고 논문**:
+- Efficacy of digital technology-based interventions for reducing caregiver burden and stress — Portuguese Systematic Review (2025): 디지털 도구가 케어 매니저 업무 부담을 유의미하게 감소시킴
+- AI-Powered Solutions to Support Informal Caregivers in Their Decision-Making — OBM Geriatrics (2023): AI 의사결정 지원이 케어 품질을 높이면서 업무량을 줄임
+
+**🤖 AI 활용 팁**: AI 스트리밍 결과물에 "복사" 버튼을 붙이면 — 사용자가 AI 초안을 받자마자 다른 시스템(EMR, 구글 독스 등)에 붙여넣기할 수 있다. "AI가 자동으로 발송한다"보다 "AI가 초안을 만들고 사람이 확인 후 쓴다"는 패턴이 의료·케어 도메인에서 훨씬 신뢰를 얻기 쉽다.
+
+**커밋**: `9114e73` (5 files, 511 insertions)
+
+---
+
+## Polish: 참조 아코디언 · 역할 즉시전환 · AI 패널 반응형
+
+**계기**: Day 28 배포 직후 사용자가 3가지 개선 사항을 요청했다.
+
+**1. 참조 페이지 아코디언 + Scholar 링크**:
+- 기존의 정적 논문 목록에서 클릭 시 세부 내용 펼침으로 전환
+- 각 논문 카드에 "이론/핵심 주장", "SilverLink 적용 방식", "Google Scholar 링크" 표시
+- `PaperCard` 컴포넌트: `open` state toggle, chevron `rotate-180` CSS transition
+- Scholar URL 형식: `https://scholar.google.com/scholar?q=Title+Author+Year`
+
+**2. 역할 전환 속도 개선 (옵티미스틱 업데이트)**:
+- 기존: `useTransition` + 서버 응답 후 UI 반영 (~300~500ms 지연)
+- 변경: 클릭 즉시 `setRole(next)` → 백그라운드 `fetch` → 실패 시 롤백
+- 사용자가 클릭하는 순간 선택 UI가 즉시 바뀌어 반응 속도가 체감상 0ms
+
+**3. AI 케어 플랜 패널 반응형 개선**:
+- 모바일: 화면 하단에서 올라오는 슬라이드업, `h-88dvh` 고정
+- 데스크톱: 화면 가운데 `sm:max-w-2xl sm:rounded-3xl sm:mx-4 sm:my-4` 카드
+- 텍스트 `break-words` + `overflow-x-hidden`으로 긴 영문 단어 가로 넘침 방지
+- `care-report-panel.tsx`에도 동일 반응형 패턴 소급 적용
+
+**변경 파일**:
+- `src/components/app/reference-accordion.tsx` (아코디언 + Scholar 링크 추가)
+- `src/app/(protected)/dashboard/references/page.tsx` (안내 문구 추가)
+- `src/components/app/role-toggle.tsx` (옵티미스틱 업데이트)
+- `src/components/app/care-plan-panel.tsx` (반응형 개선)
+- `src/components/app/care-report-panel.tsx` (반응형 소급 적용)
+
+**🤖 AI 활용 팁**: "옵티미스틱 업데이트"는 서버 응답을 기다리지 않고 클라이언트 state를 먼저 바꾸는 패턴이다. 실패 확률이 낮은 설정 변경(역할 전환 등)에 적합하다. 단, 실패 시 반드시 롤백(이전 state 복원) 로직이 있어야 한다 — 이 패턴이 없으면 서버 저장 실패에도 UI는 "저장됨"처럼 보이는 데이터 일관성 버그가 생긴다.
+
+**커밋**: `67fb022` (5 files, 305 insertions)
+
+---
+
 # 2026-07-07 (2)
 
 ## Day 24: 케어 여정 타임라인
