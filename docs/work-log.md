@@ -119,6 +119,52 @@
 
 ---
 
+## Polish: 논문 쉬운 설명 · 안전 알림 팝업 · 마크다운 렌더링 · Day 레이블 제거 · 알림 상세 강화
+
+**계기**: Day 28 폴리시 2차 요청 — 사용자가 실제 화면을 보며 5가지 개선 사항을 추가로 요청했다.
+
+**1. 참조 페이지 논문 쉬운 설명 추가**:
+- `reference-accordion.tsx`의 `Paper` 타입에 `plainLanguage: string` 필드 추가
+- 12편 전 논문에 "🤔 쉬운 말로" 섹션 작성 — 논문 용어 없이 일반인이 읽을 수 있는 한 문단
+- 아코디언 펼침 영역 하단에 연한 파란 배경 박스로 표시
+
+**2. 미확인 안전 알림 카드 — 클릭 시 상세 팝업**:
+- `elder-detail-client.tsx`에 `selectedAlert` state 추가
+- 알림 카드 버튼 클릭 → `AlertDetailModal` 슬라이드업 팝업 표시
+- 모달에 심각도 헤더(색상 코딩), 상황 설명, 💡 권장 조치 포함
+
+**3. AI 케어 보고서·플랜 마크다운 렌더링**:
+- `src/components/app/markdown-content.tsx` 신규 생성
+- 외부 라이브러리 없이 순수 React로 `**bold**`, `*italic*`, `## h2`, `### h3`, `- 목록`, `1. 순번`, `---` 구분선, 단락 렌더링
+- `care-report-panel.tsx`·`care-plan-panel.tsx`의 `<pre>` 태그를 `<MarkdownContent>`로 교체
+- Gemini 응답의 `**` 마커가 화면에 날것으로 보이던 문제 해결
+
+**4. References 페이지 Day 레이블 제거**:
+- `Section` 타입에서 `day` 필드 삭제
+- 섹션 헤더: `[🔴 Day 22] 기능명` → `🔴 기능명` (사용자 관점에서 의미 없는 개발 내부 번호 제거)
+
+**5. 안전 알림 상세 모달 강화**:
+- `SafetyAlertRow` 타입에 `call_id`, `category` 필드 추가
+- `page.tsx` 쿼리에서 `call_id · category` 함께 select, `calls` 배열을 `ElderDetailClient`에 prop 전달
+- 모달에 6가지 상세 정보 추가: 대상 어르신 / 알림 유형(한글) / 알림 발생 시각 / 관련 통화 시각(`call_id`로 룩업) / 통화 결과 / 상황 설명 / 권장 조치
+- `CATEGORY_LABELS` 맵: `fall_risk → 낙상 위험`, `medication_concern → 복약 문제` 등 7종 한국어 변환
+
+**변경 파일**:
+| 파일 | 변경 내용 |
+|---|---|
+| `src/components/app/markdown-content.tsx` | 신규 — 인라인 마크다운 렌더러 |
+| `src/components/app/care-report-panel.tsx` | `<pre>` → `<MarkdownContent>` |
+| `src/components/app/care-plan-panel.tsx` | `<pre>` → `<MarkdownContent>` |
+| `src/components/app/reference-accordion.tsx` | `plainLanguage` 필드 + Day 레이블 제거 |
+| `src/components/app/elder-detail-client.tsx` | `call_id·category·calls` 추가, 상세 모달 재작성 |
+| `src/app/(protected)/dashboard/parents/[parentId]/page.tsx` | `call_id·category` select, `calls` prop 전달 |
+
+**🤖 AI 활용 팁**: 외부 마크다운 라이브러리(react-markdown 등)는 번들 크기가 수십 KB에 달하고, CSP(Content Security Policy)나 서버 렌더링 호환성 문제를 일으킬 수 있다. Gemini처럼 제한된 마크다운 패턴만 출력하는 경우라면 `String.matchAll`로 `**bold**`와 `*italic*`만 파싱하는 50줄짜리 컴포넌트가 훨씬 가볍고 안전하다.
+
+**커밋**: `4652322` (3 files, 71 insertions)
+
+---
+
 # 2026-07-07 (2)
 
 ## Day 24: 케어 여정 타임라인
