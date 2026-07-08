@@ -5,6 +5,7 @@ import type { ElderSummary } from "@/lib/supabase/caseworker-queries";
 import type { RiskFlag } from "@/lib/caseworker/risk-flags";
 import { CaseworkerKpiHeader } from "@/components/app/caseworker-kpi-header";
 import { CaseworkerElderCard } from "@/components/app/caseworker-elder-card";
+import { CareReportPanel } from "@/components/app/care-report-panel";
 
 type ElderWithFlags = ElderSummary & { flags: RiskFlag[] };
 
@@ -24,6 +25,7 @@ type Props = {
 export function CaseworkerClient({ elders }: Props) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterType>("all");
+  const [reportTarget, setReportTarget] = useState<{ id: string; name: string } | null>(null);
 
   const filtered = useMemo(() => {
     return elders.filter((e) => {
@@ -48,6 +50,14 @@ export function CaseworkerClient({ elders }: Props) {
   }, [elders, search, filter]);
 
   return (
+    <>
+    {reportTarget && (
+      <CareReportPanel
+        parentId={reportTarget.id}
+        elderName={reportTarget.name}
+        onClose={() => setReportTarget(null)}
+      />
+    )}
     <div className="space-y-5">
       {/* KPI 패널 */}
       <CaseworkerKpiHeader elders={elders} />
@@ -108,11 +118,16 @@ export function CaseworkerClient({ elders }: Props) {
         <ul className="space-y-2.5">
           {filtered.map((elder, i) => (
             <li key={elder.id}>
-              <CaseworkerElderCard elder={elder} index={i} />
+              <CaseworkerElderCard
+                elder={elder}
+                index={i}
+                onGenerateReport={(id, name) => setReportTarget({ id, name })}
+              />
             </li>
           ))}
         </ul>
       )}
     </div>
+  </>
   );
 }
