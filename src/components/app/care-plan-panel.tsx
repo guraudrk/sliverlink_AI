@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { MarkdownContent } from "@/components/app/markdown-content";
 
 type Props = {
   parentId: string;
@@ -142,11 +143,7 @@ export function CarePlanPanel({ parentId, elderName, onClose }: Props) {
               </button>
             </div>
           )}
-          {text && (
-            <pre className="whitespace-pre-wrap break-words font-sans text-[13px] leading-7 sm:text-sm">
-              {text}
-            </pre>
-          )}
+          {text && <MarkdownContent text={text} />}
         </div>
 
         {/* 푸터 */}

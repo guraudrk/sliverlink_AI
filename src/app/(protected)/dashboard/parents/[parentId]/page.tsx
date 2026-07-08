@@ -83,7 +83,7 @@ export default async function ElderDetailPage({ params }: PageProps) {
         .limit(5),
       supabase
         .from("safety_alerts")
-        .select("id, severity, title, acknowledged_at")
+        .select("id, severity, title, description, suggestion, generated_at, acknowledged_at")
         .eq("elder_id", parentId)
         .eq("owner_user_id", user.id)
         .is("acknowledged_at", null)
@@ -116,7 +116,7 @@ export default async function ElderDetailPage({ params }: PageProps) {
   const profile = profileResult.data;
   const scores = (scoresResult.data ?? []) as Array<{ week_start: string; score: number }>;
   const calls = (callsResult.data ?? []) as Array<{ id: string; status: string; summary: string | null; created_at: string }>;
-  const unackedAlerts = (alertsResult.data ?? []) as Array<{ id: string; severity: string; title: string; acknowledged_at: string | null }>;
+  const unackedAlerts = (alertsResult.data ?? []) as Array<{ id: string; severity: string; title: string; description: string; suggestion: string | null; generated_at: string; acknowledged_at: string | null }>;
   const careTasks = (tasksResult.data ?? []) as CareTaskSummary[];
   const allLogs = (logsResult.data ?? []) as MessageLogSummary[];
   const responses = allLogs.filter((l) => l.direction === "parent_response");
@@ -137,7 +137,6 @@ export default async function ElderDetailPage({ params }: PageProps) {
     }
   }
 
-  const SEVERITY_LABEL: Record<string, string> = { high: "🔴 높음", medium: "🟠 보통", low: "🟡 낮음" };
 
   return (
     <div className="flex flex-1 flex-col items-center bg-slate-50 px-4 py-10 sm:py-16">
@@ -190,21 +189,6 @@ export default async function ElderDetailPage({ params }: PageProps) {
           </div>
         </div>
 
-        {/* 미확인 알림 상세 */}
-        {unackedAlerts.length > 0 && (
-          <section className="animate-rag-fade-in-up space-y-2" style={{ animationDelay: "80ms" }}>
-            <h2 className="text-sm font-bold text-rose-600">⚠️ 미확인 안전 알림</h2>
-            {unackedAlerts.map((a) => (
-              <div key={a.id} className="rounded-2xl bg-rose-50 px-4 py-3 ring-1 ring-rose-200">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="font-semibold text-rose-700 text-sm">{a.title}</p>
-                  <span className="shrink-0 text-xs text-rose-500">{SEVERITY_LABEL[a.severity] ?? a.severity}</span>
-                </div>
-              </div>
-            ))}
-          </section>
-        )}
-
         {/* 클라이언트 island — 케어 플랜 버튼 + 일정 + 응답 + 모달 */}
         <ElderDetailClient
           parentId={parentId}
@@ -213,6 +197,7 @@ export default async function ElderDetailPage({ params }: PageProps) {
           responses={responses}
           queueByCareTaskId={queueByCareTaskId}
           messageLogByCareTaskId={messageLogByCareTaskId}
+          unackedAlerts={unackedAlerts}
         />
       </div>
     </div>

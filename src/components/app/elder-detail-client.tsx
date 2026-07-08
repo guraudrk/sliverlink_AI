@@ -8,6 +8,12 @@ import { CareTaskDetailModal } from "@/components/tasks/care-task-detail-modal";
 import { MessageLogDetailModal } from "@/components/responses/message-log-detail-modal";
 import { CarePlanPanel } from "@/components/app/care-plan-panel";
 
+const SEVERITY_LABEL: Record<string, { label: string; color: string; bg: string; ring: string }> = {
+  high:   { label: "🔴 높음", color: "text-rose-700",  bg: "bg-rose-50",   ring: "ring-rose-200" },
+  medium: { label: "🟠 보통", color: "text-amber-700", bg: "bg-amber-50",  ring: "ring-amber-200" },
+  low:    { label: "🟡 낮음", color: "text-yellow-700",bg: "bg-yellow-50", ring: "ring-yellow-200" },
+};
+
 const STATUS_LABELS: Record<string, string> = {
   scheduled: "예정",
   completed: "완료",
@@ -23,6 +29,16 @@ function formatDate(value: string): string {
   }
 }
 
+type SafetyAlertRow = {
+  id: string;
+  severity: string;
+  title: string;
+  description: string;
+  suggestion: string | null;
+  generated_at: string;
+  acknowledged_at: string | null;
+};
+
 type Props = {
   parentId: string;
   elderName: string;
@@ -30,6 +46,7 @@ type Props = {
   responses: MessageLogSummary[];
   queueByCareTaskId: Record<string, NotificationQueueRow[]>;
   messageLogByCareTaskId: Record<string, MessageLogSummary>;
+  unackedAlerts: SafetyAlertRow[];
 };
 
 export function ElderDetailClient({
@@ -39,10 +56,12 @@ export function ElderDetailClient({
   responses,
   queueByCareTaskId,
   messageLogByCareTaskId,
+  unackedAlerts,
 }: Props) {
   const [selectedTask, setSelectedTask] = useState<CareTaskSummary | null>(null);
   const [selectedLog, setSelectedLog] = useState<MessageLogSummary | null>(null);
   const [showCarePlan, setShowCarePlan] = useState(false);
+  const [selectedAlert, setSelectedAlert] = useState<SafetyAlertRow | null>(null);
 
   return (
     <>
@@ -53,6 +72,31 @@ export function ElderDetailClient({
           elderName={elderName}
           onClose={() => setShowCarePlan(false)}
         />
+      )}
+
+      {/* 미확인 안전 알림 */}
+      {unackedAlerts.length > 0 && (
+        <section className="animate-rag-fade-in-up space-y-2" style={{ animationDelay: "80ms" }}>
+          <h2 className="text-sm font-bold text-rose-600">⚠️ 미확인 안전 알림</h2>
+          {unackedAlerts.map((a) => {
+            const sv = SEVERITY_LABEL[a.severity] ?? { label: a.severity, color: "text-slate-700", bg: "bg-slate-50", ring: "ring-slate-200" };
+            return (
+              <button
+                key={a.id}
+                type="button"
+                onClick={() => setSelectedAlert(a)}
+                className={`w-full rounded-2xl ${sv.bg} px-4 py-3 text-left ring-1 ${sv.ring} transition-all hover:shadow-sm hover:brightness-95`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className={`font-semibold text-sm ${sv.color}`}>{a.title}</p>
+                  <span className={`shrink-0 text-xs font-medium ${sv.color}`}>{sv.label}</span>
+                </div>
+                <p className="mt-1 line-clamp-2 text-xs text-slate-500">{a.description}</p>
+                <p className="mt-1 text-xs text-slate-400">{formatDate(a.generated_at)} · 탭하면 자세히 보기 →</p>
+              </button>
+            );
+          })}
+        </section>
       )}
 
       {/* AI 케어 플랜 생성 버튼 */}
@@ -125,6 +169,61 @@ export function ElderDetailClient({
           </ul>
         )}
       </section>
+
+      {/* 안전 알림 상세 모달 */}
+      {selectedAlert && (() => {
+        const sv = SEVERITY_LABEL[selectedAlert.severity] ?? { label: selectedAlert.severity, color: "text-slate-700", bg: "bg-slate-50", ring: "ring-slate-200" };
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={() => setSelectedAlert(null)} aria-hidden="true" />
+            <div className="relative z-10 flex w-full flex-col rounded-t-3xl bg-white shadow-2xl sm:max-w-lg sm:rounded-3xl sm:mx-4 sm:my-4">
+              {/* 헤더 */}
+              <div className={`flex items-start justify-between gap-3 rounded-t-3xl sm:rounded-t-3xl ${sv.bg} px-5 py-5`}>
+                <div className="min-w-0 flex-1">
+                  <p className={`text-xs font-bold uppercase tracking-widest ${sv.color}`}>{sv.label}</p>
+                  <h2 className="mt-1 font-bold text-slate-900 leading-snug">{selectedAlert.title}</h2>
+                  <p className="mt-1 text-xs text-slate-400">{formatDate(selectedAlert.generated_at)}</p>
+                </div>
+                <button
+                  onClick={() => setSelectedAlert(null)}
+                  className="rounded-xl p-2 text-slate-400 hover:bg-white/60 hover:text-slate-600 transition-colors"
+                  aria-label="닫기"
+                >
+                  <svg viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5" aria-hidden="true">
+                    <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                  </svg>
+                </button>
+              </div>
+              {/* 본문 */}
+              <div className="space-y-4 px-5 py-5">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">상황 설명</p>
+                  <p className="mt-1.5 text-sm leading-relaxed text-slate-700">{selectedAlert.description}</p>
+                </div>
+                {selectedAlert.suggestion && (
+                  <div className="rounded-xl bg-blue-50 px-4 py-3 ring-1 ring-blue-100">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-blue-500">💡 권장 조치</p>
+                    <p className="mt-1 text-sm leading-relaxed text-blue-800">{selectedAlert.suggestion}</p>
+                  </div>
+                )}
+              </div>
+              {/* 푸터 */}
+              <div className="border-t border-slate-100 px-5 py-4">
+                <button
+                  onClick={() => setSelectedAlert(null)}
+                  className="w-full rounded-2xl bg-slate-900 py-3 text-sm font-bold text-white hover:bg-slate-700 transition-colors"
+                >
+                  확인
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 모달 */}
       {selectedTask ? (
