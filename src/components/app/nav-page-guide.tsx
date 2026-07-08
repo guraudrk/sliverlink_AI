@@ -8,35 +8,101 @@ type Guide = { title: string; content: React.ReactNode };
 function getGuide(pathname: string): Guide | null {
   if (pathname === "/dashboard") {
     return {
-      title: "SilverLink AI 사용 가이드",
+      title: "SilverLink AI — 서비스 한눈에 보기",
       content: (
         <>
+          {/* ── 서비스 한 줄 소개 ── */}
+          <div className="rounded-2xl bg-gradient-to-br from-slate-800 to-indigo-900 px-4 py-3.5 text-white">
+            <p className="text-xs font-bold uppercase tracking-widest text-blue-300">SilverLink AI</p>
+            <p className="mt-1 text-sm leading-relaxed">
+              AI가 어르신과 직접 통화해 <strong className="text-white">건강 이상 신호를 자동 감지</strong>하고,
+              가족과 복지사에게 즉시 알려주는 <strong className="text-white">고령자 돌봄 AI 플랫폼</strong>이에요.
+            </p>
+          </div>
+
+          {/* ── 핵심 기능 5가지 ── */}
           <section>
-            <h3 className="mb-1.5 flex items-center gap-2 font-bold text-slate-800">
+            <h3 className="mb-2 flex items-center gap-2 font-bold text-slate-800">
               <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">1</span>
-              이 앱이 하는 일
+              핵심 기능 5가지
             </h3>
-            <p className="leading-relaxed">부모님/어르신의 약 복용, 안부 확인, 건강 체크 등을 <strong>SMS · AI 음성전화</strong>로 자동 알려드려요. AI가 개인 맞춤 메시지와 전화 스크립트를 대신 만들어 줍니다.</p>
+            <ul className="space-y-2 text-sm leading-relaxed">
+              <li className="flex gap-2.5">
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-violet-100 text-sm">📞</span>
+                <span><strong>AI 안부전화</strong> — TTS 음성으로 어르신께 자동 전화. 키패드 1·2번으로 간단 응답. 대화 내용을 AI가 요약합니다.</span>
+              </li>
+              <li className="flex gap-2.5">
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sm">💬</span>
+                <span><strong>맞춤 SMS 알림</strong> — "복약 알림 보내줘"처럼 자연어로 입력하면 AI가 어르신 성격에 맞는 문자를 대신 작성해요.</span>
+              </li>
+              <li className="flex gap-2.5">
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-rose-100 text-sm">🔔</span>
+                <span><strong>AI 안전 알림</strong> — 통화 직후 AI가 낙상·복약·우울·고립 등 <strong>7가지 위험 신호</strong>를 자동 감지해 즉시 알려줍니다.</span>
+              </li>
+              <li className="flex gap-2.5">
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-cyan-100 text-sm">📊</span>
+                <span><strong>사회 연결 점수</strong> — 어르신의 통화·응답 패턴을 0~100점으로 수치화해 고립 위험을 조기에 파악해요.</span>
+              </li>
+              <li className="flex gap-2.5">
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-sm">📋</span>
+                <span><strong>AI 케어 보고서 · 타임라인</strong> — 주간 돌봄 현황과 통화·알림 이력을 AI가 자동으로 정리해 시계열로 보여줘요.</span>
+              </li>
+            </ul>
           </section>
+
+          {/* ── 두 가지 사용자 모드 ── */}
           <section>
-            <h3 className="mb-1.5 flex items-center gap-2 font-bold text-slate-800">
+            <h3 className="mb-2 flex items-center gap-2 font-bold text-slate-800">
               <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">2</span>
-              시작하는 순서
+              두 가지 사용자 모드
             </h3>
-            <ol className="space-y-1 leading-relaxed">
-              <li>① <strong>부모님 관리</strong> — 이름·전화번호·돌봄 내용 등록</li>
-              <li>② <strong>새 일정 만들기</strong> — 어르신께 전할 내용 작성</li>
-              <li>③ <strong>미발송 알림</strong> — AI 초안 확인 후 SMS/전화 발송</li>
-              <li>④ <strong>발송 기록 / 응답 기록</strong> — 결과 확인</li>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="rounded-xl bg-emerald-50 p-3 ring-1 ring-emerald-100">
+                <p className="font-bold text-emerald-700">👨‍👩‍👧 가족 모드</p>
+                <p className="mt-1 text-slate-600 leading-relaxed">특정 어르신 한 분의 일정·응답·안전 알림을 집중 관리해요.</p>
+              </div>
+              <div className="rounded-xl bg-teal-50 p-3 ring-1 ring-teal-100">
+                <p className="font-bold text-teal-700">🏥 복지사 모드</p>
+                <p className="mt-1 text-slate-600 leading-relaxed">담당 어르신 전체를 위험도 순 한 화면에서 파악하고 분류해요.</p>
+              </div>
+            </div>
+            <p className="mt-1.5 text-xs text-slate-400">설정 → 역할 전환에서 모드를 바꿀 수 있어요.</p>
+          </section>
+
+          {/* ── 처음 시작하는 순서 ── */}
+          <section>
+            <h3 className="mb-2 flex items-center gap-2 font-bold text-slate-800">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">3</span>
+              처음 시작하는 순서
+            </h3>
+            <ol className="space-y-1.5 text-sm leading-relaxed">
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-800 text-[10px] font-bold text-white">1</span>
+                <span><strong>부모님 관리</strong>에서 어르신 이름·전화번호·돌봄 내용 등록</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-800 text-[10px] font-bold text-white">2</span>
+                <span><strong>새 일정</strong>에서 어르신께 전할 내용을 자유롭게 작성 → AI 초안 생성</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-800 text-[10px] font-bold text-white">3</span>
+                <span><strong>안부전화 또는 SMS</strong>로 어르신께 발송</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-800 text-[10px] font-bold text-white">4</span>
+                <span><strong>안전 알림 · 타임라인</strong>에서 AI 분석 결과 확인</span>
+              </li>
             </ol>
           </section>
-          <section>
-            <h3 className="mb-1.5 flex items-center gap-2 font-bold text-slate-800">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-700">💡</span>
-              AI 품질 높이는 팁
-            </h3>
-            <p className="leading-relaxed">부모님 관리에서 <strong>돌봄 내용 · 복약 정보 · 소통 방식</strong>을 자세히 입력할수록 AI가 더 자연스러운 메시지를 만들어 줘요.</p>
-          </section>
+
+          {/* ── 학술 근거 배지 ── */}
+          <div className="flex items-center gap-2 rounded-xl bg-purple-50 px-3 py-2.5 ring-1 ring-purple-100">
+            <span className="text-base">📚</span>
+            <p className="text-xs text-purple-700 leading-relaxed">
+              이 서비스는 노인 돌봄 관련 <strong>12편의 학술 논문</strong>을 근거로 설계되었어요.
+              하단 <strong>학술 참조</strong> 메뉴에서 확인할 수 있습니다.
+            </p>
+          </div>
         </>
       ),
     };

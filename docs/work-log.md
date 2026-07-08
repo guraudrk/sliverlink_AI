@@ -9,6 +9,52 @@
 
 # 2026-07-08
 
+## 마무리 세션 2: 대시보드 도움말 전면 개편 + 마스터 프롬프트 작성
+
+**작업 배경**: Day 28 이후 마무리 세션의 마지막 두 작업. 대시보드 메인의 도움말(?) 버튼이 기존에는 짧은 "사용 순서" 안내만 담고 있었는데, 이 앱 전체를 한 번에 이해할 수 있는 종합 안내로 교체했다. 또한 이 앱의 기술·설계 방식을 재현할 수 있는 범용 마스터 프롬프트를 작성해 `.txt` 파일로 저장했다.
+
+**1. Dashboard 도움말 전면 개편** (`nav-page-guide.tsx`):
+- 기존: 짧은 3개 섹션 ("이 앱이 하는 일", "시작하는 순서", "AI 팁")
+- 변경: 5개 구조로 확장
+  1. **다크 히어로 배너**: slate-800→indigo-900 그라디언트, 서비스 핵심 한 줄 정의
+  2. **핵심 기능 5가지**: 📞 AI 안부전화 / 💬 맞춤 SMS / 🔔 AI 안전 알림 / 📊 사회 연결 점수 / 📋 AI 케어 보고서+타임라인
+  3. **두 가지 모드**: 가족 모드(emerald) vs 복지사 모드(teal) — 2칸 그리드
+  4. **처음 시작하는 순서**: 4단계 순서형 리스트 (슬레이트 원 번호 배지)
+  5. **학술 근거 배지**: 12편 논문 기반 설계임을 보라색 배지로 안내
+- 타이틀: "SilverLink AI 사용 가이드" → "SilverLink AI — 서비스 한눈에 보기"
+
+**2. SilverLink-Quality 마스터 프롬프트** (`docs/master-prompt.txt`):
+- 목적: 도메인 무관 — "원하는 기능"을 입력하면 SilverLink AI 수준의 풀스택 AI 앱을 처음부터 만들 수 있는 Claude Code 전용 시스템 프롬프트
+- 18개 섹션으로 구성:
+  - Section 1: Role & Mission (보안 원칙, AI 실제 호출 의무)
+  - Section 2: 표준 기술 스택 (Next.js App Router + Supabase + Gemini + Zod)
+  - Section 3: 프로젝트 폴더 구조 (100% 재현 가능)
+  - Section 4: Supabase 세팅 규칙 (RLS, client 패턴, 마이그레이션)
+  - Section 5: AI 통합 패턴 (Gemini 클라이언트, RAG, JSON 파싱)
+  - Section 6: Next.js App Router 패턴 (Server Component First, Client Islands)
+  - Section 7: UI/디자인 시스템 (Bento Grid, Dark Hero, 색상 체계)
+  - Section 8: 커뮤니케이션 기능 (SMS/TTS, Feature Flag, Mock 모드)
+  - Section 9: AI 분석 파이프라인 (트리거 → 컨텍스트 → 프롬프트 → 저장 → 표시)
+  - Section 10: 멀티 역할 패턴 (개인 모드 vs 관리자 모드 + refreshSession 핵심)
+  - Section 11: 점수 & 트렌드 메트릭 (0~100점 계산 공식, 8주 차트)
+  - Section 12: 타임라인/감사 추적 패턴 (DB 스키마 + 그룹핑)
+  - Section 13: 배포 전 보안 체크리스트 (10개 항목)
+  - Section 14: Vercel + Supabase 배포 (환경변수, Auth Redirect, 마이그레이션)
+  - Section 15: Day-by-Day 개발 워크플로우 (Day 1~7 순서)
+  - Section 16: 도메인별 활용 예시 (HR, 부동산, 학원, 반려동물)
+  - Section 17: 복붙 가능한 코드 스니펫 (middleware.ts, server.ts, Zod, Gemini JSON)
+  - Section 18: 무엇이 이 방식을 프로덕션 품질로 만드는가 (8가지 원칙)
+
+**변경 파일**:
+| 파일 | 변경 내용 |
+|---|---|
+| `src/components/app/nav-page-guide.tsx` | `/dashboard` 도움말 내용 전면 교체 |
+| `docs/master-prompt.txt` | SilverLink-Quality 마스터 프롬프트 신규 작성 |
+
+**🤖 AI 활용 팁**: "도움말" 설계는 제품 설명의 핵심이다. 기능 나열이 아니라 "이 서비스가 무엇을 해주는가 → 어떻게 구분되는가 → 어떻게 시작하는가 → 왜 믿을 수 있는가" 4단계 구조로 쓰면 신규 사용자가 한 번 읽고 바로 쓸 수 있다. 마스터 프롬프트는 완성된 프로젝트를 "역공학"해서 — 스택, 아키텍처, 패턴, 규칙, 일별 순서까지 — 모두 문서화하면 된다. 이 txt 파일 하나로 유사 도메인의 앱을 7일 안에 재현 가능하다.
+
+---
+
 ## 디자인 · 성능 · 정리 (Day 28 이후 마무리 세션)
 
 **작업 배경**: Day 28 기능 완성 후, 사용성·시각 완성도·속도를 한꺼번에 끌어올리는 마무리 세션.
