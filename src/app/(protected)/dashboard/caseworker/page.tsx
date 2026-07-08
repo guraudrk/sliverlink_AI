@@ -38,14 +38,6 @@ export default async function CaseworkerPage() {
   return (
     <div className="flex flex-1 flex-col items-center bg-slate-50 px-4 py-10 sm:py-16">
       <div className="mx-auto w-full max-w-2xl">
-        {/* 뒤로가기 */}
-        <Link
-          href="/dashboard"
-          className="mb-5 inline-flex items-center gap-1 text-sm font-semibold text-slate-400 hover:text-blue-500 animate-rag-fade-in-up"
-        >
-          ← 대시보드
-        </Link>
-
         {/* 헤더 */}
         <div className="mb-6 flex items-center gap-5 animate-rag-fade-in-up">
           <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 shadow-md shadow-emerald-200/60">
