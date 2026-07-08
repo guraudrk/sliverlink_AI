@@ -28,6 +28,11 @@ export async function POST(request: Request) {
   const { error } = await supabase.auth.updateUser({ data: { role } });
   if (error) return errResponse(error.message, 500);
 
+  // updateUser는 Supabase DB를 업데이트하지만 JWT 세션 쿠키는 갱신하지 않는다.
+  // refreshSession()을 호출해야 새 user_metadata가 쿠키에 반영되어
+  // 다음 Server Component 렌더링(layout.tsx)에서 올바른 role을 읽을 수 있다.
+  await supabase.auth.refreshSession();
+
   return new Response(JSON.stringify({ ok: true, role }), {
     headers: { "Content-Type": "application/json" },
   });
