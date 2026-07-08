@@ -44,6 +44,7 @@ export function CareJourneyClient({ parents }: Props) {
   const [trends, setTrends] = useState<WeeklyTrend[]>([]);
   const [kpi, setKpi] = useState<Kpi | null>(null);
   const [loading, setLoading] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const fetchData = useCallback(async (parentId: string) => {
     if (!parentId) return;
@@ -140,31 +141,72 @@ export function CareJourneyClient({ parents }: Props) {
                 {events.map((ev, i) => {
                   const s = EVENT_STYLE[ev.type];
                   const isLast = i === events.length - 1;
+                  const isExpanded = expandedId === ev.id;
                   return (
-                    <li key={ev.id} className="flex gap-4">
+                    <li key={ev.id} className="flex gap-3 sm:gap-4">
                       {/* 타임라인 선 + 점 */}
                       <div className="flex flex-col items-center">
                         <div className={`mt-1.5 h-3 w-3 shrink-0 rounded-full ${s.dot} ring-2 ring-white`} />
                         {!isLast && <div className="w-px flex-1 bg-slate-200 mt-1" />}
                       </div>
 
-                      {/* 내용 */}
-                      <div className={`mb-4 min-w-0 flex-1 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200`}>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-base">{s.icon}</span>
-                          <p className="font-semibold text-slate-800 text-sm">{ev.title}</p>
-                          {ev.meta && Object.entries(ev.meta).map(([k, v]) => (
-                            <span
-                              key={k}
-                              className={`rounded-full px-2 py-0.5 text-xs font-medium ring-1 ${s.badge}`}
-                            >
-                              {v}
-                            </span>
-                          ))}
+                      {/* 내용 카드 — 클릭 시 확장 */}
+                      <button
+                        type="button"
+                        onClick={() => setExpandedId(isExpanded ? null : ev.id)}
+                        className={`mb-4 min-w-0 flex-1 rounded-2xl bg-white p-4 text-left shadow-sm ring-1 transition-all active:scale-[0.99] ${
+                          isExpanded
+                            ? "ring-blue-300 shadow-md"
+                            : "ring-slate-200 hover:ring-blue-200"
+                        }`}
+                      >
+                        {/* 제목 행 */}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex min-w-0 flex-wrap items-center gap-2">
+                            <span className="text-base leading-none">{s.icon}</span>
+                            <p className="font-semibold text-slate-800 text-sm leading-snug">{ev.title}</p>
+                          </div>
+                          {/* 펼침 화살표 */}
+                          <svg
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                            className={`mt-0.5 h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
+                            aria-hidden="true"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
                         </div>
-                        <p className="mt-1.5 text-sm text-slate-500 line-clamp-2">{ev.description}</p>
-                        <p className="mt-1 text-xs text-slate-400">{formatDate(ev.date)}</p>
-                      </div>
+
+                        {/* 메타 뱃지 */}
+                        {ev.meta && (
+                          <div className="mt-1.5 flex flex-wrap gap-1.5">
+                            {Object.entries(ev.meta).map(([k, v]) => (
+                              <span
+                                key={k}
+                                className={`rounded-full px-2 py-0.5 text-xs font-medium ring-1 ${s.badge}`}
+                              >
+                                {v}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* 설명 — 접힌 상태: 2줄 제한, 펼친 상태: 전체 */}
+                        <p
+                          className={`mt-1.5 text-sm text-slate-500 ${
+                            isExpanded ? "whitespace-pre-wrap" : "line-clamp-2"
+                          }`}
+                        >
+                          {ev.description}
+                        </p>
+
+                        {/* 날짜 */}
+                        <p className="mt-2 text-xs text-slate-400">{formatDate(ev.date)}</p>
+                      </button>
                     </li>
                   );
                 })}

@@ -472,6 +472,68 @@ function getGuide(pathname: string): Guide | null {
     };
   }
 
+  if (pathname === "/dashboard/caseworker") {
+    return {
+      title: "케어 관리 대시보드 안내",
+      content: (
+        <>
+          <section>
+            <h3 className="mb-1.5 flex items-center gap-2 font-bold text-slate-800">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-teal-100 text-xs font-bold text-teal-700">1</span>
+              이 페이지는 무엇인가요?
+            </h3>
+            <p className="leading-relaxed">담당 어르신 전체를 <strong>위험도 순으로 한 화면</strong>에서 파악해요. 사회복지사·공공기관 담당자가 수십 명의 어르신을 빠르게 점검할 수 있도록 설계되었어요.</p>
+          </section>
+          <section>
+            <h3 className="mb-1.5 flex items-center gap-2 font-bold text-slate-800">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-teal-100 text-xs font-bold text-teal-700">2</span>
+              상단 KPI 카드 4개
+            </h3>
+            <ul className="space-y-1 leading-relaxed">
+              <li><strong>총 담당 어르신</strong> — 현재 등록된 어르신 수</li>
+              <li><strong>위험군</strong> — 사회 연결 점수 39점 이하 어르신 수</li>
+              <li><strong>추세 악화</strong> — 점수가 전주 대비 하락 중인 어르신 수</li>
+              <li><strong>미확인 알림</strong> — 아직 확인하지 않은 안전 알림 누계</li>
+            </ul>
+          </section>
+          <section>
+            <h3 className="mb-1.5 flex items-center gap-2 font-bold text-slate-800">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-teal-100 text-xs font-bold text-teal-700">3</span>
+              자동 위험 플래그 3종
+            </h3>
+            <ul className="mt-1 space-y-1.5 text-sm leading-relaxed">
+              <li>
+                <span className="rounded-full bg-rose-500 px-2 py-0.5 text-xs font-bold text-white">🔴 즉시 확인</span>
+                <span className="ml-1.5 text-slate-600">연결 점수 39점 이하 + 3회 연속 통화 미응답 동시 충족</span>
+              </li>
+              <li>
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">🟠 추세 악화</span>
+                <span className="ml-1.5 text-slate-600">점수 40~55점 구간이면서 전주 대비 하락</span>
+              </li>
+              <li>
+                <span className="rounded-full bg-yellow-50 px-2 py-0.5 text-xs font-semibold text-yellow-700 ring-1 ring-yellow-200">⚠️ 미확인 알림</span>
+                <span className="ml-1.5 text-slate-600">확인하지 않은 안전 알림이 3건 이상</span>
+              </li>
+            </ul>
+            <p className="mt-2 text-xs text-slate-500">※ 뱃지에 마우스를 올리면 플래그가 발생한 구체적인 이유가 표시돼요.</p>
+          </section>
+          <section>
+            <h3 className="mb-1.5 flex items-center gap-2 font-bold text-slate-800">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-teal-100 text-xs font-bold text-teal-700">4</span>
+              검색 · 필터 사용법
+            </h3>
+            <ul className="space-y-1 leading-relaxed">
+              <li><strong>이름 검색</strong> — 어르신 이름 일부만 입력해도 바로 필터돼요</li>
+              <li><strong>위험</strong> — 즉시 확인 플래그 또는 39점 이하인 어르신만 표시</li>
+              <li><strong>주의</strong> — 추세 악화 또는 미확인 알림이 있는 어르신만 표시</li>
+              <li><strong>정상</strong> — 플래그 없고 40점 이상인 어르신만 표시</li>
+            </ul>
+          </section>
+        </>
+      ),
+    };
+  }
+
   if (pathname === "/delivery-preview") {
     return {
       title: "발송 미리보기 안내",
