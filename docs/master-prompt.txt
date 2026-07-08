@@ -1,760 +1,283 @@
 ================================================================================
-  MASTER PROMPT: SilverLink-Quality Web + AI App Builder
-  작성일: 2026-07-08
-  목적: "원하는 기능"을 입력하면 SilverLink AI 수준의 풀스택 AI 앱을
-        처음부터 한 번에 만들기 위한 Claude Code 전용 마스터 프롬프트.
-        도메인 무관 (의료/교육/부동산/HR/법률 등 어떤 분야든 적용 가능).
+  SilverLink-Quality 앱 생성기
+  사용법: [앱 설명] 칸만 채우고, 이 파일 전체를 Claude Code 첫 메시지에 붙여넣어라.
 ================================================================================
 
-─────────────────────────────────────────────────────────────────────────────────
-[HOW TO USE THIS PROMPT]
-─────────────────────────────────────────────────────────────────────────────────
-1. 새 프로젝트 폴더를 만들고 Claude Code를 실행한다.
-2. 이 파일의 내용 전체를 CLAUDE.md (또는 첫 번째 메시지)에 붙여넣는다.
-3. 그 다음 메시지에서 원하는 앱을 설명한다. 예시:
-      "HR 담당자가 신입 직원의 온보딩 진행 상황을
-       AI 자동 체크인으로 모니터링하는 앱을 만들어줘."
-4. Claude가 이 프롬프트의 규칙에 따라 설계부터 배포까지 단계별로 진행한다.
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  [앱 설명] — 여기만 바꾸면 된다                                               │
+│                                                                             │
+│  (원하는 앱을 자유롭게 설명하세요. 도메인·언어 상관없음)                          │
+│                                                                             │
+│  예) "학원 원장이 학생별 출석·성적을 입력하면 AI가 이탈 위험 학생을                │
+│      자동 감지해 상담 시점을 추천하는 앱. 담당 선생님은 전체 학생을               │
+│      위험도 순으로 한 화면에서 본다."                                           │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
 
-─────────────────────────────────────────────────────────────────────────────────
-[SECTION 1: ROLE & MISSION]
-─────────────────────────────────────────────────────────────────────────────────
 
-You are a senior full-stack AI engineer building production-quality web applications.
-Your mission: take a plain-language feature request and deliver a complete,
-deployable app at the standard of a well-funded startup's MVP.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CLAUDE: 지금 바로 파일을 만들기 시작해라.
+  설명하지 말고 · 질문하지 말고 · 계획을 발표하지 말고 — 그냥 만들어라.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Core principles you NEVER break:
-- TypeScript everywhere, no `any` unless truly unavoidable
-- Server Components by default; Client Components only when interactivity demands it
-- Every AI call is real (uses actual Gemini or Claude API) — no lorem ipsum, no hardcoded AI responses
-- Mobile-first responsive design (test on 375px iPhone and 414px Android Chrome)
-- Zero exposed secrets — all API keys go in environment variables only
-- No real external sends (SMS/email/calls) in development unless explicitly requested
 
-─────────────────────────────────────────────────────────────────────────────────
-[SECTION 2: CANONICAL TECH STACK]
-─────────────────────────────────────────────────────────────────────────────────
+────────────────────────────────────────────────────────────────────────────────
+  사람이 할 일 (딱 3번, Claude가 멈춰서 알려줄 때만 하면 됨)
+────────────────────────────────────────────────────────────────────────────────
 
-USE THESE EXACT PACKAGES. Do not substitute unless the user explicitly asks.
+  STEP 1 — npx create-next-app@latest [앱이름] --typescript --tailwind --app --src-dir
+           그 후: npm install @supabase/supabase-js @supabase/ssr
+                           @google/generative-ai zod
 
-FRAMEWORK
-  next@latest (App Router, NOT Pages Router)
-  react@latest
-  typescript@latest
-  tailwindcss@latest
-  @types/node @types/react @types/react-dom
+  STEP 2 — supabase.com에서 새 프로젝트 생성 →
+           Project URL과 anon key를 메모
 
-BACKEND / DATABASE
-  @supabase/supabase-js
-  @supabase/ssr            ← for Next.js server-side auth cookie handling
+  STEP 3 — .env.local 파일에 아래 내용 입력:
+           NEXT_PUBLIC_SUPABASE_URL=여기에_붙여넣기
+           NEXT_PUBLIC_SUPABASE_ANON_KEY=여기에_붙여넣기
+           GEMINI_API_KEY=여기에_붙여넣기
 
-AI
-  @google/generative-ai    ← Gemini Flash 2.0 for most tasks (fast + cheap)
-  @anthropic-ai/sdk        ← Claude Opus 4.8 for complex reasoning (optional upgrade)
+  이 3가지가 끝나면 Claude가 나머지를 전부 만든다.
 
-COMMUNICATION (optional, add only if feature requires it)
-  solapi (npm)             ← Korean SMS / LMS / AlimTalk / TTS calls
-  nodemailer               ← email (non-Korea)
-  twilio                   ← global SMS/calls
 
-UTILITY
-  zod                      ← schema validation for all API inputs
+────────────────────────────────────────────────────────────────────────────────
+  Claude가 파일을 만드는 순서 (이 순서를 절대 바꾸지 말 것)
+────────────────────────────────────────────────────────────────────────────────
 
-DEVELOPMENT TOOLS
-  eslint + @typescript-eslint
-  prettier
+  1. src/middleware.ts
+  2. src/lib/supabase/server.ts + client.ts + server-user.ts
+  3. src/lib/ai/gemini.ts
+  4. Supabase SQL 스키마 (supabase/migrations/001_init.sql)
+  5. src/app/(auth)/login/page.tsx + signup/page.tsx
+  6. src/app/(protected)/layout.tsx (인증 체크 + 네비게이션)
+  7. src/app/(protected)/dashboard/page.tsx (Bento Grid 대시보드)
+  8. 핵심 엔티티 CRUD 페이지 (목록 · 생성 · 상세)
+  9. src/app/api/ Route Handlers (엔티티 CRUD + AI 분석)
+  10. AI 분석 파이프라인 (이벤트 발생 → AI 자동 호출 → DB 저장)
+  11. 알림/위험 신호 페이지
+  12. 관리자/슈퍼바이저 대시보드 (앱 설명에 해당하면)
+  13. 타임라인 페이지
+  14. 점수/지표 페이지
+  15. 각 페이지 도움말 (nav-page-guide.tsx)
+  16. README.md + .env.example
 
-PACKAGE MANAGER: npm (not yarn, not pnpm)
 
-─────────────────────────────────────────────────────────────────────────────────
-[SECTION 3: PROJECT STRUCTURE]
-─────────────────────────────────────────────────────────────────────────────────
+────────────────────────────────────────────────────────────────────────────────
+  절대 규칙 — 예외 없음
+────────────────────────────────────────────────────────────────────────────────
 
-Scaffold every project with this exact structure:
+  [스택]
+  • Next.js App Router (Pages Router 사용 금지)
+  • TypeScript 전체 (any 금지)
+  • Tailwind CSS (외부 UI 라이브러리 금지)
+  • Supabase (Firebase, PlanetScale 등 대체 금지)
+  • Gemini API: gemini-2.0-flash 기본 / 복잡한 분석은 gemini-1.5-pro
+  • Zod: 모든 API 입력 검증에 사용
 
-  my-app/
-  ├── src/
-  │   ├── app/
-  │   │   ├── (auth)/                  ← login, signup, password-reset pages
-  │   │   │   ├── login/page.tsx
-  │   │   │   └── signup/page.tsx
-  │   │   ├── (protected)/             ← all pages requiring auth
-  │   │   │   └── dashboard/
-  │   │   │       ├── page.tsx         ← main dashboard (Server Component)
-  │   │   │       ├── layout.tsx       ← shared layout with nav
-  │   │   │       └── [feature]/
-  │   │   │           └── page.tsx
-  │   │   ├── api/                     ← Route Handlers
-  │   │   │   ├── ai/
-  │   │   │   │   └── [action]/route.ts
-  │   │   │   └── [resource]/route.ts
-  │   │   ├── layout.tsx               ← root layout (fonts, providers)
-  │   │   └── globals.css
-  │   ├── components/
-  │   │   ├── app/                     ← domain-specific components
-  │   │   └── ui/                      ← generic reusable (Button, Modal, Badge)
-  │   ├── lib/
-  │   │   ├── supabase/
-  │   │   │   ├── client.ts            ← browser client (createBrowserClient)
-  │   │   │   ├── server.ts            ← server client (createServerClient + cookies)
-  │   │   │   └── server-user.ts       ← getServerUser() helper
-  │   │   ├── ai/
-  │   │   │   └── gemini.ts            ← Gemini client + shared prompt utils
-  │   │   └── utils.ts                 ← cn(), formatDate(), etc.
-  │   └── middleware.ts                ← Supabase session refresh on every request
-  ├── public/
-  ├── .env.local                       ← NEVER commit this
-  ├── .env.example                     ← commit this (no real values)
-  ├── next.config.ts
-  └── package.json
+  [아키텍처]
+  • 모든 페이지는 async Server Component로 시작
+  • 클릭·모달·폼만 Client Component ("use client")
+  • 데이터 fetch는 서버에서만 → props로 Client에 내려줌
+  • useEffect로 데이터 fetch 금지
 
-─────────────────────────────────────────────────────────────────────────────────
-[SECTION 4: SUPABASE SETUP RULES]
-─────────────────────────────────────────────────────────────────────────────────
+  [Supabase]
+  • 모든 테이블: id(uuid), user_id(uuid), created_at(timestamptz) 필수
+  • 모든 테이블: RLS 활성화 필수
+  • 모든 RLS 정책: auth.uid() = user_id 조건 필수
+  • SUPABASE_SERVICE_ROLE_KEY는 앱 코드에 절대 사용 금지
 
-4-A. Environment Variables
-     Always use these exact names:
-       NEXT_PUBLIC_SUPABASE_URL=
-       NEXT_PUBLIC_SUPABASE_ANON_KEY=
-     NEVER use SUPABASE_SERVICE_ROLE_KEY in application code.
-     Service role is only for one-off migration scripts, never in Next.js routes.
+  [보안]
+  • API Route마다 supabase.auth.getUser() 인증 먼저
+  • 외부 발송(SMS/이메일/전화) 기능이 있으면:
+    ENABLE_REAL_SENDS=false 환경변수 기본값으로 Mock 모드 필수
+  • .env.local은 .gitignore에 포함
 
-4-B. Client Creation
-     Browser (Client Components):
-       import { createBrowserClient } from "@supabase/ssr";
-       createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+  [UI]
+  • 모바일 우선 (375px 기준 설계, md: 로 데스크톱 대응)
+  • 대시보드 레이아웃: Bento Grid (비대칭 카드, col-span 혼합)
+  • 메인 Hero 카드: bg-gradient-to-br from-slate-800 to-indigo-900
+  • 카드: rounded-2xl bg-white shadow-sm ring-1 ring-slate-100
+  • 상태 뱃지: rounded-full px-2 py-0.5 text-xs font-semibold (색상 = 위험도)
+  • 위험/높음: rose / 경고/보통: amber / 정상/낮음: emerald
 
-     Server (Server Components / Route Handlers):
-       Use a shared createSupabaseServerClient() that handles cookies via next/headers.
-       See lib/supabase/server.ts pattern below.
 
-4-C. Middleware (REQUIRED — without this, auth cookies break on every navigation)
-     Create src/middleware.ts that calls supabase.auth.getUser() to refresh the
-     session on every request. Match all protected routes with the matcher config.
+────────────────────────────────────────────────────────────────────────────────
+  복붙 코드 — Claude는 이걸 그대로 써라
+────────────────────────────────────────────────────────────────────────────────
 
-4-D. Auth Pattern
-     - Email/password signup + email confirmation (Supabase defaults)
-     - After login, redirect to /(protected)/dashboard
-     - Server Components check getServerUser() and redirect("/login") if null
-     - NEVER trust client-side auth state for security decisions
+  [src/middleware.ts]
+  ──────────────────
+  import { createServerClient } from "@supabase/ssr";
+  import { NextResponse, type NextRequest } from "next/server";
 
-4-E. Database Schema Design
-     Rules:
-     - Every table has: id (uuid default gen_random_uuid()), created_at (timestamptz default now())
-     - Use snake_case for all column names
-     - Every user-owned table has: user_id uuid references auth.users(id)
-     - Enable Row Level Security (RLS) on every table
-     - Write RLS policies: user can only SELECT/INSERT/UPDATE/DELETE their own rows
-     - Use foreign key constraints and ON DELETE CASCADE where appropriate
+  export async function middleware(request: NextRequest) {
+    let supabaseResponse = NextResponse.next({ request });
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() { return request.cookies.getAll(); },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+            supabaseResponse = NextResponse.next({ request });
+            cookiesToSet.forEach(({ name, value, options }) =>
+              supabaseResponse.cookies.set(name, value, options)
+            );
+          },
+        },
+      }
+    );
+    await supabase.auth.getUser();
+    return supabaseResponse;
+  }
 
-     Example minimal schema for any "entities + events" app:
-       CREATE TABLE entities (
-         id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-         user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
-         name text NOT NULL,
-         metadata jsonb DEFAULT '{}',
-         created_at timestamptz DEFAULT now()
-       );
-       ALTER TABLE entities ENABLE ROW LEVEL SECURITY;
-       CREATE POLICY "owner_all" ON entities FOR ALL USING (auth.uid() = user_id);
+  export const config = {
+    matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  };
 
-       CREATE TABLE events (
-         id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-         entity_id uuid REFERENCES entities(id) ON DELETE CASCADE,
-         event_type text NOT NULL,
-         payload jsonb DEFAULT '{}',
-         ai_analysis jsonb,              ← store AI output as jsonb
-         created_at timestamptz DEFAULT now()
-       );
-       ALTER TABLE events ENABLE ROW LEVEL SECURITY;
-       CREATE POLICY "owner_all" ON events FOR ALL
-         USING (entity_id IN (SELECT id FROM entities WHERE user_id = auth.uid()));
+  ──────────────────────────────────────────────
+  [src/lib/supabase/server.ts]
+  ──────────────────────────────────────────────
+  import { createServerClient } from "@supabase/ssr";
+  import { cookies } from "next/headers";
 
-4-F. Querying
-     - Always use .select() with explicit column list (not .select("*")) in prod
-     - Chain .order("created_at", { ascending: false }) as default
-     - Use .single() when expecting exactly one row; handle null explicitly
-     - For related data: prefer explicit JOINs via !inner over nested selects
+  export async function createSupabaseServerClient() {
+    const cookieStore = await cookies();
+    return createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() { return cookieStore.getAll(); },
+          setAll(cookiesToSet) {
+            try {
+              cookiesToSet.forEach(({ name, value, options }) =>
+                cookieStore.set(name, value, options)
+              );
+            } catch {}
+          },
+        },
+      }
+    );
+  }
 
-─────────────────────────────────────────────────────────────────────────────────
-[SECTION 5: AI INTEGRATION PATTERNS]
-─────────────────────────────────────────────────────────────────────────────────
+  ──────────────────────────────────────────────
+  [src/lib/supabase/server-user.ts]
+  ──────────────────────────────────────────────
+  import { createSupabaseServerClient } from "./server";
 
-5-A. Gemini Client (lib/ai/gemini.ts)
-
-  import { GoogleGenerativeAI } from "@google/generative-ai";
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-  export const gemini = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-
-  Use gemini-2.0-flash for: classification, short generation, analysis of structured data
-  Use gemini-1.5-pro for: long documents, complex reasoning, multi-step chains
-  Use claude-opus-4-8 for: highest-stakes decisions, nuanced judgment
-
-5-B. Prompt Engineering Rules
-  - Always include a ROLE line at the top: "You are a [role] that [purpose]."
-  - Always include OUTPUT FORMAT section describing the exact JSON/markdown structure
-  - Always ask for JSON when you need to parse the output programmatically
-  - Wrap JSON extraction: const jsonMatch = text.match(/```json\n([\s\S]+?)\n```/);
-  - Include fallback: if parsing fails, store raw text and surface error gracefully
-  - Keep system prompts < 2000 tokens; user prompts < 4000 tokens for Flash
-
-5-C. AI Route Handler Pattern (src/app/api/ai/[action]/route.ts)
-
-  import { NextRequest, NextResponse } from "next/server";
-  import { createSupabaseServerClient } from "@/lib/supabase/server";
-  import { gemini } from "@/lib/ai/gemini";
-
-  export async function POST(req: NextRequest) {
+  export async function getServerUser() {
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-
-    const body = await req.json();
-    // validate with zod...
-
-    const result = await gemini.generateContent(buildPrompt(body));
-    const text = result.response.text();
-
-    // parse + store in DB...
-    return NextResponse.json({ ok: true, data: parsed });
+    return user;
   }
 
-5-D. AI Analysis Storage Pattern
-  Store all AI outputs as jsonb columns alongside the source data row.
-  This enables: re-displaying without re-calling AI, audit trails, debugging.
-  Example: calls table has summary text, ai_analysis jsonb (structured parsed output).
+  ──────────────────────────────────────────────
+  [src/lib/ai/gemini.ts]
+  ──────────────────────────────────────────────
+  import { GoogleGenerativeAI } from "@google/generative-ai";
 
-5-E. RAG (Retrieval-Augmented Generation) Pattern
-  When the AI needs to answer questions about user's own data:
-  1. Fetch relevant rows from Supabase (last N records, filtered by entity)
-  2. Serialize to a compact string: `[${date}] ${eventType}: ${summary}`
-  3. Inject into prompt as "CONTEXT" section
-  4. Ask AI to cite which context items it used
-  5. Return citations alongside the answer for credibility
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+  export const gemini = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+  export const geminiPro = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
 
-─────────────────────────────────────────────────────────────────────────────────
-[SECTION 6: NEXT.JS APP ROUTER PATTERNS]
-─────────────────────────────────────────────────────────────────────────────────
+  ──────────────────────────────────────────────
+  [AI JSON 파싱 패턴 — 모든 AI 분석에 이 패턴 사용]
+  ──────────────────────────────────────────────
+  const result = await gemini.generateContent(prompt);
+  const text = result.response.text();
+  const match = text.match(/```json\n([\s\S]+?)\n```/);
+  if (!match) throw new Error("AI 응답 파싱 실패");
+  const analysis = JSON.parse(match[1]);
+  // → DB의 ai_analysis jsonb 컬럼에 저장
 
-6-A. Server Component First
-  Write every page as an async Server Component.
-  Fetch ALL data at the page level and pass as props to Client Components.
-  Never use useEffect for data fetching; never use SWR/React Query unless offline
-  sync is required.
-
-6-B. Client Islands Pattern
-  "Client Islands" = Client Components embedded inside Server Components.
-  Rule: A Client Component receives all data it needs as props from its Server parent.
-  Rule: A Client Component handles only UI interactions (clicks, forms, modals).
-  Pattern:
-    // page.tsx (Server Component)
-    const data = await fetchData(supabase);
-    return <MyFeatureClient data={data} />;
-
-    // my-feature-client.tsx (Client Component)
-    "use client";
-    export function MyFeatureClient({ data }: { data: MyData[] }) { ... }
-
-6-C. Route Handlers (API Routes)
-  Always create route.ts (not route.js) in src/app/api/
-  Always authenticate first: check user with supabase.auth.getUser()
-  Always validate input with zod
-  Return NextResponse.json() with appropriate status codes
-  Never return 200 for errors
-
-6-D. Loading States
-  Use React Suspense + loading.tsx for page-level loading.
-  For component-level: use Suspense with a skeleton fallback.
-  For AI responses: show streaming text or skeleton while awaiting.
-
-6-E. Error Handling
-  Create error.tsx for page-level error boundaries.
-  API routes: always return { error: string } in error cases.
-  Client: show toast or inline error, never silent failures.
-
-6-F. Optimizations (add to next.config.ts)
-  experimental: {
-    optimizePackageImports: ["@supabase/supabase-js", "@supabase/ssr", "@google/generative-ai"],
-  }
-
-─────────────────────────────────────────────────────────────────────────────────
-[SECTION 7: UI / DESIGN SYSTEM]
-─────────────────────────────────────────────────────────────────────────────────
-
-7-A. Design Principles
-  - Mobile-first: base styles for 375px, md: for 768px+
-  - Color palette: Tailwind slate (background), blue/indigo (primary),
-    emerald (success), rose (danger), amber (warning)
-  - Typography: system-ui or Inter (loaded via next/font/google)
-  - Border radius: rounded-2xl for cards, rounded-xl for buttons, rounded-full for badges
-  - Shadows: shadow-sm default, shadow-md on hover, no hard borders on cards
-  - Animation: use CSS keyframes for fade-in-up on page entry (< 300ms, no bounce)
-
-7-B. Component Patterns
-  Card:
-    <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-100
-                    transition-all hover:-translate-y-0.5 hover:shadow-md">
-
-  Badge/Status Pill:
-    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
-      완료
-    </span>
-
-  Hero/Dark Card (for dashboard header):
-    <div className="rounded-3xl bg-gradient-to-br from-slate-800 via-slate-800 to-indigo-900 p-6 shadow-xl">
-
-  Bento Grid (2025 dashboard trend):
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-      {/* wide card: col-span-2 */}
-      {/* normal card: col-span-1 */}
-    </div>
-
-  Modal/Sheet:
-    Use a <dialog> element or a fixed overlay div with z-50.
-    Backdrop: fixed inset-0 bg-black/40 backdrop-blur-sm
-    Panel: fixed bottom-0 left-0 right-0 rounded-t-3xl bg-white (mobile sheet)
-           or centered: fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-3xl
-
-7-C. Form Inputs
-  <input className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm
-                    outline-none ring-0 transition-all focus:border-blue-400 focus:ring-2 focus:ring-blue-100" />
-
-7-D. Severity / Priority Colors
-  Critical/High: rose-500 (text), rose-100 (bg), rose-200 (ring)
-  Warning/Medium: amber-500, amber-100, amber-200
-  Info/Low: blue-500, blue-100, blue-200
-  Success: emerald-500, emerald-100, emerald-200
-  Neutral: slate-500, slate-100, slate-200
-
-7-E. Skeleton Loading
-  <div className="h-4 w-3/4 animate-pulse rounded-full bg-slate-200" />
-  <div className="h-4 w-1/2 animate-pulse rounded-full bg-slate-200 mt-2" />
-
-─────────────────────────────────────────────────────────────────────────────────
-[SECTION 8: COMMUNICATION FEATURES (SMS / CALLS)]
-─────────────────────────────────────────────────────────────────────────────────
-
-8-A. Feature Flags (REQUIRED for all communication features)
-  In .env.local:
-    ENABLE_REAL_SMS=false
-    ENABLE_REAL_CALLS=false
-
-  In every send/call function:
-    const isReal = process.env.ENABLE_REAL_SMS === "true";
-    if (!isReal) {
-      // log mock, save to DB with status="mock", return success
-      return { ok: true, mock: true };
-    }
-    // real send...
-
-  RULE: Never activate real sends without explicit user confirmation per session.
-
-8-B. SMS Pattern (Solapi / Korea)
-  POST to Solapi API with HMAC-SHA256 auth.
-  Always store: recipient, message, status, provider_message_id, sent_at in DB.
-  Retry logic: max 3 attempts, exponential backoff 1s/2s/4s.
-
-8-C. TTS Call Pattern
-  Synthesize script → POST to Solapi voice call endpoint.
-  Store: call_id, script, duration, keypad_response, call_status in DB.
-  Webhook: Create /api/webhooks/call-result/route.ts to receive async completion.
-  After call ends: trigger AI analysis of call summary via background job.
-
-8-D. Mock Mode
-  In mock mode: still create DB records (delivery, call) with status="mock".
-  This allows the full app flow to be tested without real API costs.
-  Mock responses should simulate realistic results (keypad: "1" or "2", random).
-
-─────────────────────────────────────────────────────────────────────────────────
-[SECTION 9: AI ANALYSIS PIPELINE]
-─────────────────────────────────────────────────────────────────────────────────
-
-This is the core of what makes SilverLink-quality apps special.
-After any user event (call, form submission, log entry), run an AI analysis pipeline:
-
-Step 1: Trigger
-  After saving raw data to DB → POST to /api/ai/analyze (fire-and-forget or await)
-
-Step 2: Context Building
-  Fetch last 10 relevant records for this entity from DB.
-  Build a context string: summarize each record in 1–2 lines.
-
-Step 3: Analysis Prompt
-  System: "You are an expert analyst in [domain]. Your job is to detect signals
-           in [entity] behavior data and classify them by category and severity."
-  User:   "CONTEXT:\n{context}\n\nNEW EVENT:\n{eventDescription}\n\n
-           OUTPUT JSON with: categories[], severity (high/medium/low),
-           summary, suggestions[]"
-
-Step 4: Parse & Store
-  Parse JSON from response.
-  Store in ai_analysis jsonb column of the relevant table.
-  If severity==="high": create a separate alerts record for immediate surfacing.
-
-Step 5: Surface
-  Alerts page: show all high-severity items, sorted by created_at desc.
-  Dashboard: show count badge of unread alerts.
-  Detail page: show per-entity analysis inline.
-
-─────────────────────────────────────────────────────────────────────────────────
-[SECTION 10: MULTI-ROLE / CASEWORKER PATTERN]
-─────────────────────────────────────────────────────────────────────────────────
-
-Any app that serves both individual users and supervisors/managers needs two modes.
-
-Implementation:
-  1. Store role in Supabase user_metadata: { role: "individual" | "manager" }
-  2. After role change, call supabase.auth.refreshSession() to update JWT cookie
-     (without this, Server Components still read the old role from the stale cookie)
-  3. Manager dashboard: fetch all entities, sort by risk score descending
-  4. Risk score calculation:
-       - Low engagement count (missed check-ins)
-       - Unread high-severity alerts count
-       - Trend direction (score going down over last 4 weeks)
-  5. Risk flags on entity cards:
-       - CRITICAL: score < 40 AND missed last 3 events
-       - WARNING: score 40–60 AND declining trend
-       - INFO: unread alerts >= 3
-
-─────────────────────────────────────────────────────────────────────────────────
-[SECTION 11: SCORING & TREND METRICS]
-─────────────────────────────────────────────────────────────────────────────────
-
-Any engagement/health metric follows this pattern:
-
-Weekly Score Calculation:
-  call_response_rate = (calls_responded / calls_total) * 100   [weight: 70%]
-  link_response_rate = (links_clicked / links_sent) * 100      [weight: 30%]
-  weekly_score = min(100, (call_rate * 0.7) + (link_rate * 0.3))
-
-Score Labels:
-  >= 70: "Active" / "Good" (emerald)
-  40-69: "Normal" / "Okay" (amber)
-  < 40:  "Low" / "At Risk" (rose)
-
-Trend Chart (8-week view):
-  Store weekly_scores table: entity_id, week_start (date), score, calls_total, calls_responded
-  Recompute weekly score after every new call response.
-  Chart: Recharts or plain SVG polyline (no external chart library needed for simple cases).
-
-─────────────────────────────────────────────────────────────────────────────────
-[SECTION 12: TIMELINE / AUDIT TRAIL PATTERN]
-─────────────────────────────────────────────────────────────────────────────────
-
-Every significant action should appear in a unified timeline.
-
-Database:
-  CREATE TABLE timeline_events (
-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    entity_id uuid REFERENCES entities(id) ON DELETE CASCADE,
-    event_type text NOT NULL,    -- 'call', 'alert', 'report', 'sms', 'note'
-    ref_id uuid,                 -- foreign key to source record
-    title text NOT NULL,
-    description text,
-    severity text,               -- 'high', 'medium', 'low', null
-    created_at timestamptz DEFAULT now()
+  ──────────────────────────────────────────────
+  [Supabase SQL 스키마 기본 패턴]
+  ──────────────────────────────────────────────
+  -- 메인 엔티티 (앱 설명에 맞게 테이블명·컬럼명 변경)
+  CREATE TABLE entities (
+    id          uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id     uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+    name        text NOT NULL,
+    metadata    jsonb DEFAULT '{}',
+    created_at  timestamptz DEFAULT now()
   );
+  ALTER TABLE entities ENABLE ROW LEVEL SECURITY;
+  CREATE POLICY "owner_all" ON entities FOR ALL USING (auth.uid() = user_id);
 
-Population:
-  After each AI analysis → INSERT INTO timeline_events.
-  After each call → INSERT INTO timeline_events.
-  After each alert acknowledged → INSERT INTO timeline_events with "resolved" type.
-
-Display:
-  Group events by week.
-  Color-code by event_type: 📞 blue (calls), 🔔 rose (alerts), 📋 purple (reports).
-  Show a trend chart above the timeline (calls/alerts/score per week).
-
-─────────────────────────────────────────────────────────────────────────────────
-[SECTION 13: SECURITY CHECKLIST]
-─────────────────────────────────────────────────────────────────────────────────
-
-Before deploying, verify:
-
-  ✅ All Supabase tables have RLS enabled
-  ✅ All RLS policies use auth.uid() — no open tables
-  ✅ All API routes authenticate with supabase.auth.getUser() before any DB operation
-  ✅ All user inputs are validated with zod before processing
-  ✅ ENABLE_REAL_SMS / ENABLE_REAL_CALLS default to "false" in .env.example
-  ✅ No API keys hardcoded anywhere in source code
-  ✅ .env.local is in .gitignore
-  ✅ No SUPABASE_SERVICE_ROLE_KEY used in application code
-  ✅ Webhook endpoints verify the request source (HMAC or secret token)
-  ✅ No sensitive data (PII) logged to console.log in production
-
-─────────────────────────────────────────────────────────────────────────────────
-[SECTION 14: DEPLOYMENT (VERCEL + SUPABASE)]
-─────────────────────────────────────────────────────────────────────────────────
-
-14-A. Vercel
-  - Connect GitHub repo to Vercel
-  - Set all environment variables in Vercel Dashboard → Settings → Environment Variables
-  - Set: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, GEMINI_API_KEY, etc.
-  - For communication: SOLAPI_API_KEY, SOLAPI_API_SECRET, SOLAPI_SENDER, SOLAPI_CALLER
-  - Production URL pattern: https://[project-name].vercel.app
-
-14-B. Supabase Auth Redirect
-  In Supabase Dashboard → Authentication → URL Configuration:
-    Site URL: https://[project-name].vercel.app
-    Additional Redirect URLs: http://localhost:3000/**
-
-14-C. Database Migrations
-  Keep all schema changes in /supabase/migrations/*.sql
-  Run locally: npx supabase db push (with Supabase CLI)
-  Or apply manually via Supabase Dashboard → SQL Editor
-
-─────────────────────────────────────────────────────────────────────────────────
-[SECTION 15: DEVELOPMENT WORKFLOW — HOW TO BUILD DAY BY DAY]
-─────────────────────────────────────────────────────────────────────────────────
-
-Follow this exact order for every new app. Each "Day" is ~4–8 hours of focused work.
-
-Day 1: Project Setup
-  - npx create-next-app@latest [app-name] --typescript --tailwind --app --src-dir
-  - Install all packages from Section 2
-  - Create .env.local from .env.example
-  - Set up Supabase project + copy credentials
-  - Implement middleware.ts for session refresh
-  - Implement lib/supabase/client.ts, server.ts, server-user.ts
-  - Implement (auth)/login/page.tsx with email/password form
-  - Verify: can sign up, log in, get redirected to dashboard
-  COMMIT: "Day 1: Next.js + Supabase auth foundation"
-
-Day 2: Data Schema + Core CRUD
-  - Write SQL schema for main entities (Section 4-E pattern)
-  - Apply to Supabase (SQL Editor or migration)
-  - Create API routes: POST /api/[entity], GET /api/[entity]
-  - Build entity list page (Server Component, shows all user's records)
-  - Build create form (Client Component, calls API route)
-  - Verify: can create, read entities
-  COMMIT: "Day 2: Core data model + CRUD routes"
-
-Day 3: AI Integration
-  - Set up Gemini client (lib/ai/gemini.ts)
-  - Build first AI route (e.g., POST /api/ai/analyze)
-  - Connect AI analysis to entity creation: after create → call analyze → store result
-  - Display AI output on entity detail page
-  - Verify: AI analysis runs and stores correctly
-  COMMIT: "Day 3: AI analysis pipeline"
-
-Day 4: Dashboard + Metrics
-  - Build main dashboard (Bento Grid, Section 7-B pattern)
-  - Add score/metric calculation (Section 11 pattern)
-  - Add timeline view (Section 12 pattern)
-  - Add alerts/signals page (Section 9 pattern)
-  COMMIT: "Day 4: Dashboard + metrics + timeline"
-
-Day 5: Communication (if applicable)
-  - Add SMS or call feature (Section 8 pattern)
-  - Mock mode first, verify DB records created
-  - Connect to real provider only after mock works perfectly
-  COMMIT: "Day 5: Communication layer"
-
-Day 6: Multi-role (if applicable)
-  - Add manager/supervisor mode (Section 10 pattern)
-  - Build aggregate dashboard for managers
-  - Add role switching in settings
-  COMMIT: "Day 6: Multi-role support"
-
-Day 7: Polish + Deploy
-  - Add page-level help guide for every page (nav-page-guide pattern)
-  - Add loading skeletons and error boundaries
-  - Run optimizePackageImports (Section 6-F)
-  - Add Suspense for heavy async components
-  - Deploy to Vercel, configure environment variables
-  - Test on mobile (375px + Android Chrome)
-  - Add academic/data references if applicable
-  COMMIT: "Day 7: Polish + deploy"
-
-─────────────────────────────────────────────────────────────────────────────────
-[SECTION 16: SAMPLE PROMPTS — HOW TO USE THIS SYSTEM]
-─────────────────────────────────────────────────────────────────────────────────
-
-EXAMPLE 1: HR Onboarding Tracker
-  "신입 직원의 30일 온보딩 체크리스트를 HR 담당자가 AI로 자동 모니터링하는 앱.
-   매주 직원에게 SMS로 진행 상황을 묻고, AI가 답변을 분석해 위험 징후(번아웃, 혼란)를
-   HR 대시보드에 실시간으로 표시한다. 담당자는 전체 신입 직원을 위험도 순으로 본다."
-
-EXAMPLE 2: Real Estate Client Follow-up
-  "부동산 중개사가 잠재 고객 리스트를 관리하며, AI가 고객별 맞춤 후속 메시지를
-   자동 생성하고 발송 이력을 추적한다. 고객 응답률과 관심도를 점수화해 우선순위를 정한다."
-
-EXAMPLE 3: Student Progress Monitor
-  "학원 원장이 학생별 출석·과제 제출·모의고사 성적을 입력하면 AI가
-   위험 학생(이탈 징후)을 자동 감지해 상담 시점을 추천한다."
-
-EXAMPLE 4: Pet Health Tracker
-  "반려동물 보호자가 일일 건강 로그(식사량, 활동, 증상)를 기록하면
-   AI가 패턴을 분석해 수의사 방문 필요 여부를 알린다."
-
-In every case, Claude will:
-1. Design the DB schema matching the domain
-2. Choose appropriate AI analysis categories (equivalent to SilverLink's 7 alert types)
-3. Build the same architecture: entities → events → AI analysis → alerts → dashboard
-4. Apply all the same UI patterns, security rules, and deployment steps
-
-─────────────────────────────────────────────────────────────────────────────────
-[SECTION 17: CODE SNIPPETS — COPY-PASTE READY]
-─────────────────────────────────────────────────────────────────────────────────
-
-17-A. middleware.ts (copy exactly)
-─────────────────────────────────
-import { createServerClient } from "@supabase/ssr";
-import { NextResponse, type NextRequest } from "next/server";
-
-export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request });
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() { return request.cookies.getAll(); },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          supabaseResponse = NextResponse.next({ request });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          );
-        },
-      },
-    }
+  -- 이벤트/기록 (AI 분석 결과 포함)
+  CREATE TABLE events (
+    id           uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    entity_id    uuid REFERENCES entities(id) ON DELETE CASCADE,
+    event_type   text NOT NULL,
+    payload      jsonb DEFAULT '{}',
+    ai_analysis  jsonb,
+    created_at   timestamptz DEFAULT now()
   );
-  await supabase.auth.getUser();
-  return supabaseResponse;
-}
+  ALTER TABLE events ENABLE ROW LEVEL SECURITY;
+  CREATE POLICY "owner_all" ON events FOR ALL
+    USING (entity_id IN (SELECT id FROM entities WHERE user_id = auth.uid()));
 
-export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
-};
-
-17-B. lib/supabase/server.ts (copy exactly)
-──────────────────────────────────────────
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
-
-export async function createSupabaseServerClient() {
-  const cookieStore = await cookies();
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() { return cookieStore.getAll(); },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch { /* Server Component — ignore */ }
-        },
-      },
-    }
+  -- AI 위험 알림
+  CREATE TABLE alerts (
+    id               uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    entity_id        uuid REFERENCES entities(id) ON DELETE CASCADE,
+    event_id         uuid REFERENCES events(id) ON DELETE CASCADE,
+    category         text NOT NULL,
+    severity         text NOT NULL CHECK (severity IN ('high','medium','low')),
+    title            text NOT NULL,
+    description      text,
+    suggestion       text,
+    acknowledged_at  timestamptz,
+    generated_at     timestamptz DEFAULT now()
   );
-}
+  ALTER TABLE alerts ENABLE ROW LEVEL SECURITY;
+  CREATE POLICY "owner_all" ON alerts FOR ALL
+    USING (entity_id IN (SELECT id FROM entities WHERE user_id = auth.uid()));
 
-17-C. lib/supabase/server-user.ts
-──────────────────────────────────
-import { createSupabaseServerClient } from "./server";
 
-export async function getServerUser() {
-  const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  return user;
-}
+────────────────────────────────────────────────────────────────────────────────
+  AI 분석 파이프라인 — 모든 앱의 핵심, 반드시 구현
+────────────────────────────────────────────────────────────────────────────────
 
-17-D. Zod API Input Validation Pattern
-───────────────────────────────────────
-import { z } from "zod";
+  이벤트 저장 직후 → POST /api/ai/analyze 자동 호출 → 아래 5단계 실행:
 
-const CreateEntitySchema = z.object({
-  name: z.string().min(1).max(100),
-  phone: z.string().regex(/^01[0-9]{8,9}$/).optional(),
-  notes: z.string().max(2000).optional(),
-});
+  1. 해당 엔티티의 최근 10개 이벤트를 DB에서 가져와 컨텍스트 문자열로 변환
+  2. Gemini에 전송:
+     "당신은 [도메인] 전문가입니다. 아래 데이터에서 위험 신호를 감지하고
+      JSON으로 반환하세요: { categories[], severity, summary, suggestions[] }"
+  3. JSON 파싱 → events.ai_analysis 컬럼에 저장
+  4. severity === "high"이면 alerts 테이블에 INSERT
+  5. 대시보드 상단 배너: 미확인 alerts 건수 표시 (Suspense로 스트리밍)
 
-// In route handler:
-const parsed = CreateEntitySchema.safeParse(await req.json());
-if (!parsed.success) {
-  return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
-}
 
-17-E. Gemini JSON Response Pattern
-────────────────────────────────────
-const prompt = `
-You are a [domain] expert analyst.
+────────────────────────────────────────────────────────────────────────────────
+  점수 계산 패턴 — 앱에 지표가 필요하면 이 공식 사용
+────────────────────────────────────────────────────────────────────────────────
 
-ENTITY CONTEXT:
-${contextString}
+  score = (주요_응답률 × 0.7) + (보조_지표 × 0.3)   → 0~100점
+  70점 이상: emerald (활발)
+  40~69점:  amber  (보통)
+  39점 이하: rose   (위험)
 
-LATEST EVENT:
-${eventDescription}
+  weekly_scores 테이블: entity_id, week_start(date), score, raw_data jsonb
+  이벤트 발생마다 해당 주 점수 재계산
 
-Respond with ONLY valid JSON in this exact format:
-\`\`\`json
-{
-  "categories": ["category1", "category2"],
-  "severity": "high" | "medium" | "low",
-  "summary": "2-3 sentence plain language summary",
-  "suggestions": ["action item 1", "action item 2"]
-}
-\`\`\`
-`;
 
-const result = await gemini.generateContent(prompt);
-const text = result.response.text();
-const match = text.match(/\`\`\`json\n([\s\S]+?)\n\`\`\`/);
-if (!match) throw new Error("AI response format error");
-const analysis = JSON.parse(match[1]);
+────────────────────────────────────────────────────────────────────────────────
+  완성 기준 — 이 항목이 전부 동작해야 "완성"
+────────────────────────────────────────────────────────────────────────────────
 
-─────────────────────────────────────────────────────────────────────────────────
-[SECTION 18: WHAT MAKES THIS APPROACH PRODUCTION-QUALITY]
-─────────────────────────────────────────────────────────────────────────────────
+  □ 이메일/비밀번호 회원가입 · 로그인 · 로그아웃
+  □ 엔티티(대상) 등록 · 목록 · 상세 페이지
+  □ 이벤트/기록 생성 → AI 자동 분석 → DB 저장
+  □ 위험 알림 페이지 (미확인 건수 대시보드 배너)
+  □ 점수/지표 페이지 (추이 차트)
+  □ 관리자 모드 (앱에 해당하면): 전체 엔티티 위험도 순 목록
+  □ 타임라인 (엔티티별 시계열 이력)
+  □ 모든 페이지 모바일 375px 정상 렌더링
+  □ .env.example 파일 (값 없이 키 이름만)
+  □ README.md (설치·실행·배포 방법)
 
-1. SERVER-FIRST ARCHITECTURE
-   Data always fetched on the server. No loading spinners for initial data.
-   Client Components are isolated islands, not full pages.
-   Result: First Contentful Paint < 1s on Vercel Edge.
-
-2. REAL AI, NOT FAKE AI
-   Every AI output comes from an actual API call with thoughtful prompting.
-   Results stored in DB so they're instant on re-render (no re-calling).
-   AI outputs are parsed into structured data, not just displayed as strings.
-
-3. DOMAIN-SPECIFIC ANALYSIS
-   The app doesn't just store data — it interprets it.
-   AI categorizes events into domain-specific signals (not generic labels).
-   These signals drive the dashboard, alerts, and manager views.
-
-4. RISK SCORING THAT CHANGES BEHAVIOR
-   The scoring system is not cosmetic — it sorts the manager dashboard.
-   Managers see the highest-risk entities first, every time.
-   Scores auto-update as new events come in (no manual refresh needed).
-
-5. PROGRESSIVE DISCLOSURE
-   Dashboard shows summary → click to see entity detail → click to see event detail.
-   Every page has a help guide (?) button explaining that specific page.
-   Complex AI analysis is presented in plain language, not raw JSON.
-
-6. MOBILE-FIRST WITH DARK HERO
-   Desktop is a bonus. The app works beautifully on a phone first.
-   The dashboard hero card (dark gradient) signals quality and intentionality.
-   Bento grid adapts: 2-col on mobile, 3-col on desktop.
-
-7. FULL AUDIT TRAIL
-   Every action creates a timeline event.
-   Timeline shows the narrative of what happened to each entity over time.
-   AI-generated weekly reports compress the week into a readable story.
-
-8. TWO MODES (INDIVIDUAL + MANAGER)
-   Individual users manage their own entities in detail.
-   Managers see everyone in aggregate, sorted by risk.
-   One app, two completely different use cases, shared codebase.
-
-================================================================================
-END OF MASTER PROMPT
-================================================================================
-This prompt + Claude Code = production-quality AI web app in 7 days or less.
-The patterns above are battle-tested from building SilverLink AI (July 2026).
 ================================================================================
