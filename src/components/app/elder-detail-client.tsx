@@ -29,14 +29,33 @@ function formatDate(value: string): string {
   }
 }
 
+const CATEGORY_LABELS: Record<string, string> = {
+  fall_risk:           "낙상 위험",
+  medication_concern:  "복약 문제",
+  mobility_concern:    "이동성 감소",
+  mental_health_concern: "정신 건강",
+  nutrition_concern:   "영양 문제",
+  social_isolation:    "사회적 고립",
+  urgent_medical:      "긴급 의료",
+};
+
 type SafetyAlertRow = {
   id: string;
+  call_id: string;
+  category: string;
   severity: string;
   title: string;
   description: string;
   suggestion: string | null;
   generated_at: string;
   acknowledged_at: string | null;
+};
+
+type CallRow = {
+  id: string;
+  status: string;
+  summary: string | null;
+  created_at: string;
 };
 
 type Props = {
@@ -47,6 +66,7 @@ type Props = {
   queueByCareTaskId: Record<string, NotificationQueueRow[]>;
   messageLogByCareTaskId: Record<string, MessageLogSummary>;
   unackedAlerts: SafetyAlertRow[];
+  calls: CallRow[];
 };
 
 export function ElderDetailClient({
@@ -57,6 +77,7 @@ export function ElderDetailClient({
   queueByCareTaskId,
   messageLogByCareTaskId,
   unackedAlerts,
+  calls,
 }: Props) {
   const [selectedTask, setSelectedTask] = useState<CareTaskSummary | null>(null);
   const [selectedLog, setSelectedLog] = useState<MessageLogSummary | null>(null);
@@ -173,6 +194,12 @@ export function ElderDetailClient({
       {/* 안전 알림 상세 모달 */}
       {selectedAlert && (() => {
         const sv = SEVERITY_LABEL[selectedAlert.severity] ?? { label: selectedAlert.severity, color: "text-slate-700", bg: "bg-slate-50", ring: "ring-slate-200" };
+        const relatedCall = calls.find((c) => c.id === selectedAlert.call_id);
+        const callStatusLabel =
+          relatedCall?.status === "answered" ? "✅ 응답"
+          : relatedCall?.status === "no_answer" ? "❌ 미응답"
+          : relatedCall ? relatedCall.status
+          : "정보 없음";
         return (
           <div
             className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
@@ -180,17 +207,16 @@ export function ElderDetailClient({
             aria-modal="true"
           >
             <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={() => setSelectedAlert(null)} aria-hidden="true" />
-            <div className="relative z-10 flex w-full flex-col rounded-t-3xl bg-white shadow-2xl sm:max-w-lg sm:rounded-3xl sm:mx-4 sm:my-4">
+            <div className="relative z-10 flex w-full flex-col rounded-t-3xl bg-white shadow-2xl sm:max-w-lg sm:rounded-3xl sm:mx-4 sm:my-4 max-h-[90dvh] overflow-hidden">
               {/* 헤더 */}
-              <div className={`flex items-start justify-between gap-3 rounded-t-3xl sm:rounded-t-3xl ${sv.bg} px-5 py-5`}>
+              <div className={`flex items-start justify-between gap-3 rounded-t-3xl ${sv.bg} px-5 py-5 shrink-0`}>
                 <div className="min-w-0 flex-1">
                   <p className={`text-xs font-bold uppercase tracking-widest ${sv.color}`}>{sv.label}</p>
                   <h2 className="mt-1 font-bold text-slate-900 leading-snug">{selectedAlert.title}</h2>
-                  <p className="mt-1 text-xs text-slate-400">{formatDate(selectedAlert.generated_at)}</p>
                 </div>
                 <button
                   onClick={() => setSelectedAlert(null)}
-                  className="rounded-xl p-2 text-slate-400 hover:bg-white/60 hover:text-slate-600 transition-colors"
+                  className="rounded-xl p-2 text-slate-400 hover:bg-white/60 hover:text-slate-600 transition-colors shrink-0"
                   aria-label="닫기"
                 >
                   <svg viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5" aria-hidden="true">
@@ -199,20 +225,49 @@ export function ElderDetailClient({
                 </button>
               </div>
               {/* 본문 */}
-              <div className="space-y-4 px-5 py-5">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">상황 설명</p>
-                  <p className="mt-1.5 text-sm leading-relaxed text-slate-700">{selectedAlert.description}</p>
+              <div className="overflow-y-auto flex-1 px-5 py-5 space-y-4">
+                {/* 기본 정보 그리드 */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl bg-slate-50 px-4 py-3 ring-1 ring-slate-100">
+                    <p className="text-xs text-slate-400">대상 어르신</p>
+                    <p className="mt-0.5 text-sm font-semibold text-slate-800">{elderName}</p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 px-4 py-3 ring-1 ring-slate-100">
+                    <p className="text-xs text-slate-400">알림 유형</p>
+                    <p className="mt-0.5 text-sm font-semibold text-slate-800">
+                      {CATEGORY_LABELS[selectedAlert.category] ?? selectedAlert.category}
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 px-4 py-3 ring-1 ring-slate-100">
+                    <p className="text-xs text-slate-400">알림 발생</p>
+                    <p className="mt-0.5 text-sm font-semibold text-slate-800">{formatDate(selectedAlert.generated_at)}</p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 px-4 py-3 ring-1 ring-slate-100">
+                    <p className="text-xs text-slate-400">통화 결과</p>
+                    <p className="mt-0.5 text-sm font-semibold text-slate-800">{callStatusLabel}</p>
+                  </div>
+                  {relatedCall && (
+                    <div className="col-span-2 rounded-xl bg-slate-50 px-4 py-3 ring-1 ring-slate-100">
+                      <p className="text-xs text-slate-400">관련 통화 시각</p>
+                      <p className="mt-0.5 text-sm font-semibold text-slate-800">{formatDate(relatedCall.created_at)}</p>
+                    </div>
+                  )}
                 </div>
+                {/* 상황 설명 */}
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1.5">상황 설명</p>
+                  <p className="text-sm leading-relaxed text-slate-700">{selectedAlert.description}</p>
+                </div>
+                {/* 권장 조치 */}
                 {selectedAlert.suggestion && (
                   <div className="rounded-xl bg-blue-50 px-4 py-3 ring-1 ring-blue-100">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-blue-500">💡 권장 조치</p>
-                    <p className="mt-1 text-sm leading-relaxed text-blue-800">{selectedAlert.suggestion}</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-blue-500 mb-1">💡 권장 조치</p>
+                    <p className="text-sm leading-relaxed text-blue-800">{selectedAlert.suggestion}</p>
                   </div>
                 )}
               </div>
               {/* 푸터 */}
-              <div className="border-t border-slate-100 px-5 py-4">
+              <div className="border-t border-slate-100 px-5 py-4 shrink-0">
                 <button
                   onClick={() => setSelectedAlert(null)}
                   className="w-full rounded-2xl bg-slate-900 py-3 text-sm font-bold text-white hover:bg-slate-700 transition-colors"

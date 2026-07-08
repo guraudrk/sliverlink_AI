@@ -14,7 +14,6 @@ type Paper = {
 };
 
 type Section = {
-  day: string;
   feature: string;
   color: string;
   badge: string;
@@ -31,7 +30,6 @@ const COLOR_MAP: Record<string, { ring: string; bg: string; text: string; subtex
 
 export const SECTIONS: Section[] = [
   {
-    day: "Day 22",
     feature: "긴급 안전 알림",
     color: "rose",
     badge: "🔴",
@@ -59,7 +57,6 @@ export const SECTIONS: Section[] = [
     ],
   },
   {
-    day: "Day 23",
     feature: "사회 연결 점수",
     color: "blue",
     badge: "🔵",
@@ -87,7 +84,6 @@ export const SECTIONS: Section[] = [
     ],
   },
   {
-    day: "Day 26",
     feature: "복지사 케어 관리 대시보드 — 위험 플래그",
     color: "amber",
     badge: "🟠",
@@ -115,7 +111,6 @@ export const SECTIONS: Section[] = [
     ],
   },
   {
-    day: "Day 27",
     feature: "AI 주간 케어 보고서 자동 생성",
     color: "teal",
     badge: "🟢",
@@ -143,7 +138,6 @@ export const SECTIONS: Section[] = [
     ],
   },
   {
-    day: "Day 28",
     feature: "종합 뷰 · AI 케어 플랜 · 역할 구분 · 참조 페이지",
     color: "purple",
     badge: "🟣",
@@ -266,15 +260,13 @@ export function ReferenceAccordion() {
         const c = COLOR_MAP[section.color];
         return (
           <section
-            key={section.day}
+            key={section.feature}
             className="animate-rag-fade-in-up"
             style={{ animationDelay: `${si * 80}ms` }}
           >
             <div className="mb-3 flex items-center gap-2">
-              <span className={`rounded-full ${c.bg} ${c.ring} ring-1 px-3 py-1 text-xs font-bold ${c.text}`}>
-                {section.badge} {section.day}
-              </span>
-              <h2 className="text-base font-bold text-slate-700">{section.feature}</h2>
+              <span className={`text-lg`}>{section.badge}</span>
+              <h2 className={`text-base font-bold ${COLOR_MAP[section.color].text}`}>{section.feature}</h2>
             </div>
             <div className="space-y-2">
               {section.papers.map((paper) => (

@@ -83,7 +83,7 @@ export default async function ElderDetailPage({ params }: PageProps) {
         .limit(5),
       supabase
         .from("safety_alerts")
-        .select("id, severity, title, description, suggestion, generated_at, acknowledged_at")
+        .select("id, call_id, category, severity, title, description, suggestion, generated_at, acknowledged_at")
         .eq("elder_id", parentId)
         .eq("owner_user_id", user.id)
         .is("acknowledged_at", null)
@@ -116,7 +116,7 @@ export default async function ElderDetailPage({ params }: PageProps) {
   const profile = profileResult.data;
   const scores = (scoresResult.data ?? []) as Array<{ week_start: string; score: number }>;
   const calls = (callsResult.data ?? []) as Array<{ id: string; status: string; summary: string | null; created_at: string }>;
-  const unackedAlerts = (alertsResult.data ?? []) as Array<{ id: string; severity: string; title: string; description: string; suggestion: string | null; generated_at: string; acknowledged_at: string | null }>;
+  const unackedAlerts = (alertsResult.data ?? []) as Array<{ id: string; call_id: string; category: string; severity: string; title: string; description: string; suggestion: string | null; generated_at: string; acknowledged_at: string | null }>;
   const careTasks = (tasksResult.data ?? []) as CareTaskSummary[];
   const allLogs = (logsResult.data ?? []) as MessageLogSummary[];
   const responses = allLogs.filter((l) => l.direction === "parent_response");
@@ -198,6 +198,7 @@ export default async function ElderDetailPage({ params }: PageProps) {
           queueByCareTaskId={queueByCareTaskId}
           messageLogByCareTaskId={messageLogByCareTaskId}
           unackedAlerts={unackedAlerts}
+          calls={calls}
         />
       </div>
     </div>
