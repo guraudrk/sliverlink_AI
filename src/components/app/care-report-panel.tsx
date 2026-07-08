@@ -104,8 +104,8 @@ export function CareReportPanel({ parentId, elderName, onClose }: Props) {
       />
 
       {/* 패널 */}
-      <div className="relative z-10 flex w-full max-w-xl flex-col rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl sm:mx-4 sm:my-4"
-        style={{ maxHeight: "90dvh" }}
+      <div className="relative z-10 flex w-full flex-col rounded-t-3xl bg-white shadow-2xl sm:max-w-2xl sm:rounded-3xl sm:mx-4 sm:my-4"
+        style={{ height: "88dvh", maxHeight: "88dvh" }}
       >
         {/* 헤더 */}
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
@@ -127,8 +127,7 @@ export function CareReportPanel({ parentId, elderName, onClose }: Props) {
         {/* 본문 */}
         <div
           ref={textRef}
-          className="flex-1 overflow-y-auto px-5 py-4 text-sm leading-relaxed text-slate-700"
-          style={{ minHeight: "12rem" }}
+          className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 text-sm leading-relaxed text-slate-700 sm:px-6"
         >
           {loading && !text && (
             <div className="flex flex-col items-center gap-3 py-10 text-slate-400">
@@ -148,7 +147,7 @@ export function CareReportPanel({ parentId, elderName, onClose }: Props) {
             </div>
           )}
           {text && (
-            <pre className="whitespace-pre-wrap font-sans">{text}</pre>
+            <pre className="whitespace-pre-wrap break-words font-sans text-[13px] leading-7 sm:text-sm">{text}</pre>
           )}
         </div>
 

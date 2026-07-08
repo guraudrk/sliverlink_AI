@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import type { UserRole } from "@/app/api/user/role/route";
 
 type Props = { initialRole: UserRole };
@@ -20,23 +20,18 @@ const ROLE_INFO: Record<UserRole, { label: string; sub: string; icon: string }> 
 
 export function RoleToggle({ initialRole }: Props) {
   const [role, setRole] = useState<UserRole>(initialRole);
-  const [isPending, startTransition] = useTransition();
-  const [saved, setSaved] = useState(false);
 
   function handleSelect(next: UserRole) {
-    if (next === role || isPending) return;
-    startTransition(async () => {
-      const res = await fetch("/api/user/role", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role: next }),
-      });
-      if (res.ok) {
-        setRole(next);
-        setSaved(true);
-        setTimeout(() => setSaved(false), 2000);
-      }
-    });
+    if (next === role) return;
+    // 옵티미스틱 업데이트: 서버 응답 전에 즉시 UI 반영
+    setRole(next);
+    fetch("/api/user/role", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role: next }),
+    }).then((res) => {
+      if (!res.ok) setRole(role); // 실패 시 롤백
+    }).catch(() => setRole(role));
   }
 
   return (
@@ -48,13 +43,12 @@ export function RoleToggle({ initialRole }: Props) {
           <button
             key={r}
             type="button"
-            disabled={isPending}
             onClick={() => handleSelect(r)}
-            className={`w-full rounded-2xl px-5 py-4 text-left transition-all ${
+            className={`w-full rounded-2xl px-5 py-4 text-left transition-all duration-150 ${
               isSelected
-                ? "bg-blue-600 text-white shadow-md ring-0"
-                : "bg-white text-slate-700 ring-1 ring-slate-200 hover:ring-blue-300"
-            } disabled:opacity-60`}
+                ? "bg-blue-600 text-white shadow-md ring-0 scale-[1.01]"
+                : "bg-white text-slate-700 ring-1 ring-slate-200 hover:ring-blue-300 hover:shadow-sm"
+            }`}
           >
             <div className="flex items-center gap-3">
               <span className="text-2xl">{info.icon}</span>
@@ -84,15 +78,6 @@ export function RoleToggle({ initialRole }: Props) {
           </button>
         );
       })}
-
-      {saved && (
-        <p className="text-center text-sm font-semibold text-emerald-600 animate-rag-fade-in-up">
-          역할이 저장되었어요 ✓
-        </p>
-      )}
-      {isPending && (
-        <p className="text-center text-sm text-slate-400">저장 중…</p>
-      )}
     </div>
   );
 }
