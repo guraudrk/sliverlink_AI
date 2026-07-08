@@ -9,6 +9,48 @@
 
 # 2026-07-08
 
+## 디자인 · 성능 · 정리 (Day 28 이후 마무리 세션)
+
+**작업 배경**: Day 28 기능 완성 후, 사용성·시각 완성도·속도를 한꺼번에 끌어올리는 마무리 세션.
+
+**1. Dashboard 리디자인 (2025 Bento Grid)**:
+- 2025 트렌드 리서치(Bento Grid, Dark Hero, Glassmorphism, Soft Neomorphism) 반영
+- Hero 카드: 다크 그라디언트(`slate-800 → indigo-900`) + 장식 블롭 + 로그아웃 버튼
+- AI 비서: 블루 그라디언트 피처 카드 + hover lift 효과
+- 13개 메뉴를 Bento 그리드로 재배치 — 부모님 관리·학술 참조는 `col-span-2` (와이드)
+- 각 카드: 이모지 컬러 아이콘 배지 + hover translate + ring 변색
+- 이전 디자인 `page.tsx.bak`으로 보존 (언제든 롤백 가능)
+
+**2. 로딩 속도 개선**:
+- `next.config.ts`: `optimizePackageImports` 추가 (`@supabase/supabase-js`, `@supabase/ssr`, `@google/generative-ai`) — 번들 트리쉐이킹으로 초기 JS 감소
+- 안전 알림 배너를 `<Suspense>` + 별도 async Server Component(`AlertBanner`)로 분리 → 페이지 셸이 DB 쿼리 완료를 기다리지 않고 즉시 스트리밍
+- 그리드 애니메이션 delay `45ms × 14 = 630ms` → `20ms × 14 = 280ms`로 단축
+
+**3. UI 정리**:
+- `timeline`, `alerts`, `caseworker` 서브 페이지의 인라인 "← 대시보드" 링크 삭제 (상단 NavBar와 중복)
+- `alerts` 페이지 Web Push 버튼 숨김 — 구독 저장만 구현된 미완성 상태 확인, 별도 Day에 완성 예정 (전송 API + VAPID 키 + 트리거 설계 필요)
+
+**4. 사업자등록 관련 (비코딩 작업)**:
+- 업종 키워드: `소프트웨어` → **응용 소프트웨어 개발 및 공급업 (58221)** 선택
+- 사업계획서 GPT 프롬프트 작성 (work-log 기반으로 GPT에 직접 의뢰 가능)
+
+**변경 파일**:
+| 파일 | 변경 내용 |
+|---|---|
+| `next.config.ts` | `optimizePackageImports` 추가 |
+| `src/app/(protected)/dashboard/page.tsx` | Bento Grid 리디자인 + Suspense AlertBanner |
+| `src/app/(protected)/dashboard/page.tsx.bak` | 이전 디자인 백업 |
+| `src/app/(protected)/dashboard/timeline/page.tsx` | 중복 뒤로가기 링크 제거 |
+| `src/app/(protected)/dashboard/alerts/page.tsx` | 중복 뒤로가기 + PushPermissionButton 제거 |
+| `src/app/(protected)/dashboard/caseworker/page.tsx` | 중복 뒤로가기 링크 제거 |
+| `README.md` | 섹션 31 추가 |
+
+**🤖 AI 활용 팁**: 디자인 리서치를 AI 서브에이전트에 위임하면 트렌드 키워드("Bento Grid", "Dark Hero", "Soft Neomorphism")와 실제 구현 가능한 Tailwind 클래스 조합까지 한 번에 뽑아낼 수 있다. 단, "2025 트렌드"라는 말은 광범위하므로 "헬스케어·케어 앱에 적합한가"를 필터 조건으로 명시하는 것이 중요하다. 노인 대상 앱에서는 Neobrutalism(네온+굵은 테두리)이나 픽셀 폰트처럼 가독성을 해치는 스타일은 제외해야 한다.
+
+**커밋**: `e1082c2` (중복 버튼 제거), `0a84840` (로딩 속도), `110dcbb` (Bento 리디자인), `0d3a46b` (README)
+
+---
+
 ## Day 28: 종합 뷰 · AI 케어 플랜 · 역할 구분 · 학술 참조 페이지
 
 **기능을 추가한 이유**: Day 27까지 쌓인 기능이 각각 독립 페이지로 분산되어 있었다. 보호자와 복지사라는 두 사용자 유형이 섞여 쓰고 있었고, 각 어르신의 데이터를 한 화면에서 조망할 방법이 없었으며, "이 기능이 어떤 연구에 근거하는지" 설명할 페이지도 없었다. 4가지를 하루에 묶어서 구현했다.
