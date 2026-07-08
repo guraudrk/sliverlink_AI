@@ -102,6 +102,8 @@ export default async function DashboardPage() {
             { href: "/dashboard/alerts", title: "안전 알림", sub: "안부전화 안전 우려사항" },
             { href: "/dashboard/social", title: "사회 연결 점수", sub: "8주 추이 · 연결 상태" },
             { href: "/dashboard/timeline", title: "케어 여정 타임라인", sub: "통화·알림·브리핑 시간순" },
+            { href: "/dashboard/settings", title: "설정", sub: "역할 전환 · 계정 관리" },
+            { href: "/dashboard/references", title: "학술 참조", sub: "이 서비스가 참고한 논문" },
           ].map(({ href, title, sub }, i) => (
             <Link
               key={href}

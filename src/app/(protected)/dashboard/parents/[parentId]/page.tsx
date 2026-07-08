@@ -1,110 +1,149 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import type { ParentProfile } from "@/lib/supabase/parent-profiles-repo";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getServerUser } from "@/lib/supabase/server-user";
 import type { CareTaskSummary } from "@/lib/supabase/care-tasks-repo";
 import type { MessageLogSummary } from "@/lib/supabase/message-logs-repo";
 import type { NotificationQueueRow } from "@/lib/supabase/notification-queue-repo";
-import { CareTaskDetailModal } from "@/components/tasks/care-task-detail-modal";
-import { MessageLogDetailModal } from "@/components/responses/message-log-detail-modal";
+import { ElderDetailClient } from "@/components/app/elder-detail-client";
 
-const STATUS_LABELS: Record<string, string> = {
-  scheduled: "예정",
-  completed: "완료",
-  help_requested: "도움 요청",
-  snoozed: "나중에 다시",
-};
+export const metadata: Metadata = { title: "어르신 현황 — SilverLink AI" };
 
-function formatDate(value: string): string {
-  try {
-    return new Date(value).toLocaleString("ko-KR", { dateStyle: "medium", timeStyle: "short" });
-  } catch {
-    return value;
-  }
+type PageProps = { params: Promise<{ parentId: string }> };
+
+function ScoreBadge({ score }: { score: number | null }) {
+  if (score === null)
+    return <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-400">점수 없음</span>;
+  if (score >= 70)
+    return <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">{score}점 · 활발</span>;
+  if (score >= 40)
+    return <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700">{score}점 · 보통</span>;
+  return <span className="rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-semibold text-rose-700">{score}점 · 낮음</span>;
 }
 
-export default function ParentDashboardPage() {
-  const params = useParams<{ parentId: string }>();
-  const parentId = params.parentId;
+function Sparkline({ scores }: { scores: number[] }) {
+  if (scores.length < 2) return null;
+  const W = 80, H = 28, pad = 3;
+  const min = Math.min(...scores);
+  const max = Math.max(...scores);
+  const range = max - min || 1;
+  const points = scores.map((s, i) => {
+    const x = pad + (i / (scores.length - 1)) * (W - pad * 2);
+    const y = H - pad - ((s - min) / range) * (H - pad * 2);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+  const lastScore = scores[scores.length - 1];
+  const trend = scores.length >= 2 ? lastScore - scores[scores.length - 2] : 0;
+  const color = trend > 0 ? "#10b981" : trend < 0 ? "#f43f5e" : "#94a3b8";
+  return (
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden="true">
+      <polyline points={points.join(" ")} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
-  const [profile, setProfile] = useState<ParentProfile | null>(null);
-  const [careTasks, setCareTasks] = useState<CareTaskSummary[]>([]);
-  const [responses, setResponses] = useState<MessageLogSummary[]>([]);
-  const [queueByCareTaskId, setQueueByCareTaskId] = useState<Map<string, NotificationQueueRow[]>>(new Map());
-  const [messageLogByCareTaskId, setMessageLogByCareTaskId] = useState<Map<string, MessageLogSummary>>(new Map());
-  const [loading, setLoading] = useState(true);
-  const [selectedTask, setSelectedTask] = useState<CareTaskSummary | null>(null);
-  const [selectedLog, setSelectedLog] = useState<MessageLogSummary | null>(null);
+function CallDot({ status }: { status: string }) {
+  const cls =
+    status === "answered" ? "bg-emerald-400"
+    : status === "no_answer" ? "bg-rose-400"
+    : "bg-slate-300";
+  const title = status === "answered" ? "응답" : status === "no_answer" ? "미응답" : status;
+  return <span title={title} className={`inline-block h-2.5 w-2.5 rounded-full ${cls}`} />;
+}
 
-  useEffect(() => {
-    let active = true;
+export default async function ElderDetailPage({ params }: PageProps) {
+  const { parentId } = await params;
+  const user = await getServerUser();
+  if (!user) notFound();
 
-    Promise.all([
-      fetch("/api/parents").then((res) => res.json()),
-      fetch("/api/care-tasks").then((res) => res.json()),
-      fetch("/api/message-logs").then((res) => res.json()),
-      fetch("/api/notification-queue").then((res) => res.json()),
-    ])
-      .then(([parentsData, tasksData, logsData, queueData]) => {
-        if (!active) return;
-        if (parentsData.ok) {
-          const found = (parentsData.profiles as ParentProfile[]).find((p) => p.id === parentId);
-          setProfile(found ?? null);
-        }
-        if (tasksData.ok) {
-          setCareTasks((tasksData.careTasks as CareTaskSummary[]).filter((task) => task.parent_id === parentId));
-        }
-        if (logsData.ok) {
-          const allLogs = logsData.messageLogs as MessageLogSummary[];
-          setResponses(allLogs.filter((log) => log.parent_id === parentId && log.direction === "parent_response"));
+  const supabase = await createSupabaseServerClient();
+  const fourWeeksAgo = new Date(Date.now() - 28 * 24 * 60 * 60 * 1000).toISOString();
 
-          // CareTaskDetailModal의 "보내는 분"은 일정마다 0~1건인 message_log 중 첫 건을 쓴다(tasks 페이지와 동일 규칙).
-          const map = new Map<string, MessageLogSummary>();
-          for (const log of allLogs) {
-            if (log.care_task_id && !map.has(log.care_task_id)) map.set(log.care_task_id, log);
-          }
-          setMessageLogByCareTaskId(map);
-        }
-        if (queueData.ok) {
-          const map = new Map<string, NotificationQueueRow[]>();
-          for (const entry of queueData.notificationQueue as NotificationQueueRow[]) {
-            const list = map.get(entry.care_task_id) ?? [];
-            list.push(entry);
-            map.set(entry.care_task_id, list);
-          }
-          setQueueByCareTaskId(map);
-        }
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
+  const [profileResult, scoresResult, callsResult, alertsResult, tasksResult, logsResult, queueResult] =
+    await Promise.all([
+      supabase
+        .from("parent_profiles")
+        .select("id, display_name, relationship")
+        .eq("id", parentId)
+        .eq("owner_user_id", user.id)
+        .maybeSingle(),
+      supabase
+        .from("social_scores")
+        .select("week_start, score")
+        .eq("parent_id", parentId)
+        .eq("owner_user_id", user.id)
+        .order("week_start", { ascending: true })
+        .limit(4),
+      supabase
+        .from("care_call_attempts")
+        .select("id, status, summary, created_at")
+        .eq("parent_id", parentId)
+        .eq("owner_user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(5),
+      supabase
+        .from("safety_alerts")
+        .select("id, severity, title, acknowledged_at")
+        .eq("elder_id", parentId)
+        .eq("owner_user_id", user.id)
+        .is("acknowledged_at", null)
+        .order("generated_at", { ascending: false })
+        .limit(3),
+      supabase
+        .from("care_tasks")
+        .select("id, parent_id, target_person, original_request, status, priority, task_type, completed_at, notification_status, created_at")
+        .eq("parent_id", parentId)
+        .eq("owner_user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(20),
+      supabase
+        .from("message_logs")
+        .select("id, parent_id, care_task_id, sender, receiver, raw_message, direction, source_channel, created_at")
+        .eq("parent_id", parentId)
+        .eq("owner_user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(50),
+      supabase
+        .from("notification_queue")
+        .select("*")
+        .eq("parent_id", parentId)
+        .eq("owner_user_id", user.id)
+        .gte("created_at", fourWeeksAgo),
+    ]);
 
-    return () => {
-      active = false;
-    };
-  }, [parentId]);
+  if (!profileResult.data) notFound();
 
-  if (loading) {
-    return (
-      <div className="flex flex-1 items-center justify-center bg-slate-50 px-4 py-16">
-        <p className="text-slate-400">불러오는 중...</p>
-      </div>
-    );
+  const profile = profileResult.data;
+  const scores = (scoresResult.data ?? []) as Array<{ week_start: string; score: number }>;
+  const calls = (callsResult.data ?? []) as Array<{ id: string; status: string; summary: string | null; created_at: string }>;
+  const unackedAlerts = (alertsResult.data ?? []) as Array<{ id: string; severity: string; title: string; acknowledged_at: string | null }>;
+  const careTasks = (tasksResult.data ?? []) as CareTaskSummary[];
+  const allLogs = (logsResult.data ?? []) as MessageLogSummary[];
+  const responses = allLogs.filter((l) => l.direction === "parent_response");
+
+  const scoreValues = scores.map((s) => s.score);
+  const latestScore = scores.length > 0 ? scores[scores.length - 1].score : null;
+
+  const queueByCareTaskId: Record<string, NotificationQueueRow[]> = {};
+  for (const entry of (queueResult.data ?? []) as NotificationQueueRow[]) {
+    const list = queueByCareTaskId[entry.care_task_id] ?? [];
+    list.push(entry);
+    queueByCareTaskId[entry.care_task_id] = list;
+  }
+  const messageLogByCareTaskId: Record<string, MessageLogSummary> = {};
+  for (const log of allLogs) {
+    if (log.care_task_id && !messageLogByCareTaskId[log.care_task_id]) {
+      messageLogByCareTaskId[log.care_task_id] = log;
+    }
   }
 
-  if (!profile) {
-    return (
-      <div className="flex flex-1 items-center justify-center bg-slate-50 px-4 py-16">
-        <p className="text-slate-500">등록된 부모님을 찾을 수 없어요.</p>
-      </div>
-    );
-  }
+  const SEVERITY_LABEL: Record<string, string> = { high: "🔴 높음", medium: "🟠 보통", low: "🟡 낮음" };
 
   return (
     <div className="flex flex-1 flex-col items-center bg-slate-50 px-4 py-10 sm:py-16">
-      <div className="w-full max-w-2xl space-y-8">
-        <div className="text-center animate-rag-fade-in-up">
+      <div className="w-full max-w-2xl space-y-6">
+        {/* 헤더 */}
+        <div className="animate-rag-fade-in-up text-center">
           <p className="text-sm font-semibold uppercase tracking-widest text-blue-600">SilverLink AI</p>
           <h1 className="mt-2 text-3xl font-bold text-slate-900">
             {profile.display_name}
@@ -112,76 +151,70 @@ export default function ParentDashboardPage() {
           </h1>
         </div>
 
-        <section className="animate-rag-fade-in-up" style={{ animationDelay: "60ms" }}>
-          <h2 className="mb-3 text-lg font-bold text-slate-700">일정</h2>
-          {careTasks.length === 0 ? (
-            <p className="rounded-2xl bg-white p-6 text-center text-sm text-slate-500 shadow-sm ring-1 ring-slate-200">
-              등록된 일정이 없어요.
-            </p>
-          ) : (
-            <ul className="space-y-2">
-              {careTasks.map((task, i) => (
-                <li key={task.id} className="animate-rag-fade-in-up" style={{ animationDelay: `${100 + i * 50}ms` }}>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedTask(task)}
-                    className="w-full rounded-2xl bg-white p-4 text-left shadow-sm ring-1 ring-slate-200 transition-colors hover:ring-blue-300"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm text-slate-700">{task.original_request}</p>
-                      <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-                        {STATUS_LABELS[task.status] ?? task.status}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-xs text-slate-400">{formatDate(task.created_at)}</p>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+        {/* 종합 상태 카드 */}
+        <div
+          className="grid grid-cols-2 gap-3 sm:grid-cols-3 animate-rag-fade-in-up"
+          style={{ animationDelay: "40ms" }}
+        >
+          {/* 사회 연결 점수 */}
+          <div className="col-span-2 rounded-2xl bg-white px-5 py-4 shadow-sm ring-1 ring-slate-200 sm:col-span-1">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">사회 연결 점수</p>
+            <div className="mt-2 flex items-end justify-between gap-2">
+              <ScoreBadge score={latestScore} />
+              <Sparkline scores={scoreValues} />
+            </div>
+            {scores.length > 0 && (
+              <p className="mt-1 text-xs text-slate-400">최근 {scores.length}주 추이</p>
+            )}
+          </div>
 
-        <section className="animate-rag-fade-in-up" style={{ animationDelay: "100ms" }}>
-          <h2 className="mb-3 text-lg font-bold text-slate-700">응답 기록</h2>
-          {responses.length === 0 ? (
-            <p className="rounded-2xl bg-white p-6 text-center text-sm text-slate-500 shadow-sm ring-1 ring-slate-200">
-              아직 받은 응답이 없어요.
+          {/* 최근 통화 */}
+          <div className="rounded-2xl bg-white px-5 py-4 shadow-sm ring-1 ring-slate-200">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">최근 통화</p>
+            <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+              {calls.length === 0
+                ? <span className="text-sm text-slate-400">없음</span>
+                : calls.map((c) => <CallDot key={c.id} status={c.status} />)
+              }
+            </div>
+            <p className="mt-1 text-xs text-slate-400">{calls.length}건</p>
+          </div>
+
+          {/* 미확인 알림 */}
+          <div className={`rounded-2xl px-5 py-4 shadow-sm ring-1 ${unackedAlerts.length > 0 ? "bg-rose-50 ring-rose-200" : "bg-white ring-slate-200"}`}>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">미확인 알림</p>
+            <p className={`mt-2 text-2xl font-bold ${unackedAlerts.length > 0 ? "text-rose-600" : "text-slate-300"}`}>
+              {unackedAlerts.length}
             </p>
-          ) : (
-            <ul className="space-y-2">
-              {responses.map((log, i) => (
-                <li key={log.id} className="animate-rag-fade-in-up" style={{ animationDelay: `${140 + i * 50}ms` }}>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedLog(log)}
-                    className="w-full rounded-2xl bg-white p-4 text-left shadow-sm ring-1 ring-slate-200 transition-colors hover:ring-blue-300"
-                  >
-                    <p className="text-sm text-slate-700">{log.raw_message}</p>
-                    <p className="mt-1 text-xs text-slate-400">{formatDate(log.created_at)}</p>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+            <p className="mt-1 text-xs text-slate-400">미확인 안전 알림</p>
+          </div>
+        </div>
+
+        {/* 미확인 알림 상세 */}
+        {unackedAlerts.length > 0 && (
+          <section className="animate-rag-fade-in-up space-y-2" style={{ animationDelay: "80ms" }}>
+            <h2 className="text-sm font-bold text-rose-600">⚠️ 미확인 안전 알림</h2>
+            {unackedAlerts.map((a) => (
+              <div key={a.id} className="rounded-2xl bg-rose-50 px-4 py-3 ring-1 ring-rose-200">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-semibold text-rose-700 text-sm">{a.title}</p>
+                  <span className="shrink-0 text-xs text-rose-500">{SEVERITY_LABEL[a.severity] ?? a.severity}</span>
+                </div>
+              </div>
+            ))}
+          </section>
+        )}
+
+        {/* 클라이언트 island — 케어 플랜 버튼 + 일정 + 응답 + 모달 */}
+        <ElderDetailClient
+          parentId={parentId}
+          elderName={profile.display_name}
+          careTasks={careTasks}
+          responses={responses}
+          queueByCareTaskId={queueByCareTaskId}
+          messageLogByCareTaskId={messageLogByCareTaskId}
+        />
       </div>
-
-      {selectedTask ? (
-        <CareTaskDetailModal
-          task={selectedTask}
-          queueEntries={queueByCareTaskId.get(selectedTask.id) ?? []}
-          messageLog={messageLogByCareTaskId.get(selectedTask.id) ?? null}
-          onClose={() => setSelectedTask(null)}
-        />
-      ) : null}
-
-      {selectedLog ? (
-        <MessageLogDetailModal
-          log={selectedLog}
-          relatedTask={selectedLog.care_task_id ? careTasks.find((task) => task.id === selectedLog.care_task_id) ?? null : null}
-          onClose={() => setSelectedLog(null)}
-        />
-      ) : null}
     </div>
   );
 }
