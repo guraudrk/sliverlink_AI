@@ -4,6 +4,9 @@ import { redirect } from "next/navigation";
 import { getServerUser } from "@/lib/supabase/server-user";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { countUnacknowledgedAlerts } from "@/lib/supabase/safety-alerts-repo";
+import { listParentProfiles } from "@/lib/supabase/parent-profiles-repo";
+import { OnboardingModal } from "@/components/app/onboarding-modal";
+import { PmfStats } from "@/components/app/pmf-stats";
 
 async function AlertBanner() {
   const supabase = await createSupabaseServerClient();
@@ -55,6 +58,10 @@ export default async function DashboardPage() {
   const user = await getServerUser();
   if (!user) redirect("/login");
 
+  const supabase = await createSupabaseServerClient();
+  const parents = await listParentProfiles(supabase);
+  const parentCount = parents.length;
+
   async function logout() {
     "use server";
     const supabase = await createSupabaseServerClient();
@@ -94,6 +101,11 @@ export default async function DashboardPage() {
           <AlertBanner />
         </Suspense>
 
+        {/* ── PMF 지표 ── */}
+        <Suspense fallback={null}>
+          <PmfStats />
+        </Suspense>
+
         {/* ── AI 비서 피처 카드 ── */}
         <Link
           href="/dashboard/assistant"
@@ -118,6 +130,9 @@ export default async function DashboardPage() {
             </svg>
           </div>
         </Link>
+
+        {/* ── 온보딩 모달 ── */}
+        <OnboardingModal parentCount={parentCount} />
 
         {/* ── Bento 그리드 ── */}
         <div
