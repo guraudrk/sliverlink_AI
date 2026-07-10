@@ -54,7 +54,10 @@ JSON 형식으로만 응답하세요. 마크다운 코드블록 없이, 순수 J
 }
 `.trim();
 
-export async function analyzeAudio(audioBase64: string): Promise<AudioAnalysisResult> {
+export async function analyzeAudio(
+  audioBase64: string,
+  mimeType = "audio/mp4"
+): Promise<AudioAnalysisResult> {
   const client = getGeminiClient();
   const model = getLlmModel();
 
@@ -66,7 +69,7 @@ export async function analyzeAudio(audioBase64: string): Promise<AudioAnalysisRe
         parts: [
           {
             inlineData: {
-              mimeType: "audio/mp4",
+              mimeType,
               data: audioBase64,
             },
           },

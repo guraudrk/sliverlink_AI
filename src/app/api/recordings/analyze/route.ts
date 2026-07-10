@@ -46,7 +46,14 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await audioResponse.arrayBuffer();
     const base64 = Buffer.from(arrayBuffer).toString("base64");
 
-    const result = await analyzeAudio(base64);
+    const ext = recording.storage_path.split(".").pop()?.toLowerCase();
+    const mimeType =
+      ext === "webm" ? "audio/webm" :
+      ext === "wav"  ? "audio/wav"  :
+      ext === "mp3"  ? "audio/mp3"  :
+      "audio/mp4"; // m4a, mp4 기본값
+
+    const result = await analyzeAudio(base64, mimeType);
 
     await updateCallRecordingAnalysis(supabase, recordingId, {
       status: "analyzed",
