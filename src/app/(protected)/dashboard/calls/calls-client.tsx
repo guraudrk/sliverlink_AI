@@ -52,6 +52,22 @@ export function CallsClient({ initialRecordings }: Props) {
   const [recordings, setRecordings] = useState<CallRecording[]>(initialRecordings);
   const [analyzing, setAnalyzing] = useState<Record<string, boolean>>({});
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [seeding, setSeeding] = useState(false);
+
+  async function handleSeed() {
+    setSeeding(true);
+    try {
+      const res = await fetch("/api/recordings/seed", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok) {
+        alert("예시 데이터 생성 실패: " + (json.error ?? "알 수 없는 오류"));
+        return;
+      }
+      window.location.reload();
+    } finally {
+      setSeeding(false);
+    }
+  }
 
   async function handleAnalyze(id: string) {
     setAnalyzing((prev) => ({ ...prev, [id]: true }));
@@ -106,10 +122,17 @@ export function CallsClient({ initialRecordings }: Props) {
   if (recordings.length === 0) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center bg-slate-50 px-4 py-20 text-center">
-        <div className="max-w-sm space-y-3 rounded-3xl bg-white p-10 shadow-sm ring-1 ring-slate-200">
+        <div className="max-w-sm space-y-4 rounded-3xl bg-white p-10 shadow-sm ring-1 ring-slate-200">
           <p className="text-4xl">📂</p>
           <p className="text-lg font-semibold text-slate-700">녹음 기록이 없어요</p>
           <p className="text-sm text-slate-500">모바일 앱에서 어르신과 통화 중에 녹음하면 여기서 확인할 수 있어요.</p>
+          <button
+            onClick={handleSeed}
+            disabled={seeding}
+            className="w-full rounded-xl border border-dashed border-blue-300 bg-blue-50 py-3 text-sm font-semibold text-blue-600 hover:bg-blue-100 disabled:opacity-50"
+          >
+            {seeding ? "생성 중..." : "🧪 예시 데이터 3개 추가"}
+          </button>
         </div>
       </div>
     );
@@ -118,10 +141,19 @@ export function CallsClient({ initialRecordings }: Props) {
   return (
     <div className="flex flex-1 flex-col bg-slate-50 px-4 py-8 sm:px-8">
       <div className="mx-auto w-full max-w-3xl">
-        <div className="mb-6">
-          <p className="text-sm font-semibold uppercase tracking-widest text-blue-600">SilverLink AI</p>
-          <h1 className="mt-1 text-2xl font-bold text-slate-900">통화 녹음 · AI 분석</h1>
-          <p className="mt-1 text-sm text-slate-500">녹음별로 AI 분석을 요청하고 안전 신호를 확인하세요.</p>
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-widest text-blue-600">SilverLink AI</p>
+            <h1 className="mt-1 text-2xl font-bold text-slate-900">통화 녹음 · AI 분석</h1>
+            <p className="mt-1 text-sm text-slate-500">녹음별로 AI 분석을 요청하고 안전 신호를 확인하세요.</p>
+          </div>
+          <button
+            onClick={handleSeed}
+            disabled={seeding}
+            className="shrink-0 rounded-xl border border-dashed border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-500 hover:border-blue-300 hover:text-blue-600 disabled:opacity-50"
+          >
+            {seeding ? "생성 중..." : "🧪 예시 추가"}
+          </button>
         </div>
 
         <ul className="space-y-3">
