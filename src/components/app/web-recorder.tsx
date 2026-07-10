@@ -20,6 +20,7 @@ export function WebRecorder({ parents, onUploaded }: Props) {
   const [phase, setPhase] = useState<"idle" | "recording" | "uploading">("idle");
   const [duration, setDuration] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [micBlocked, setMicBlocked] = useState(false);
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -31,6 +32,15 @@ export function WebRecorder({ parents, onUploaded }: Props) {
   }, [duration]);
 
   useEffect(() => {
+    if (navigator.permissions) {
+      navigator.permissions
+        .query({ name: "microphone" as PermissionName })
+        .then((status) => {
+          setMicBlocked(status.state === "denied");
+          status.onchange = () => setMicBlocked(status.state === "denied");
+        })
+        .catch(() => {});
+    }
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
@@ -43,8 +53,14 @@ export function WebRecorder({ parents, onUploaded }: Props) {
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch {
-      setError("마이크 권한이 필요합니다. 브라우저 주소창 옆 자물쇠를 눌러 허용해주세요.");
+    } catch (err) {
+      const denied = err instanceof DOMException &&
+        (err.name === "NotAllowedError" || err.name === "PermissionDeniedError");
+      if (denied) {
+        setMicBlocked(true);
+      } else {
+        setError("마이크를 시작할 수 없습니다. 다시 시도해주세요.");
+      }
       return;
     }
 
@@ -148,8 +164,18 @@ export function WebRecorder({ parents, onUploaded }: Props) {
           )}
         </select>
 
+        {/* 마이크 차단 안내 */}
+        {micBlocked && (
+          <div className="rounded-xl bg-amber-50 px-4 py-3 ring-1 ring-amber-200">
+            <p className="text-sm font-semibold text-amber-700">🎤 마이크 접근이 차단됐습니다</p>
+            <p className="mt-1 text-xs text-amber-600">
+              주소창 왼쪽 🔒 아이콘 → 마이크 → <strong>허용</strong> 으로 변경 후 새로고침 해주세요.
+            </p>
+          </div>
+        )}
+
         {/* 녹음 버튼 */}
-        {phase === "idle" && (
+        {!micBlocked && phase === "idle" && (
           <button
             onClick={start}
             disabled={parents.length === 0}
