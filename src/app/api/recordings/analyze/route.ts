@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCallRecordingById, updateCallRecordingAnalysis } from "@/lib/supabase/call-recordings-repo";
 import { analyzeAudio } from "@/lib/silverlink/audio/audio-analyzer";
+import { createAlertsFromAnalysis, indexTranscriptToRag } from "@/lib/silverlink/audio/recording-integrations";
 
 export async function POST(request: NextRequest) {
   const supabase = await createSupabaseServerClient();
@@ -56,6 +57,19 @@ export async function POST(request: NextRequest) {
       }),
       risk_level: result.risk_level,
     });
+
+    const recordingMeta = {
+      id: recordingId,
+      parent_id: recording.parent_id,
+      owner_user_id: recording.owner_user_id,
+      parent_display_name: recording.parent_display_name,
+    };
+
+    // safety_alerts + RAG 인덱싱은 병렬로 실행, 실패해도 분석 결과는 유지됨
+    await Promise.allSettled([
+      createAlertsFromAnalysis(supabase, recordingMeta, result),
+      indexTranscriptToRag(supabase, recordingMeta, result),
+    ]);
 
     return NextResponse.json({ ok: true, result });
   } catch (err: any) {

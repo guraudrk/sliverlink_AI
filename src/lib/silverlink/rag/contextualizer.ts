@@ -11,6 +11,7 @@ const SOURCE_TYPE_LABELS: Record<RagSourceType, string> = {
   notification_queue: "알림",
   care_call_attempt: "안부전화",
   delivery_attempt: "발송 시도",
+  call_recording: "통화 녹음",
 };
 
 // evidence-builder가 parent_profile 근거에 시점 없는 배경 정보임을 표시하려고 epoch(0)을 넣어둔다

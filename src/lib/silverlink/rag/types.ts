@@ -22,6 +22,7 @@ export const RAG_SOURCE_TYPES = [
   "notification_queue",
   "care_call_attempt",
   "delivery_attempt",
+  "call_recording",
 ] as const;
 export type RagSourceType = (typeof RAG_SOURCE_TYPES)[number];
 
