@@ -18,23 +18,28 @@ export type CallRecording = {
   parent_relation?: string;
 };
 
+function extractParentName(p: any): { display_name: string | null; relation: string | null } {
+  if (!p) return { display_name: null, relation: null };
+  return {
+    display_name: p.display_name ?? null,
+    // 웹 스키마는 relationship, 모바일 스키마는 relation — 둘 다 시도
+    relation: p.relation ?? p.relationship ?? null,
+  };
+}
+
 export async function listCallRecordings(supabase: SupabaseClient): Promise<CallRecording[]> {
   const { data, error } = await supabase
     .from("call_recordings")
-    .select(`
-      *,
-      parent_profiles ( display_name, relation )
-    `)
+    .select(`*, parent_profiles ( * )`)
     .order("recorded_at", { ascending: false })
     .limit(50);
 
   if (error) throw error;
 
-  return (data ?? []).map((r: any) => ({
-    ...r,
-    parent_display_name: r.parent_profiles?.display_name ?? null,
-    parent_relation: r.parent_profiles?.relation ?? null,
-  }));
+  return (data ?? []).map((r: any) => {
+    const { display_name, relation } = extractParentName(r.parent_profiles);
+    return { ...r, parent_display_name: display_name, parent_relation: relation };
+  });
 }
 
 export async function getCallRecordingById(
@@ -43,18 +48,15 @@ export async function getCallRecordingById(
 ): Promise<CallRecording | null> {
   const { data, error } = await supabase
     .from("call_recordings")
-    .select(`*, parent_profiles ( display_name, relation )`)
+    .select(`*, parent_profiles ( * )`)
     .eq("id", id)
     .maybeSingle();
 
   if (error) throw error;
   if (!data) return null;
 
-  return {
-    ...data,
-    parent_display_name: data.parent_profiles?.display_name ?? null,
-    parent_relation: data.parent_profiles?.relation ?? null,
-  };
+  const { display_name, relation } = extractParentName(data.parent_profiles);
+  return { ...data, parent_display_name: display_name, parent_relation: relation };
 }
 
 export async function updateCallRecordingAnalysis(
