@@ -70,6 +70,25 @@ body {
   animation: rag-fade-in 0.2s ease-out both;
 }
 
+/* ── 다크 모드 전역 재매핑 ──────────────────────
+   dark: 클래스 없는 컴포넌트도 자동 적용되도록
+   (@layer utilities 외부이므로 cascade 우선순위 높음)
+   ─────────────────────────────────────────────── */
+.dark .bg-white          { background-color: #1e293b; } /* slate-800 */
+.dark .bg-slate-50       { background-color: #0f172a; } /* slate-950 */
+.dark .bg-slate-100      { background-color: #1e293b; } /* slate-800 */
+
+.dark .text-slate-900    { color: #f1f5f9; } /* slate-100 */
+.dark .text-slate-800    { color: #e2e8f0; } /* slate-200 */
+.dark .text-slate-700    { color: #cbd5e1; } /* slate-300 */
+.dark .text-slate-600    { color: #94a3b8; } /* slate-400 */
+.dark .text-slate-500    { color: #64748b; } /* slate-500 */
+.dark .text-slate-400    { color: #475569; } /* slate-600 */
+
+.dark .border-slate-100  { border-color: #334155; } /* slate-700 */
+.dark .border-slate-200  { border-color: #334155; }
+.dark .divide-slate-100  { border-color: #334155; }
+
 /* ── 페이지 전환 진행 바 ──────────────────────── */
 @keyframes nav-bar-grow {
   0%   { width: 0%; }
