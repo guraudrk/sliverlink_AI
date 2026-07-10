@@ -3,6 +3,8 @@
 import { useState } from "react";
 import type { CallRecording } from "@/lib/supabase/call-recordings-repo";
 import type { SafetySignal } from "@/lib/silverlink/audio/audio-analyzer";
+import type { ParentProfile } from "@/lib/supabase/parent-profiles-repo";
+import { WebRecorder } from "@/components/app/web-recorder";
 
 const SIGNAL_LABELS: Record<string, string> = {
   physical: "🩺 신체",
@@ -46,9 +48,12 @@ function formatDuration(sec: number | null) {
   return `${Math.floor(sec / 60)}분 ${sec % 60}초`;
 }
 
-type Props = { initialRecordings: CallRecording[] };
+type Props = {
+  initialRecordings: CallRecording[];
+  parents: Pick<ParentProfile, "id" | "display_name" | "relationship">[];
+};
 
-export function CallsClient({ initialRecordings }: Props) {
+export function CallsClient({ initialRecordings, parents }: Props) {
   const [recordings, setRecordings] = useState<CallRecording[]>(initialRecordings);
   const [analyzing, setAnalyzing] = useState<Record<string, boolean>>({});
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -121,18 +126,24 @@ export function CallsClient({ initialRecordings }: Props) {
 
   if (recordings.length === 0) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center bg-slate-50 px-4 py-20 text-center">
-        <div className="max-w-sm space-y-4 rounded-3xl bg-white p-10 shadow-sm ring-1 ring-slate-200">
-          <p className="text-4xl">📂</p>
-          <p className="text-lg font-semibold text-slate-700">녹음 기록이 없어요</p>
-          <p className="text-sm text-slate-500">모바일 앱에서 어르신과 통화 중에 녹음하면 여기서 확인할 수 있어요.</p>
-          <button
-            onClick={handleSeed}
-            disabled={seeding}
-            className="w-full rounded-xl border border-dashed border-blue-300 bg-blue-50 py-3 text-sm font-semibold text-blue-600 hover:bg-blue-100 disabled:opacity-50"
-          >
-            {seeding ? "생성 중..." : "🧪 예시 데이터 3개 추가"}
-          </button>
+      <div className="flex flex-1 flex-col items-center bg-slate-50 px-4 py-12">
+        <div className="w-full max-w-sm space-y-4">
+          <WebRecorder
+            parents={parents}
+            onUploaded={() => window.location.reload()}
+          />
+          <div className="rounded-3xl bg-white p-8 shadow-sm ring-1 ring-slate-200 text-center space-y-3">
+            <p className="text-4xl">📂</p>
+            <p className="text-base font-semibold text-slate-700">아직 녹음 기록이 없어요</p>
+            <p className="text-sm text-slate-500">위에서 녹음을 시작하거나 예시 데이터를 추가해 보세요.</p>
+            <button
+              onClick={handleSeed}
+              disabled={seeding}
+              className="w-full rounded-xl border border-dashed border-blue-300 bg-blue-50 py-3 text-sm font-semibold text-blue-600 hover:bg-blue-100 disabled:opacity-50"
+            >
+              {seeding ? "생성 중..." : "🧪 예시 데이터 3개 추가"}
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -141,7 +152,7 @@ export function CallsClient({ initialRecordings }: Props) {
   return (
     <div className="flex flex-1 flex-col bg-slate-50 px-4 py-8 sm:px-8">
       <div className="mx-auto w-full max-w-3xl">
-        <div className="mb-6 flex items-start justify-between gap-4">
+        <div className="mb-4 flex items-start justify-between gap-4">
           <div>
             <p className="text-sm font-semibold uppercase tracking-widest text-blue-600">SilverLink AI</p>
             <h1 className="mt-1 text-2xl font-bold text-slate-900">통화 녹음 · AI 분석</h1>
@@ -152,8 +163,16 @@ export function CallsClient({ initialRecordings }: Props) {
             disabled={seeding}
             className="shrink-0 rounded-xl border border-dashed border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-500 hover:border-blue-300 hover:text-blue-600 disabled:opacity-50"
           >
-            {seeding ? "생성 중..." : "🧪 예시 추가"}
+            {seeding ? "생성 중..." : "🧪 예시"}
           </button>
+        </div>
+
+        {/* 웹 녹음 패널 */}
+        <div className="mb-6">
+          <WebRecorder
+            parents={parents}
+            onUploaded={() => window.location.reload()}
+          />
         </div>
 
         <ul className="space-y-3">

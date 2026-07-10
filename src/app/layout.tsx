@@ -22,6 +22,7 @@ export const viewport: Viewport = {
 };
 
 const themeScript = `(function(){try{var t=localStorage.getItem('theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark');}}catch(e){}})();`;
+const swScript = `if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});})}`;
 
 export default function RootLayout({
   children,
@@ -32,6 +33,7 @@ export default function RootLayout({
     <html lang="ko" className={`${pretendard.variable} h-full antialiased`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script dangerouslySetInnerHTML={{ __html: swScript }} />
       </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
