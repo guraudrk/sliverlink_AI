@@ -141,3 +141,154 @@ Twilio Voice(또는 국내 대체) outbound call + TwiML `Say`/`Gather`. `/api/c
 - NAVER CLOVA CareCall(국내 벤치마크): https://www.navercorp.com/en/media/pressReleasesDetail?seq=30922 , https://guide.ncloud-docs.com/docs/en/clovacarecall-overview
 - Retell AI / Vapi: https://docs.retellai.com/deploy/outbound-call , https://vapi.ai/
 - OWASP LLM Top 10(프롬프트 인젝션/데이터 유출 대응 — RAG 검색 단계 필터 강제 근거): https://owasp.org/www-project-top-10-for-large-language-model-applications/
+
+---
+
+## ⚠️ v2 컨셉 전환 (2026-07-10) — 이하 섹션이 기존 Day 12, 25 계획을 대체
+
+### 전환 배경 (BM 강의 기반 판단)
+
+| 항목 | v1 (AI TTS 발신) | v2 (통화 녹음 + AI 분석) |
+|---|---|---|
+| Pain Point | 편의(알림 자동화) | 두려움(대화 속 건강 신호를 놓칠까 봐) |
+| 고객 행동 | 새 행동 필요 | 이미 하는 전화를 강화 |
+| PMF 가능성 | 낮음 (로보콜 거부감) | 높음 (자연스러운 플로우) |
+| 기술 리스크 | Solapi/Twilio 연동 | 마이크 녹음(iOS/Android 모두 가능) |
+
+**핵심**: "이미 하는 행동(가족이 부모님에게 전화)을 개선한다" — 배달의 민족 패턴.
+
+### 제거/축소되는 기능
+- Solapi TTS 발신 (AI가 어르신에게 전화 거는 기능) → 완전 제거
+- SMS 발송 → 알림 목적으로만 축소
+- Scripted IVR / DTMF 키패드 응답 (Day 12 원안) → 제거
+- Day 25 실제 전화 연동 → 범위 변경 (통화 녹음 실기기 테스트로 전환)
+
+### 유지되는 기능 (웹 대시보드)
+Auth, 어르신 프로필 관리, AI 안전 분석 파이프라인, 안전 알림(7가지 신호), 케어 타임라인, 사회 연결 점수, 케어 보고서, 복지사 모드, RAG 챗봇, 학술 참조 페이지, 다크 모드
+
+---
+
+## 18. v2 신규 Day 계획 (Day 29 ~ Day 34)
+
+### Day 29 — 모바일 앱 기반 구축 (Expo + 전화번호부)
+
+**목표**: 모바일 앱 프로젝트 생성 + 전화번호부 연동으로 어르신 등록
+
+**주요 작업**
+- `expo init silverlink-mobile` (TypeScript 템플릿)
+- `expo-contacts`: 전화번호부 접근 권한 요청 + 연락처 검색/선택 UI
+- 선택한 연락처를 Supabase `parent_profiles`에 등록 (기존 웹 DB와 동일)
+- 기존 Supabase Auth(이메일/비밀번호)로 웹과 동일 계정 공유
+- 앱 ↔ 웹 데이터 동기화 확인 (어르신 등록하면 웹 대시보드에도 반영)
+
+**성공 기준**: 연락처에서 어르신을 선택해 등록하면 웹 대시보드에 나타남
+
+---
+
+### Day 30 — 통화 녹음 기능
+
+**목표**: 앱에서 통화 중 녹음 버튼 → 오디오 파일 저장 → 서버 업로드
+
+**주요 작업**
+- `expo-av`: 마이크 권한 요청 + 녹음 시작/정지/저장 UI
+- 녹음 파일(.m4a) → Supabase Storage 업로드 (`call_recordings` 버킷)
+- 신규 테이블 `call_recordings`: `id`, `owner_user_id`, `parent_id`, `audio_url`, `duration_sec`, `recorded_at`, `status`(`pending`/`transcribing`/`analyzed`/`failed`)
+- 통화 상대(어르신) 선택 → 녹음과 자동 연결
+- 녹음 목록 + 재생 UI (앱 내)
+
+**성공 기준**: 앱에서 녹음 → Supabase Storage에 파일 업로드 → 목록에서 재생 가능
+
+**안전 규칙**
+- 녹음은 사용자가 직접 시작 버튼을 눌러야만 시작 (자동 녹음 없음)
+- `owner_user_id` 기준 격리, 다른 사용자 녹음 접근 불가
+- 오디오 파일은 PII(개인식별정보)로 취급
+
+---
+
+### Day 31 — AI 음성 분석 파이프라인
+
+**목표**: 녹음 파일 → 전사(transcript) → AI 건강 신호 분석 → 웹 대시보드 연동
+
+**주요 작업**
+- 오디오 → 텍스트: Gemini 1.5 Pro `inlineData` 오디오 직접 분석 (Whisper API 대체 가능)
+- 기존 AI 안전 분석 파이프라인 재활용: 7가지 신호(인지, 신체, 정서, 사회, 영양, 수면, 통증) 감지
+- 신규 컬럼 `call_recordings.transcript`, `call_recordings.ai_summary`, `call_recordings.risk_level`
+- 분석 완료 → `safety_alerts` 자동 생성 (기존 알림 시스템과 동일)
+- 웹 대시보드 `/dashboard/calls` → 녹음 목록 + 전사본 + AI 요약 확인
+
+**성공 기준**: 녹음 업로드 후 10초 이내에 AI 요약 + 위험 신호가 웹에서 확인됨
+
+---
+
+### Day 32 — 경쟁사 분석 + 포지셔닝 문서 (BM 강의 보완)
+
+**목표**: "어르신 건강 특화 AI 통화 분석" 차별화 포지션 확립
+
+**주요 작업**
+- 유사 앱 분석: 네이버 클로바 노트, Google Recorder, 일반 통화 녹음 앱 vs SilverLink
+- 차별화 포인트: ① 어르신 건강 특화 신호 감지 ② 가족/복지사 대시보드 ③ 케어 타임라인
+- `docs/competitor-analysis.md` 작성
+- 웹 랜딩 페이지(`/`) + 앱 스토어 설명 문구 초안 작성
+- 대시보드 도움말(`NavPageGuide`) 새 컨셉 기준으로 전면 업데이트
+
+**성공 기준**: "왜 SilverLink인가"를 3문장으로 설명할 수 있음
+
+---
+
+### Day 33 — 온보딩 플로우 + PMF 검증 지표 (BM 강의 보완)
+
+**목표**: 신규 사용자가 처음 접속해서 첫 AI 분석까지 3단계로 완료
+
+**온보딩 3단계**
+1. 회원가입 → 앱 다운로드 안내
+2. 전화번호부에서 어르신 등록
+3. 첫 통화 녹음 → AI 분석 확인 (성공 화면 + 공유 버튼)
+
+**PMF 검증 지표 (대시보드에 추가)**
+- 주간 녹음 횟수 (핵심 지표: 7일 내 2회 이상 → 리텐션 가능성 높음)
+- AI 분석 완료율
+- 안전 알림 확인율 (알림 수신 후 클릭 비율)
+- 7일 재방문율
+
+**성공 기준**: 신규 가입자가 5분 내에 첫 AI 분석 결과를 받을 수 있음
+
+---
+
+### Day 34 — 수익 모델 구현 (BM 강의 핵심 보완)
+
+**목표**: Freemium 구조로 첫 수익 경로 구현
+
+**요금제 설계**
+| 플랜 | 가격 | 한도 |
+|---|---|---|
+| Free | 무료 | 월 10회 녹음, 기본 AI 요약 |
+| Care+ | 월 9,900원 | 무제한 녹음, 상세 안전 분석, 케어 보고서, 복지사 초대 |
+| Family | 월 19,900원 | Care+ + 다중 어르신 등록(5명), 가족 공유 |
+
+**주요 작업**
+- `subscriptions` 테이블: `owner_user_id`, `plan`(`free`/`care_plus`/`family`), `expires_at`
+- 설정 페이지 `/dashboard/settings` → 요금제 탭 추가 (Stripe 연동 스켈레톤)
+- 무료 한도 초과 시 업그레이드 유도 모달
+- 요금제별 기능 게이팅 (녹음 횟수 카운터)
+
+**성공 기준**: 무료 10회 초과 시 업그레이드 모달이 뜨고, 요금제 페이지가 보임
+
+---
+
+## 19. v2 전체 로드맵 요약
+
+| Day | 목표 | 핵심 산출물 |
+|---|---|---|
+| 8~27 | 기존 웹 대시보드 완성 | Auth, 프로필, AI 분석, 알림, 타임라인 등 |
+| 29 | 모바일 앱 기반 | Expo + 전화번호부 연동 + Supabase 계정 공유 |
+| 30 | 통화 녹음 | expo-av + Supabase Storage + 녹음 목록 |
+| 31 | AI 음성 분석 | Gemini 오디오 → 전사 → 7가지 신호 → 알림 |
+| 32 | 포지셔닝 | 경쟁사 분석 + 랜딩 문구 + 도움말 업데이트 |
+| 33 | 온보딩 + PMF | 3단계 온보딩 + 리텐션 지표 대시보드 |
+| 34 | 수익 모델 | Freemium 구조 + Stripe 스켈레톤 |
+
+**핵심 기술 스택 추가**
+- `expo` + `expo-contacts` + `expo-av`
+- `Gemini 1.5 Pro` (오디오 직접 처리)
+- `Supabase Storage` (call_recordings 버킷)
+- `Stripe` (결제, Day 34)

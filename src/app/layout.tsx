@@ -11,7 +11,7 @@ const pretendard = localFont({
 
 export const metadata: Metadata = {
   title: "SilverLink AI",
-  description: "자녀와 관리자가 어르신께 전달할 요청·돌봄 기록을 관리하는 SilverLink AI",
+  description: "가족이 어르신과 나눈 통화를 AI가 분석해 건강 신호를 기록하는 SilverLink AI",
 };
 
 export const viewport: Viewport = {
