@@ -7,6 +7,76 @@
 
 ---
 
+# 2026-07-13
+
+## 앱 컨셉 전환 — APK 사이드로드 → 삼성 AI 통화 요약 공유 (Day 35 완료)
+
+**작업 배경**: 전날 만든 Android 자동 통화 녹음 APK를 실제 기기에 설치하려는 과정에서 Play Protect 경고가 발생했다. "기기 보호를 위해 앱이 차단되었습니다"라는 문구와 함께 구글의 알 수 없는 출처 앱 경고가 노출됨. 기술적으로는 무시하고 설치 가능하지만 "부모님이 이 화면을 보면 본능적으로 의심할 것"이라는 판단에 도달했다. 신뢰 문제는 기술로 해결할 수 없다.
+
+**왜 컨셉을 바꿨나**: 삼성 Galaxy S23 이상 기기에는 "통화 도우미 - AI 요약" 기능이 기본 탑재되어 있다. 통화가 끝나면 AI가 자동으로 통화 내용을 요약해주고, 공유 버튼이 노출된다. 이 요약 텍스트를 SilverLink 앱으로 공유하면 — 우리 AI가 다시 분석해서 건강 신호를 추출하는 방식으로 전환. 장점: 녹음 권한 불필요, Play Store 정식 앱 가능, 부모님이 경험하는 UX가 단순(공유 버튼 하나).
+
+**새 데이터 플로우**:
+```
+통화 종료
+    ↓
+삼성 통화 도우미 AI 요약 생성 (자동)
+    ↓
+자녀/케어매니저가 "공유" → SilverLink 앱 선택
+    ↓
+앱 내 📨 요약 입력 탭에서 어르신 선택 후 분석 시작
+    ↓
+/api/recordings/analyze-text (Bearer 토큰 인증)
+    ↓
+Gemini AI 텍스트 분석 → risk_level + signals
+    ↓
+call_recordings 저장 + safety_alerts + 사회 점수 + RAG 인덱싱
+    ↓
+웹 대시보드 타임라인·통화 목록에 즉시 반영
+```
+
+**Slice 3 — 텍스트 분석 API (`/api/recordings/analyze-text`)**:
+- 모바일(Bearer 토큰)과 웹(쿠키) 인증을 동시에 지원하도록 분기 처리
+- `storage_path: null`로 저장 — 파일 없이 텍스트만으로 분석 가능
+- 기존 `analyzeAudio()`와 동일한 통합 파이프라인 재사용 (`createAlertsFromAnalysis`, `indexTranscriptToRag`, `updateSocialScoreFromRecording`)
+
+**Slice 2 — 모바일 📨 탭 (`app/(tabs)/share-import.tsx`)**:
+- 어르신 선택 → 텍스트 붙여넣기 → AI 분석 → 결과 표시 → "✅ 대시보드에 저장됨"
+- Supabase 세션에서 access_token을 꺼내 Authorization 헤더로 전달
+
+**Slice 4 — 자동 녹음 코드 전부 제거**:
+- 삭제: `CallRecordingService.kt`, `PhoneStateReceiver.kt`, `BootReceiver.kt`, `CallRecordingModule.kt`, `CallRecordingPackage.kt`, `auto-call-recorder.ts`, `useAutoCallRecording.ts` (총 629줄)
+- 정리: `AndroidManifest.xml` 권한 6개 + Service/Receiver 선언, `MainApplication.kt` 패키지 등록, `_layout.tsx` 훅 호출, `settings.tsx` 권한 카드
+
+**🤖 AI 활용 팁**: 기술적으로 가능한 것과 사용자가 실제로 받아들이는 것은 다르다. APK 사이드로드는 개발자 관점에서 "그냥 설치하면 되잖아"지만, 타깃 사용자(50대 이상 부모님)에게는 "의심스러운 앱"이다. AI와 기능을 설계할 때 "기술적으로 되는가"만큼 "이 사람이 실제로 쓸 수 있는가"를 같이 질문하면 방향이 달라진다. 이번 피봇은 구현 다 하고 나서야 발견했지만, 다음에는 사용자 수용성을 먼저 검토해야 한다는 교훈.
+
+---
+
+## Play Store 정식 배포 준비
+
+**작업 배경**: 컨셉 피봇 후 배포 방식도 자연스럽게 바뀌었다. 자동 녹음 권한이 없으니 Play Store 심사 통과 가능성이 높아졌고, 부모님이 직접 검색해서 설치할 수 있다는 장점도 생겼다.
+
+**오늘 한 것**:
+
+1. **개인정보처리방침 페이지 생성** — `silverlink-ai.vercel.app/privacy` (Play Store 필수 요건)
+   - 수집 항목, 제3자 제공(Supabase·Gemini·Vercel), 마이크 권한 목적 등 명시
+
+2. **app.json 정비** — `description` 필드 추가, `settings.tsx` 버전 문구 정리
+
+3. **Google Play 개발자 계정 신규 등록**:
+   - 기존 계정이 2024년 3월 미사용으로 자동 해지된 상태였음 (복구 불가, $25 환불 불가)
+   - 새 구글 계정으로 재등록, $25 결제 완료
+   - 신원 확인 서류(신용카드 명세서 90일 이내 발급본) 업로드 완료
+   - 현재 상태: "Google에서 신원 확인 중" — 승인까지 1~3일 소요 예정
+
+**다음 단계**:
+- 계정 승인 이메일 수신 후 → `eas build --profile production` AAB 빌드 → Play Console 업로드
+- 스크린샷 2장 이상 준비 (주요 화면 캡처)
+- Slice 1(Android Share Target) — 삼성 앱에서 직접 SilverLink로 공유 intent 등록
+
+**🤖 AI 활용 팁**: 앱 배포를 처음 할 때 "빌드만 하면 되는 줄 알았는데" 개발자 계정, 신원 확인, 개인정보처리방침, 스토어 등록정보, 콘텐츠 등급 설문 등 비개발 작업이 생각보다 많다. AI한테 "Play Store 제출 체크리스트 뽑아줘"라고 하면 빠진 항목을 미리 파악하는 데 도움이 된다. 특히 개인정보처리방침 URL은 심사 제출 화면에서 반드시 입력해야 하므로 코드보다 먼저 만들어두는 것이 순서다.
+
+---
+
 # 2026-07-10
 
 ## Android 자동 통화 녹음 — Kotlin 네이티브 모듈 + EAS APK 빌드 (Day 34)
