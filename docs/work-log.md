@@ -7,6 +7,163 @@
 
 ---
 
+# 2026-07-10
+
+## Android 자동 통화 녹음 — Kotlin 네이티브 모듈 + EAS APK 빌드 (Day 34)
+
+**작업 배경**: SilverLink 앱의 핵심 컨셉은 "케어 매니저가 직접 개입하지 않아도 어르신의 통화 상태가 분석된다"는 것이다. 지금까지는 수동으로 녹음 버튼을 눌러야 했는데, 이 방식은 현실에서 정착할 수 없다. 오늘 목표는 등록된 전화번호로 전화가 오면 자동 녹음 → Supabase 업로드까지 완전 자동화하는 것. iOS는 Apple API 제한으로 불가능하므로 Android 전용 사이드로드 APK 방식으로 결정.
+
+**왜 이 방식인가**: 앱스토어 심사를 거치면 수개월이 걸리고, 통화 녹음 앱은 심사 통과 자체가 어렵다. 사이드로드 APK는 부모님 폰 한 대에만 직접 설치하는 MVP 방식 — 배포 범위가 제한적이지만 기술 검증에는 충분하다.
+
+**1. Expo bare workflow 전환**:
+- 기존 managed workflow는 네이티브 코드를 직접 쓸 수 없음
+- `npx expo prebuild --platform android` 실행 → `android/` 폴더 생성 (bare workflow 전환)
+- 이후 Kotlin 파일을 `android/app/src/main/java/ai/silverlink/mobile/`에 직접 작성
+
+**2. Android 백그라운드 통화 녹음 구조**:
+
+```
+전화 수신/발신
+    ↓
+PhoneStateReceiver (BroadcastReceiver)
+    ↓ 등록된 번호인지 확인 (SharedPreferences)
+    ↓ normalize()+비교 — +82-010-xxxx → 010xxxxxxxx
+    ↓
+CallRecordingService (ForegroundService)
+    ↓ MediaRecorder(VOICE_COMMUNICATION)
+    ↓ 통화 종료 감지
+    ↓ 파일 크기 > 2KB 확인
+    ↓
+SharedPreferences에 경로 저장
+    ↓
+CallRecordingModule (RN Bridge)
+    ↓ DeviceEventEmitter → JS 이벤트
+    ↓
+useAutoCallRecording 훅
+    ↓
+Supabase Storage + call_recordings 테이블 INSERT
+```
+
+**3. 등록 번호 필터링**: 앱 시작 시 `parent_profiles.phone` 목록을 가져와 `setRegisteredNumbers()`로 SharedPreferences에 저장. BroadcastReceiver가 전화번호를 `normalize()`로 정규화 후 목록과 비교 — 일치할 때만 녹음 시작. "모든 전화 녹음"이 아니라 "케어 대상자와의 통화만 녹음"하는 것이 핵심.
+
+**4. 앱이 꺼진 상태 처리**: ForegroundService는 앱 없이도 동작. 녹음 완료 파일 경로를 SharedPreferences에 저장 → 다음 앱 열기 시 `getPendingRecordingPath()`로 조회 후 업로드. 재부팅 후에도 BootReceiver가 처리.
+
+**변경 파일**:
+| 파일 | 변경 내용 |
+|---|---|
+| `android/app/src/main/AndroidManifest.xml` | 권한 5개 + Service/Receiver 선언 추가 |
+| `android/app/src/main/java/.../CallRecordingService.kt` | ForegroundService 신규 작성 |
+| `android/app/src/main/java/.../PhoneStateReceiver.kt` | BroadcastReceiver 신규 작성 |
+| `android/app/src/main/java/.../CallRecordingModule.kt` | RN 브릿지 신규 작성 |
+| `android/app/src/main/java/.../CallRecordingPackage.kt` | 패키지 등록 신규 작성 |
+| `android/app/src/main/java/.../BootReceiver.kt` | 부팅 리시버 신규 작성 |
+| `android/app/src/main/java/.../MainApplication.kt` | CallRecordingPackage() 등록 |
+| `src/modules/auto-call-recorder.ts` | JS 브릿지 신규 작성 |
+| `src/hooks/useAutoCallRecording.ts` | 업로드 훅 신규 작성 |
+| `app/_layout.tsx` | useAutoCallRecording() 초기화 추가 |
+| `app/(tabs)/settings.tsx` | 녹음 권한 설정 UI 추가 |
+
+**🤖 AI 활용 팁**: React Native에서 네이티브 기능이 필요할 때 "라이브러리가 없으면 못 한다"고 생각하기 쉽지만, `ReactContextBaseJavaModule` + `BroadcastReceiver` + `Service` 조합으로 원하는 기능을 직접 만들 수 있다. AI한테 "Kotlin으로 ForegroundService가 MediaRecorder를 백그라운드에서 돌리는 구조 짜줘"라고 하면 뼈대가 나오고, "RN Bridge로 JS에 이벤트 보내는 방법"을 추가 요청하면 연결된다. 복잡해 보이지만 파일 4개로 완성된다.
+
+---
+
+## EAS Build 오류 해결 3종 세트
+
+**작업 배경**: 네이티브 코드를 다 짠 뒤 EAS Cloud Build를 돌렸는데 3개 오류가 연속으로 발생. 로컬에서는 전혀 안 보이던 오류들이라 원인 파악이 까다로웠다.
+
+**오류 1 — eas.json buildType 값 오류**:
+- 증상: `"buildType": "aab"` validation failed
+- 원인: EAS CLI 20.x에서 허용값이 바뀜 (`"aab"` → `"app-bundle"`)
+- 해결: `eas.json` production.android.buildType 값 수정
+
+**오류 2 — package-lock.json 불일치**:
+- 증상: `npm ci` 실패 — lock file이 package.json과 다름
+- 원인: `package.json` 수동 편집 후 `npm install` 없이 push
+- 해결: 로컬에서 `npm install` 실행 → 새 `package-lock.json` 커밋·push
+
+**오류 3 — peer dependency 충돌 (`react@19.1.0` vs `react-dom@19.2.7`)**:
+- 증상: `ERESOLVE` — react-dom이 react@^19.2.7 요구하는데 19.1.0 설치됨
+- 원인: EAS 빌드 환경은 기본 `npm ci --strict` 실행
+- 해결: `.npmrc`에 `legacy-peer-deps=true` 추가
+
+**🤖 AI 활용 팁**: EAS Build 오류는 로컬에서 재현이 안 되는 게 많다. 오류 메시지만 AI에 붙여넣으면 원인+해결책이 한 번에 나온다. 단, "EAS CLI 버전", "npm vs yarn", "lock file 동기화" 이 3가지는 항상 의심 대상으로 올려놔야 한다.
+
+---
+
+## Kotlin 타입 오류 — buildNotification() 수정
+
+**작업 배경**: Gradle 빌드에서 `CallRecordingService.kt`의 `buildNotification()` 함수에서 타입 불일치 컴파일 오류 발생.
+
+**원인**: `if (Build.VERSION.SDK_INT >= O) Notification.Builder(this, CHANNEL_ID) else Notification.Builder(this)` — `if` 분기가 `Notification.Builder`를 반환하고 `else` 분기에서 `.build()` 없이 반환되어 타입이 `Any`로 추론됨.
+
+**해결**: builder를 변수에 분리하고 `.build()`를 한 곳에서만 호출:
+```kotlin
+val builder = if (...) Notification.Builder(this, CHANNEL_ID)
+              else @Suppress("DEPRECATION") Notification.Builder(this)
+return builder.setContentTitle(...).setContentText(...).build()
+```
+
+**🤖 AI 활용 팁**: Kotlin의 `if` 표현식에서 두 분기의 타입이 정확히 일치해야 한다. `Builder`와 `Notification`은 다른 타입이므로 `.build()`를 각 분기 안에 넣거나, 위처럼 builder를 변수로 추출하고 `.build()`를 밖에서 한 번만 호출한다. AI가 초안을 짤 때 이 부분을 놓치는 경우가 있으니 빌드 후 Kotlin 컴파일 오류가 나면 타입 추론 문제를 먼저 의심하자.
+
+---
+
+## 웹 마이크 권한 감지 (Chrome 팝업 자동 트리거)
+
+**작업 배경**: `/dashboard/calls`에서 "녹음 시작" 버튼을 눌렀을 때 마이크 권한이 없으면 아무 반응도 없어서 사용자가 혼란스러웠다. Chrome 기본 권한 팝업이 자동으로 뜨게 하고, 완전 차단된 경우엔 안내 메시지를 보여줘야 한다.
+
+**구현 방식**:
+- `Permissions API` (`navigator.permissions.query({ name: "microphone" })`)로 마운트 시 상태 확인
+- `"denied"`: 버튼 숨기고 황색 안내 박스 표시 ("주소창 🔒 → 마이크 → 허용")
+- `"prompt"` 또는 `"granted"`: 버튼 표시, 클릭 시 `getUserMedia()` 호출 → 브라우저가 팝업 자동 표시
+- `NotAllowedError` / `PermissionDeniedError` 캐치 → 즉시 차단 상태로 전환
+- `status.onchange` 리스너로 실시간 반영
+
+**변경 파일**:
+| 파일 | 변경 내용 |
+|---|---|
+| `src/components/app/web-recorder.tsx` | micBlocked 상태 + Permissions API 체크 추가 |
+
+**🤖 AI 활용 팁**: 브라우저 권한 팝업은 `getUserMedia()`를 호출하면 자동으로 뜬다 — 별도 트리거 코드가 필요 없다. 단, 이미 "차단"으로 설정된 경우엔 팝업이 안 뜨므로 `Permissions API`로 사전 확인 후 UI를 분기해야 한다. "권한이 없으면 왜 아무것도 안 뜨냐"는 버그의 95%는 이 패턴으로 해결된다.
+
+---
+
+## 로딩 화면 단순화 (7개 loading.tsx)
+
+**작업 배경**: 기존 스켈레톤 UI가 각 페이지마다 달랐고, 유지보수가 번거로웠다. 로딩 중에 레이아웃이 흔들리는 시각적 노이즈도 있었다. "로딩하는 중..."이라는 텍스트 한 줄이 훨씬 명확하고 깔끔하다.
+
+**구현**: `LoadingScreen` 공통 컴포넌트 하나 만들고 7개 `loading.tsx` 전부 교체.
+
+```tsx
+// src/components/app/loading-screen.tsx
+export function LoadingScreen() {
+  return (
+    <div className="flex flex-1 items-center justify-center py-20">
+      <p className="text-sm text-slate-400 dark:text-slate-500">로딩하는 중...</p>
+    </div>
+  );
+}
+```
+
+**변경 파일**: `dashboard`, `tasks`, `responses`, `calls`, `deliveries`, `caseworker`, `parents` — 7개 `loading.tsx` 전부 동일 내용으로 교체.
+
+**🤖 AI 활용 팁**: 스켈레톤 UI는 "콘텐츠 구조가 예측 가능하고 로딩이 길 때" 쓸 가치가 있다. Suspense streaming이 빠른 Next.js App Router 환경에서는 오히려 텍스트 한 줄이 더 낫다. "공통 컴포넌트 하나 + 얇은 래퍼 N개" 패턴을 쓰면 나중에 디자인 바꿀 때 파일 하나만 수정하면 된다.
+
+---
+
+## Supabase RLS 재활성화 + Storage 정책 추가
+
+**작업 배경**: `call_recordings` 테이블 RLS가 어느 시점에 `DISABLE` 상태가 되어 있었다. Storage `call-recordings` 버킷도 정책이 없어서 누구나 읽을 수 있는 상태였다.
+
+**SQL 처리 내용**:
+- `ALTER TABLE call_recordings ENABLE ROW LEVEL SECURITY`
+- `owner_full_access` 정책: `auth.uid() = owner_user_id`
+- Storage 3개 정책: INSERT/SELECT/DELETE 각각 `(storage.foldername(name))[1] = auth.uid()::text`
+  - 업로드 경로를 `{uid}/{filename}` 형식으로 강제 → 소유자 폴더만 접근 가능
+
+**🤖 AI 활용 팁**: Supabase Storage에서 "내 파일만 보이게" 하려면 **경로 설계**가 핵심이다. `{uid}/filename.m4a` 구조로 업로드하면 `(storage.foldername(name))[1] = auth.uid()::text` 정책 한 줄로 모든 CRUD를 소유자 전용으로 잠글 수 있다. RLS는 배포 전 보안 체크리스트 1순위 — 테이블 생성 직후 바로 켜는 습관을 들이자.
+
+---
+
 # 2026-07-08
 
 ## 마무리 세션 2: 대시보드 도움말 전면 개편 + 마스터 프롬프트 작성

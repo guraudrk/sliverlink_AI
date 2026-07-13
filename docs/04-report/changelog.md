@@ -5,6 +5,113 @@
 
 ---
 
+## [2026-07-10] - Day 34: 자동 통화 녹음 + APK 빌드 + 보안 강화
+
+**Status**: Complete ✅
+
+### Overview
+Android 자동 통화 녹음 기능 구현 (Kotlin 네이티브 모듈) + Expo bare workflow 전환 + APK 빌드 완료. 웹은 로딩 UX 단순화, 마이크 권한 감지, RLS 재활성화.
+
+### Added
+
+**모바일 앱 — 자동 통화 녹음 (Android 전용)**
+- Expo managed → bare workflow 전환 (`npx expo prebuild --platform android`)
+- `CallRecordingService.kt` — ForegroundService: `MediaRecorder(VOICE_COMMUNICATION)` 기반 백그라운드 녹음
+- `PhoneStateReceiver.kt` — BroadcastReceiver: 통화 상태 감지 (`PHONE_STATE`, `NEW_OUTGOING_CALL`)
+- `CallRecordingModule.kt` — React Native 브릿지: `DeviceEventEmitter`로 JS에 이벤트 발송, `setRegisteredNumbers()` 메서드
+- `CallRecordingPackage.kt` — RN 패키지 등록
+- `BootReceiver.kt` — 부팅 후 pending 녹음 처리 준비
+- `src/modules/auto-call-recorder.ts` — JS 브릿지 (권한 요청, 이벤트 구독, 파일 읽기)
+- `src/hooks/useAutoCallRecording.ts` — 업로드 훅: 앱 시작 시 미업로드 파일 처리 + 실시간 이벤트 수신
+- **등록된 번호 필터링**: 앱 시작 시 `parent_profiles.phone` 목록 → SharedPreferences 저장 → 전화 감지 시 번호 정규화(`+82-10-...` → `010...`) 후 비교, 일치할 때만 녹음 시작
+- 설정 화면에 "🎙️ 녹음 권한 설정" 버튼 추가 (`READ_PHONE_STATE`, `READ_CALL_LOG`, `RECORD_AUDIO`)
+
+**웹 — 로딩 UX 개선**
+- `LoadingScreen` 컴포넌트 신규 생성 — 스켈레톤 UI 대신 "로딩하는 중..." 텍스트
+- 7개 `loading.tsx` 전면 교체 (`dashboard`, `tasks`, `responses`, `calls`, `deliveries`, `caseworker`, `parents`)
+
+**웹 — 마이크 권한 감지 (WebRecorder)**
+- `Permissions API`로 마이크 권한 상태 감지 (`prompt` / `granted` / `denied`)
+- `denied` 상태: 버튼 대신 황색 안내 박스 표시 ("주소창 🔒 → 마이크 → 허용")
+- 팝업에서 차단 클릭 시 즉시 안내 박스로 전환
+
+### Fixed (오류 해결)
+
+| 오류 | 원인 | 해결 방법 |
+|------|------|----------|
+| `eas.json buildType "aab" invalid` | EAS CLI 20.x에서 허용값 변경 | `"aab"` → `"app-bundle"` |
+| `npm ci` 실패 — lock file 불일치 | `package-lock.json`이 `package.json`과 비동기화 | 로컬 `npm install`로 재생성 후 push |
+| `ERESOLVE react-dom@19.2.7 vs react@19.1.0` | peer 의존성 충돌 | `.npmrc`에 `legacy-peer-deps=true` 추가 |
+| Gradle 빌드 실패 — 타입 불일치 | `buildNotification()`이 `if` 분기에서 `Builder` 반환, `else`만 `.build()` 호출 | builder 변수 분리 후 공통 `.build()` 호출 |
+| `audio/mp4` mimeType 버그 | 웹 녹음은 `webm`인데 Gemini에 `mp4`로 전달 | 파일 확장자로 mimeType 자동 감지 |
+
+### Security
+- `call_recordings` RLS 재활성화 (`DISABLE` 상태였음)
+- Storage `call-recordings` 버킷 RLS 3개 정책 추가 (`owner_upload`, `owner_select`, `owner_delete`) — `storage.foldername(name)[1] = auth.uid()` 소유자 폴더만 접근
+
+### Supabase Changes
+```sql
+-- call_recordings RLS 재활성화
+ALTER TABLE call_recordings ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "owner_full_access" ON call_recordings;
+CREATE POLICY "owner_full_access" ON call_recordings
+  FOR ALL USING (auth.uid() = owner_user_id)
+  WITH CHECK (auth.uid() = owner_user_id);
+
+-- Storage 소유자 폴더 전용 정책
+CREATE POLICY "owner_upload" ON storage.objects
+  FOR INSERT WITH CHECK (bucket_id = 'call-recordings' AND (storage.foldername(name))[1] = auth.uid()::text);
+CREATE POLICY "owner_select" ON storage.objects
+  FOR SELECT USING (bucket_id = 'call-recordings' AND (storage.foldername(name))[1] = auth.uid()::text);
+CREATE POLICY "owner_delete" ON storage.objects
+  FOR DELETE USING (bucket_id = 'call-recordings' AND (storage.foldername(name))[1] = auth.uid()::text);
+```
+
+### Files Changed
+**New (Mobile)**
+- `android/` — bare workflow 네이티브 Android 프로젝트 전체
+- `android/app/src/main/java/ai/silverlink/mobile/CallRecordingService.kt`
+- `android/app/src/main/java/ai/silverlink/mobile/PhoneStateReceiver.kt`
+- `android/app/src/main/java/ai/silverlink/mobile/CallRecordingModule.kt`
+- `android/app/src/main/java/ai/silverlink/mobile/CallRecordingPackage.kt`
+- `android/app/src/main/java/ai/silverlink/mobile/BootReceiver.kt`
+- `src/modules/auto-call-recorder.ts`
+- `src/hooks/useAutoCallRecording.ts`
+- `.npmrc`
+
+**Modified (Mobile)**
+- `android/app/src/main/AndroidManifest.xml` — 권한 5개 + Service/Receiver 선언
+- `android/app/src/main/java/ai/silverlink/mobile/MainApplication.kt` — `CallRecordingPackage()` 등록
+- `app/_layout.tsx` — `useAutoCallRecording()` 훅 초기화
+- `app/(tabs)/settings.tsx` — 권한 설정 UI
+- `eas.json` — `buildType` 수정
+
+**New (Web)**
+- `src/components/app/loading-screen.tsx`
+
+**Modified (Web)**
+- `src/app/(protected)/dashboard/loading.tsx` 외 6개 loading 파일
+- `src/components/app/web-recorder.tsx` — 마이크 권한 감지 추가
+
+### Commits
+**Web**
+- `refactor: loading screen simplified to plain text message`
+- `feat: mic permission detection — show blocked state UI, trigger native popup on first visit`
+
+**Mobile**
+- `feat: Android auto call recording — background service + RN bridge`
+- `feat: call recording filter — only record registered phone numbers`
+- `fix: eas.json buildType aab → app-bundle`
+- `fix: regenerate package-lock.json for EAS build sync`
+- `fix: add .npmrc legacy-peer-deps for EAS build`
+- `fix: buildNotification type mismatch — separate builder and build() call`
+
+### Deployment
+- **Web**: https://silverlink-ai.vercel.app (Vercel auto-deploy, main push)
+- **Mobile APK**: https://expo.dev/accounts/leejanghan/projects/silverlink-mobile/builds/01c1d2bd-709b-424a-8975-e3b60c1a9868
+
+---
+
 ## [2026-07-10] - Day 29~33: 모바일 앱 + AI 통화 분석 파이프라인 (v2 전환)
 
 **Status**: Complete ✅
