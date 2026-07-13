@@ -54,10 +54,16 @@ export function WebRecorder({ parents, onUploaded }: Props) {
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (err) {
-      const denied = err instanceof DOMException &&
-        (err.name === "NotAllowedError" || err.name === "PermissionDeniedError");
-      if (denied) {
-        setMicBlocked(true);
+      if (err instanceof DOMException) {
+        if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+          setMicBlocked(true);
+        } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+          setError("마이크 장치를 찾을 수 없습니다. 마이크가 연결되어 있는지 확인해주세요.");
+        } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
+          setError("마이크가 다른 앱에서 사용 중입니다. 다른 탭이나 앱을 닫고 다시 시도해주세요.");
+        } else {
+          setError(`마이크 오류: ${err.name} — ${err.message}`);
+        }
       } else {
         setError("마이크를 시작할 수 없습니다. 다시 시도해주세요.");
       }
