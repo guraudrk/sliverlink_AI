@@ -58,7 +58,7 @@ export function WebRecorder({ parents, onUploaded }: Props) {
         if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
           setMicBlocked(true);
         } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
-          setError("마이크 장치를 찾을 수 없습니다. 마이크가 연결되어 있는지 확인해주세요.");
+          setError("__no_device__");
         } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
           setError("마이크가 다른 앱에서 사용 중입니다. 다른 탭이나 앱을 닫고 다시 시도해주세요.");
         } else {
@@ -216,7 +216,23 @@ export function WebRecorder({ parents, onUploaded }: Props) {
           </div>
         )}
 
-        {error && (
+        {error === "__no_device__" && (
+          <div className="rounded-xl bg-slate-50 px-4 py-3 ring-1 ring-slate-200">
+            <p className="text-sm font-semibold text-slate-700">🎤 마이크를 찾을 수 없습니다</p>
+            <p className="mt-1 text-xs text-slate-500">
+              헤드셋이나 마이크를 연결한 뒤 <strong>버튼을 다시 눌러주세요.</strong><br />
+              노트북 내장 마이크는 바로 사용 가능합니다.
+            </p>
+            <button
+              onClick={() => { setError(null); start(); }}
+              className="mt-2 rounded-lg bg-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-300 transition-colors"
+            >
+              다시 시도
+            </button>
+          </div>
+        )}
+
+        {error && error !== "__no_device__" && (
           <p className="rounded-xl bg-red-50 px-3 py-2.5 text-xs text-red-600 ring-1 ring-red-200">
             {error}
           </p>
