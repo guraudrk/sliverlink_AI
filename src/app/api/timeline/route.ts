@@ -1,5 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { listSocialScores } from "@/lib/supabase/social-scores-repo";
+import { listSocialScores, getWeekStart } from "@/lib/supabase/social-scores-repo";
 
 export type TimelineEventType = "call" | "alert" | "brief" | "recording";
 
@@ -24,14 +24,6 @@ function json(body: unknown, status = 200) {
     status,
     headers: { "Content-Type": "application/json; charset=utf-8" },
   });
-}
-
-function getWeekStart(date: Date): string {
-  const d = new Date(date);
-  const day = d.getUTCDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setUTCDate(d.getUTCDate() + diff);
-  return d.toISOString().slice(0, 10);
 }
 
 const STATUS_LABEL: Record<string, string> = {

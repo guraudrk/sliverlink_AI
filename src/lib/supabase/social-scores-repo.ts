@@ -53,6 +53,14 @@ export async function upsertSocialScore(
   return data as SocialScore;
 }
 
+export function getWeekStart(date: Date): string {
+  const d = new Date(date);
+  const day = d.getUTCDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setUTCDate(d.getUTCDate() + diff);
+  return d.toISOString().slice(0, 10);
+}
+
 /**
  * 통화 녹음 분석 완료 시 호출 — 이번 주 점수에 통화 1건 추가
  * social_detected=true면 answered_count도 +1 (실제 교류로 인정)
@@ -64,11 +72,7 @@ export async function incrementCallFromRecording(
   recordedAt: string,
   socialDetected: boolean
 ): Promise<void> {
-  const d = new Date(recordedAt);
-  const day = d.getUTCDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setUTCDate(d.getUTCDate() + diff);
-  const weekStart = d.toISOString().slice(0, 10);
+  const weekStart = getWeekStart(new Date(recordedAt));
 
   const { data: existing } = await supabase
     .from("social_scores")
@@ -100,13 +104,15 @@ export async function incrementCallFromRecording(
 
 /** parent_id 목록 전체의 최신 주 점수를 한 번에 조회 */
 export async function listLatestSocialScores(
-  supabase: SupabaseClient
+  supabase: SupabaseClient,
+  ownerUserId: string
 ): Promise<SocialScore[]> {
   // 각 parent별로 가장 최신 1건씩 — distinct on은 Supabase JS에서 직접 지원 안 해
-  // 전체를 내려받아 JS 레벨에서 dedup하는 방식
+  // owner 필터 후 JS 레벨에서 dedup
   const { data, error } = await supabase
     .from("social_scores")
     .select("*")
+    .eq("owner_user_id", ownerUserId)
     .order("week_start", { ascending: false });
   if (error) throw error;
   const rows = (data ?? []) as SocialScore[];

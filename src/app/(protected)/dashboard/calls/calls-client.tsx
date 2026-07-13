@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import type { CallRecording } from "@/lib/supabase/call-recordings-repo";
 import type { SafetySignal } from "@/lib/silverlink/audio/audio-analyzer";
 import type { ParentProfile } from "@/lib/supabase/parent-profiles-repo";
@@ -54,6 +55,7 @@ type Props = {
 };
 
 export function CallsClient({ initialRecordings, parents }: Props) {
+  const router = useRouter();
   const [recordings, setRecordings] = useState<CallRecording[]>(initialRecordings);
   const [analyzing, setAnalyzing] = useState<Record<string, boolean>>({});
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -68,7 +70,7 @@ export function CallsClient({ initialRecordings, parents }: Props) {
         alert("예시 데이터 생성 실패: " + (json.error ?? "알 수 없는 오류"));
         return;
       }
-      window.location.reload();
+      router.refresh();
     } finally {
       setSeeding(false);
     }
@@ -130,7 +132,7 @@ export function CallsClient({ initialRecordings, parents }: Props) {
         <div className="w-full max-w-sm space-y-4">
           <WebRecorder
             parents={parents}
-            onUploaded={() => window.location.reload()}
+            onUploaded={() => router.refresh()}
           />
           <div className="rounded-3xl bg-white p-8 shadow-sm ring-1 ring-slate-200 text-center space-y-3">
             <p className="text-4xl">📂</p>
@@ -171,7 +173,7 @@ export function CallsClient({ initialRecordings, parents }: Props) {
         <div className="mb-6">
           <WebRecorder
             parents={parents}
-            onUploaded={() => window.location.reload()}
+            onUploaded={() => router.refresh()}
           />
         </div>
 

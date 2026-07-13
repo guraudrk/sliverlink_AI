@@ -35,6 +35,9 @@ export async function POST(request: NextRequest) {
   if (!text?.trim()) {
     return NextResponse.json({ error: "통화 내용(text)이 필요합니다." }, { status: 400 });
   }
+  if (text.length > 10_000) {
+    return NextResponse.json({ error: "통화 내용은 10,000자 이하여야 합니다." }, { status: 400 });
+  }
   if (!parentId) {
     return NextResponse.json({ error: "parent_id가 필요합니다." }, { status: 400 });
   }

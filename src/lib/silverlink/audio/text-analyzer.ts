@@ -35,15 +35,22 @@ export async function analyzeText(text: string): Promise<AudioAnalysisResult> {
   const client = getGeminiClient();
   const model = getLlmModel();
 
-  const response = await client.models.generateContent({
-    model,
-    contents: [
-      {
-        role: "user",
-        parts: [{ text: `[통화 내용]\n${text}\n\n${TEXT_ANALYSIS_PROMPT}` }],
-      },
-    ],
-  });
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error("Gemini 응답 타임아웃 (30초)")), 30_000)
+  );
+
+  const response = await Promise.race([
+    client.models.generateContent({
+      model,
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: `[통화 내용]\n${text}\n\n${TEXT_ANALYSIS_PROMPT}` }],
+        },
+      ],
+    }),
+    timeout,
+  ]);
 
   const raw = response.text ?? "";
   const jsonStr = raw.replace(/^```json\s*/i, "").replace(/```\s*$/, "").trim();
