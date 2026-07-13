@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { analyzeText } from "@/lib/silverlink/audio/text-analyzer";
 import {
@@ -8,7 +9,19 @@ import {
 } from "@/lib/silverlink/audio/recording-integrations";
 
 export async function POST(request: NextRequest) {
-  const supabase = await createSupabaseServerClient();
+  // 웹(쿠키) + 모바일(Bearer 토큰) 모두 지원
+  const authHeader = request.headers.get("authorization");
+  let supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>;
+
+  if (authHeader?.startsWith("Bearer ")) {
+    supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { global: { headers: { Authorization: authHeader } } }
+    ) as any;
+  } else {
+    supabase = await createSupabaseServerClient();
+  }
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
