@@ -16,9 +16,10 @@ type Kpi = {
 type Props = { parents: ParentProfile[] };
 
 const EVENT_STYLE: Record<string, { dot: string; badge: string; icon: string }> = {
-  call:  { dot: "bg-blue-500",   badge: "bg-blue-50 text-blue-700 ring-blue-200",   icon: "📞" },
-  alert: { dot: "bg-rose-500",   badge: "bg-rose-50 text-rose-700 ring-rose-200",   icon: "🚨" },
-  brief: { dot: "bg-indigo-400", badge: "bg-indigo-50 text-indigo-700 ring-indigo-200", icon: "📋" },
+  call:      { dot: "bg-blue-500",   badge: "bg-blue-50 text-blue-700 ring-blue-200",       icon: "📞" },
+  alert:     { dot: "bg-rose-500",   badge: "bg-rose-50 text-rose-700 ring-rose-200",       icon: "🚨" },
+  brief:     { dot: "bg-indigo-400", badge: "bg-indigo-50 text-indigo-700 ring-indigo-200", icon: "📋" },
+  recording: { dot: "bg-violet-500", badge: "bg-violet-50 text-violet-700 ring-violet-200", icon: "🎙️" },
 };
 
 function formatDate(iso: string) {

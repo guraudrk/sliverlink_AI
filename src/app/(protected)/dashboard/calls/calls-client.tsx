@@ -281,6 +281,22 @@ export function CallsClient({ initialRecordings, parents }: Props) {
                         </p>
                       </div>
                     )}
+
+                    {/* 즉각 확인 필요 시 케어 태스크 생성 버튼 */}
+                    {rec.risk_level === "high" && (
+                      <div className="rounded-xl bg-red-50 px-4 py-3 ring-1 ring-red-200 flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-red-700">⚠️ 즉각 확인이 필요한 신호가 감지됐어요</p>
+                          <p className="text-xs text-red-500 mt-0.5">케어 태스크를 만들어 후속 조치를 기록하세요.</p>
+                        </div>
+                        <a
+                          href={`/dashboard/create-task?parentId=${rec.parent_id}`}
+                          className="shrink-0 rounded-xl bg-red-600 px-3 py-2 text-xs font-bold text-white hover:bg-red-700"
+                        >
+                          태스크 만들기
+                        </a>
+                      </div>
+                    )}
                   </div>
                 )}
               </li>

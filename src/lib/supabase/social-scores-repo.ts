@@ -53,6 +53,51 @@ export async function upsertSocialScore(
   return data as SocialScore;
 }
 
+/**
+ * 통화 녹음 분석 완료 시 호출 — 이번 주 점수에 통화 1건 추가
+ * social_detected=true면 answered_count도 +1 (실제 교류로 인정)
+ */
+export async function incrementCallFromRecording(
+  supabase: SupabaseClient,
+  ownerUserId: string,
+  parentId: string,
+  recordedAt: string,
+  socialDetected: boolean
+): Promise<void> {
+  const d = new Date(recordedAt);
+  const day = d.getUTCDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setUTCDate(d.getUTCDate() + diff);
+  const weekStart = d.toISOString().slice(0, 10);
+
+  const { data: existing } = await supabase
+    .from("social_scores")
+    .select("*")
+    .eq("owner_user_id", ownerUserId)
+    .eq("parent_id", parentId)
+    .eq("week_start", weekStart)
+    .maybeSingle();
+
+  const prev = existing as SocialScore | null;
+  const callCount = (prev?.call_count ?? 0) + 1;
+  const answeredCount = (prev?.answered_count ?? 0) + (socialDetected ? 1 : 0);
+  const responseCount = prev?.response_count ?? 0;
+
+  const callScore = callCount > 0 ? (answeredCount / callCount) * 70 : 0;
+  const responseScore = Math.min(responseCount, 3) * 10;
+  const score = Math.round(callScore + responseScore);
+
+  await upsertSocialScore(supabase, {
+    owner_user_id: ownerUserId,
+    parent_id: parentId,
+    week_start: weekStart,
+    score,
+    call_count: callCount,
+    answered_count: answeredCount,
+    response_count: responseCount,
+  });
+}
+
 /** parent_id 목록 전체의 최신 주 점수를 한 번에 조회 */
 export async function listLatestSocialScores(
   supabase: SupabaseClient

@@ -3,6 +3,7 @@ import type { AudioAnalysisResult, SafetySignal } from "./audio-analyzer";
 import type { SafetyAlertCategory, SafetyAlertSeverity } from "../calls/safety-alert-analyzer";
 import { createSafetyAlerts } from "@/lib/supabase/safety-alerts-repo";
 import { upsertRagDocuments } from "@/lib/supabase/rag-documents-repo";
+import { incrementCallFromRecording } from "@/lib/supabase/social-scores-repo";
 import { embedTexts } from "../rag/embedding";
 
 const SIGNAL_TO_CATEGORY: Record<SafetySignal["type"], SafetyAlertCategory> = {
@@ -60,6 +61,26 @@ export async function createAlertsFromAnalysis(
   } catch (err) {
     // 알림 생성 실패는 분석 결과를 무효화하지 않는다
     console.error("[recording-integrations] safety_alerts 생성 실패:", err);
+  }
+}
+
+// 분석 완료 → 사회 연결 점수 업데이트
+export async function updateSocialScoreFromRecording(
+  supabase: SupabaseClient,
+  recording: RecordingMeta & { recorded_at: string },
+  result: AudioAnalysisResult
+): Promise<void> {
+  const socialDetected = result.signals.some((s) => s.type === "social" && s.detected);
+  try {
+    await incrementCallFromRecording(
+      supabase,
+      recording.owner_user_id,
+      recording.parent_id,
+      recording.recorded_at,
+      socialDetected
+    );
+  } catch (err) {
+    console.error("[recording-integrations] 사회 점수 업데이트 실패:", err);
   }
 }
 

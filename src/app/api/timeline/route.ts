@@ -1,7 +1,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { listSocialScores } from "@/lib/supabase/social-scores-repo";
 
-export type TimelineEventType = "call" | "alert" | "brief";
+export type TimelineEventType = "call" | "alert" | "brief" | "recording";
 
 export type TimelineEvent = {
   id: string;
@@ -57,8 +57,8 @@ export async function GET(request: Request) {
   const parentId = searchParams.get("parentId");
   if (!parentId) return json({ ok: false, error: "parentId_required" }, 400);
 
-  // 병렬로 3개 테이블 조회
-  const [{ data: calls }, { data: alerts }, { data: briefs }, scores] = await Promise.all([
+  // 병렬로 4개 테이블 조회
+  const [{ data: calls }, { data: alerts }, { data: briefs }, { data: recordings }, scores] = await Promise.all([
     supabase
       .from("care_call_attempts")
       .select("id, status, parent_response, summary, created_at")
@@ -79,6 +79,14 @@ export async function GET(request: Request) {
       .eq("owner_user_id", userData.user.id)
       .eq("elder_id", parentId)
       .order("generated_at", { ascending: false })
+      .limit(100),
+    supabase
+      .from("call_recordings")
+      .select("id, ai_summary, risk_level, recorded_at")
+      .eq("owner_user_id", userData.user.id)
+      .eq("parent_id", parentId)
+      .eq("status", "analyzed")
+      .order("recorded_at", { ascending: false })
       .limit(100),
     listSocialScores(supabase, parentId, 12),
   ]);
@@ -119,6 +127,24 @@ export async function GET(request: Request) {
       description: b.attention_item ?? "이번 통화 기반 브리핑이에요.",
       date: b.generated_at,
       meta: { read: b.read_at ? "읽음" : "미읽음" },
+    });
+  }
+
+  const RISK_LABEL: Record<string, string> = { none: "이상 없음", low: "가벼운 주의", medium: "관심 필요", high: "즉각 확인" };
+
+  for (const r of recordings ?? []) {
+    let summary = "AI 분석 완료";
+    try {
+      const parsed = JSON.parse(r.ai_summary ?? "{}");
+      if (parsed.summary) summary = parsed.summary;
+    } catch { /* ignore */ }
+    events.push({
+      id: r.id,
+      type: "recording",
+      title: `통화 녹음 분석 — ${RISK_LABEL[r.risk_level ?? "none"] ?? "분석 완료"}`,
+      description: summary,
+      date: r.recorded_at,
+      meta: { risk_level: r.risk_level ?? "none" },
     });
   }
 
