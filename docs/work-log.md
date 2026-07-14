@@ -7,6 +7,28 @@
 
 ---
 
+# 2026-07-14
+
+## 잠재적 버그·성능 문제 5건 수정 (코드 리뷰)
+
+**작업 배경**: Google Play 개발자 계정 신원 확인이 1~3일 소요되는 대기 상태라 새 기능 개발 대신 기존 코드 전반을 점검했다. 배포 전에 조용히 숨어있던 버그들을 미리 잡는 것이 목적.
+
+**발견 및 수정 내역**:
+
+| 심각도 | 파일 | 문제 | 수정 |
+|--------|------|------|------|
+| 🔴 Critical | `social-scores-repo.ts` | `listLatestSocialScores`에 `owner_user_id` 필터 없음 → 전체 테이블 스캔 + RLS 없는 환경에서 타 사용자 데이터 노출 가능 | `owner_user_id` 필터 추가 |
+| 🟠 Major | `text-analyzer.ts` | Gemini API 호출에 타임아웃 없음 → 응답 지연 시 Vercel 함수가 60초 후 강제 종료, DB row가 `status='transcribing'`으로 영구 고착 | 30초 타임아웃 추가 |
+| 🟠 Major | `analyze-text/route.ts` | 요청 텍스트 길이 제한 없음 → 수만 자 전송 시 Gemini 토큰 비용 급증 + 타임아웃 위험 | 10,000자 상한선 추가 |
+| 🟡 Minor | `calls-client.tsx` | `window.location.reload()` 3곳 → 전체 HTML 재로드로 깜빡임 발생 | `router.refresh()`로 교체 |
+| 🟡 Minor | `timeline/route.ts` | `getWeekStart` 함수가 `social-scores-repo.ts`와 동일하게 중복 구현 | repo에서 export 후 공유 |
+
+**변경 파일**: `social-scores-repo.ts`, `timeline/route.ts`, `calls-client.tsx`, `analyze-text/route.ts`, `text-analyzer.ts` — 커밋 `6d231f8`, Vercel 자동 배포 완료.
+
+**🤖 AI 활용 팁**: 새 기능을 추가하는 것만큼, 기다리는 시간에 기존 코드를 리뷰하는 것도 중요하다. AI한테 "잠재적인 버그나 성능 문제 찾아줘"라고 하면 혼자 보는 것보다 훨씬 많은 것을 잡아낸다. 특히 타임아웃, 필터 누락, 전체 테이블 스캔 같은 것들은 당장 터지지 않아 눈에 띄지 않지만 운영 중에 갑자기 문제가 된다.
+
+---
+
 # 2026-07-13
 
 ## 앱 컨셉 전환 — APK 사이드로드 → 삼성 AI 통화 요약 공유 (Day 35 완료)
