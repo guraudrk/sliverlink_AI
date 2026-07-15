@@ -396,3 +396,7 @@ AI 통화 직후 Gemini가 스크립트를 분석해 위험 신호를 자동 감
 - **Dashboard 리디자인** (2025 Bento Grid 트렌드): 다크 그라디언트 Hero 카드 + 이모지 아이콘 + 비대칭 Bento 그리드(부모님관리·학술참조 2칸 와이드). 이전 디자인은 `page.tsx.bak`으로 보존.
 - **로딩 속도 개선**: `next.config.ts`에 `optimizePackageImports`(`@supabase/supabase-js` 등) 추가, 알림 배너를 Suspense로 분리해 페이지 셸 즉시 스트리밍, 그리드 애니메이션 딜레이 최대 630ms → 360ms 단축.
 - **Web Push 버튼 임시 비활성화**: 구독 저장까지만 구현된 미완성 상태 확인 → 버튼 숨김 처리, 실제 전송 로직은 별도 Day에 완성 예정.
+
+## 개발일지
+
+- [2026-07-15 개발일지](docs/work-log/2026-07-15.md)
