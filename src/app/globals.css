@@ -4,13 +4,48 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --background: #F5F7FB;
+  --foreground: #101828;
+
+  /* SilverLink Design Tokens */
+  --sl-primary:         #2E5BFF;
+  --sl-primary-hover:   #234AE0;
+  --sl-primary-tint:    #EEF2FF;
+  --sl-primary-border:  #DCE4FF;
+  --sl-navy-deep:       #12183F;
+  --sl-navy-mid:        #1B2660;
+  --sl-navy-accent:     #5B8CFF;
+  --sl-navy-sub:        #A7B4E8;
+  --sl-ink:             #101828;
+  --sl-body:            #475467;
+  --sl-body-strong:     #344054;
+  --sl-muted:           #667085;
+  --sl-placeholder:     #98A2B3;
+  --sl-bg:              #F5F7FB;
+  --sl-card:            #FFFFFF;
+  --sl-border:          #E7EBF3;
+  --sl-border-light:    #F0F3F9;
+  --sl-success:         #12B76A;
+  --sl-success-bg:      #ECFDF3;
+  --sl-success-text:    #087443;
+  --sl-warning:         #F79009;
+  --sl-warning-bg:      #FFFAEB;
+  --sl-warning-text:    #93370D;
+  --sl-danger:          #F04438;
+  --sl-danger-bg:       #FEF3F2;
+  --sl-danger-text:     #B42318;
+  --sl-danger-border:   #FECDCA;
 }
 
 .dark {
-  --background: #0f172a;
-  --foreground: #f1f5f9;
+  --background: #0C1024;
+  --foreground: #F4F6FE;
+  --sl-bg:    #0C1024;
+  --sl-card:  #131834;
+  --sl-border: #232B54;
+  --sl-ink:   #F4F6FE;
+  --sl-body:  #E7EAF8;
+  --sl-muted: #7C87AD;
 }
 
 @theme inline {

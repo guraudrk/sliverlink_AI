@@ -1,12 +1,12 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Users, PhoneCall, Activity, Bell, Mic, ChevronRight } from "lucide-react";
 import { getServerUser } from "@/lib/supabase/server-user";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { countUnacknowledgedAlerts } from "@/lib/supabase/safety-alerts-repo";
 import { listParentProfiles } from "@/lib/supabase/parent-profiles-repo";
 import { OnboardingModal } from "@/components/app/onboarding-modal";
-import { PmfStats } from "@/components/app/pmf-stats";
 
 async function AlertBanner() {
   const supabase = await createSupabaseServerClient();
@@ -15,16 +15,19 @@ async function AlertBanner() {
   return (
     <Link
       href="/dashboard/alerts"
-      className="flex items-center justify-between gap-3 rounded-2xl bg-rose-50 px-5 py-4 ring-1 ring-rose-200 transition-all hover:ring-rose-300 hover:shadow-sm animate-rag-fade-in-up"
+      className="flex items-center justify-between gap-3 rounded-2xl px-5 py-4 transition-all hover:opacity-90 animate-rag-fade-in-up"
+      style={{ backgroundColor: "#FEF3F2", border: "1px solid #FECDCA" }}
     >
       <div className="flex items-center gap-3">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-rose-100 text-lg">🚨</span>
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: "#FECDCA" }}>
+          <Bell size={16} color="#B42318" strokeWidth={2} />
+        </div>
         <div>
-          <p className="font-semibold text-rose-700 text-sm">미확인 안전 알림 {count}건</p>
-          <p className="text-xs text-rose-400 mt-0.5">지금 바로 확인해 주세요</p>
+          <p style={{ fontWeight: 600, color: "#B42318", fontSize: 14, margin: 0 }}>미확인 안전 알림 {count}건</p>
+          <p style={{ fontSize: 12, color: "#F04438", margin: "2px 0 0" }}>지금 바로 확인해 주세요</p>
         </div>
       </div>
-      <span className="shrink-0 text-xs font-bold text-rose-400 tracking-wide">확인 →</span>
+      <span style={{ fontSize: 12, fontWeight: 700, color: "#B42318" }}>확인 →</span>
     </Link>
   );
 }
@@ -33,25 +36,24 @@ type BentoItem = {
   href: string;
   title: string;
   sub: string;
-  icon: string;
-  iconBg: string;
+  emoji: string;
+  color: string;
   wide?: boolean;
 };
 
 const BENTO: BentoItem[] = [
-  { href: "/parents",                  title: "부모님 관리",    sub: "등록 · 조회 · 현황",      icon: "👴", iconBg: "bg-emerald-100", wide: true },
-  { href: "/dashboard/caseworker",     title: "케어 관리",      sub: "위험도 순 현황",           icon: "📋", iconBg: "bg-teal-100" },
-  { href: "/dashboard/create-task",    title: "새 일정",        sub: "돌봄 요청 작성",           icon: "✏️",  iconBg: "bg-blue-100" },
-  { href: "/dashboard/calls",          title: "통화 녹음",      sub: "녹음 · AI 분석 결과",      icon: "🎙️", iconBg: "bg-violet-100" },
-  { href: "/dashboard/responses",      title: "분석 기록",      sub: "통화 요약 · 신호 이력",    icon: "💬", iconBg: "bg-sky-100" },
-  { href: "/dashboard/timeline",       title: "케어 타임라인",  sub: "녹음·알림·브리핑",         icon: "📅", iconBg: "bg-indigo-100" },
-  { href: "/dashboard/social",         title: "사회 연결 점수", sub: "8주 추이 · 연결 상태",     icon: "📊", iconBg: "bg-cyan-100" },
-  { href: "/dashboard/alerts",         title: "안전 알림",      sub: "우려사항 모니터링",        icon: "🔔", iconBg: "bg-rose-100" },
-  { href: "/dashboard/deliveries",     title: "분석 이력",      sub: "AI 전사 · 분석 로그",      icon: "📤", iconBg: "bg-orange-100" },
-  { href: "/dashboard/tasks?unsent=1", title: "미확인 알림",    sub: "신호 감지 · 바로 확인",    icon: "⚡", iconBg: "bg-amber-100" },
-  { href: "/dashboard/tasks",          title: "오늘의 일정",    sub: "전체 현황",                icon: "📌", iconBg: "bg-slate-100" },
-  { href: "/dashboard/settings",       title: "설정",           sub: "역할 · 계정 관리",         icon: "⚙️",  iconBg: "bg-slate-100" },
-  { href: "/dashboard/references",     title: "학술 참조",      sub: "이 서비스가 참고한 논문",  icon: "📚", iconBg: "bg-purple-100", wide: true },
+  { href: "/dashboard/calls",          title: "통화 기록",      sub: "녹음 · AI 분석 결과",      emoji: "🎙️", color: "#F0EDFF", wide: false },
+  { href: "/dashboard/responses",      title: "분석 기록",      sub: "통화 요약 · 신호 이력",    emoji: "💬", color: "#EFF8FF", wide: false },
+  { href: "/dashboard/timeline",       title: "케어 타임라인",  sub: "녹음·알림·브리핑",         emoji: "📅", color: "#EEF2FF", wide: false },
+  { href: "/dashboard/social",         title: "사회 연결 점수", sub: "8주 추이 · 연결 상태",     emoji: "📊", color: "#ECFDF3", wide: false },
+  { href: "/dashboard/alerts",         title: "안전 알림",      sub: "우려사항 모니터링",        emoji: "🔔", color: "#FEF3F2", wide: false },
+  { href: "/dashboard/create-task",    title: "새 일정",        sub: "돌봄 요청 작성",           emoji: "✏️", color: "#EEF2FF", wide: false },
+  { href: "/dashboard/deliveries",     title: "분석 이력",      sub: "AI 전사 · 분석 로그",      emoji: "📤", color: "#FFF8EB", wide: false },
+  { href: "/dashboard/tasks",          title: "오늘의 일정",    sub: "전체 현황",                emoji: "📌", color: "#F5F7FB", wide: false },
+  { href: "/dashboard/references",     title: "학술 참조",      sub: "이 서비스가 참고한 논문",  emoji: "📚", color: "#F5F3FF", wide: true },
+  { href: "/dashboard/settings",       title: "설정",           sub: "역할 · 계정 관리",         emoji: "⚙️", color: "#F5F7FB", wide: false },
+  { href: "/parents",                  title: "부모님 관리",    sub: "등록 · 조회 · 현황",       emoji: "👴", color: "#ECFDF3", wide: false },
+  { href: "/dashboard/caseworker",     title: "케어 관리",      sub: "위험도 순 현황",           emoji: "📋", color: "#F0FDFA", wide: false },
 ];
 
 export default async function DashboardPage() {
@@ -59,36 +61,47 @@ export default async function DashboardPage() {
   if (!user) redirect("/login");
 
   const supabase = await createSupabaseServerClient();
-  const parents = await listParentProfiles(supabase);
-  const parentCount = parents.length;
+  const [parents, alertCount] = await Promise.all([
+    listParentProfiles(supabase),
+    countUnacknowledgedAlerts(supabase),
+  ]);
+
+  const emailPrefix = user.email?.split("@")[0] ?? "사용자";
+  const now = new Date();
+  const dateLabel = now.toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "short" });
 
   async function logout() {
     "use server";
-    const supabase = await createSupabaseServerClient();
-    await supabase.auth.signOut();
+    const sc = await createSupabaseServerClient();
+    await sc.auth.signOut();
     redirect("/login");
   }
 
   return (
-    <div className="flex flex-1 flex-col items-center bg-slate-100 px-4 py-8 sm:py-12 dark:bg-slate-950">
-      <div className="w-full max-w-2xl space-y-4">
+    <div style={{ backgroundColor: "#F5F7FB", minHeight: "100vh" }}>
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 space-y-5">
 
-        {/* ── Hero 카드 (다크 그라디언트) ── */}
-        <div
-          className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-800 via-slate-800 to-indigo-900 p-6 shadow-xl shadow-slate-900/20 sm:p-8 animate-rag-fade-in-up"
-        >
-          <div className="pointer-events-none absolute -right-10 -top-10 h-44 w-44 rounded-full bg-blue-500/10" />
-          <div className="pointer-events-none absolute -bottom-8 right-24 h-32 w-32 rounded-full bg-indigo-400/10" />
-          <div className="relative flex items-center justify-between gap-4">
-            <div className="min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-blue-400">SilverLink AI</p>
-              <h1 className="mt-1.5 text-2xl font-bold text-white sm:text-3xl">안녕하세요 👋</h1>
-              <p className="mt-1 max-w-[200px] truncate text-sm text-slate-400">{user.email}</p>
-            </div>
+        {/* ── Greeting header ── */}
+        <div className="flex items-start justify-between gap-4 animate-rag-fade-in-up">
+          <div>
+            <p style={{ fontSize: 13, color: "#98A2B3", margin: 0 }}>{dateLabel}</p>
+            <h1 style={{ fontSize: 26, fontWeight: 700, color: "#101828", margin: "4px 0 0" }}>
+              안녕하세요, {emailPrefix}님!
+            </h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/dashboard/calls"
+              className="flex items-center gap-1.5 rounded-xl px-4 py-2.5"
+              style={{ backgroundColor: "#2E5BFF", color: "#fff", textDecoration: "none", fontSize: 14, fontWeight: 700 }}
+            >
+              <Mic size={14} strokeWidth={2} />
+              새 녹음
+            </Link>
             <form action={logout}>
               <button
                 type="submit"
-                className="shrink-0 rounded-xl border border-slate-600 px-4 py-2.5 text-sm font-semibold text-slate-300 transition-all hover:border-slate-500 hover:bg-slate-700/80"
+                style={{ padding: "10px 14px", borderRadius: 10, border: "1px solid #E7EBF3", backgroundColor: "#fff", color: "#667085", fontSize: 13, fontWeight: 500, cursor: "pointer" }}
               >
                 로그아웃
               </button>
@@ -96,71 +109,71 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        {/* ── 안전 알림 배너 (Suspense 스트리밍) ── */}
+        {/* ── Alert banner ── */}
         <Suspense fallback={null}>
           <AlertBanner />
         </Suspense>
 
-        {/* ── PMF 지표 ── */}
-        <Suspense fallback={null}>
-          <PmfStats />
-        </Suspense>
+        {/* ── 4 Stat cards ── */}
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 animate-rag-fade-in-up" style={{ animationDelay: "40ms" }}>
+          {[
+            { label: "등록 어르신", value: parents.length, Icon: Users, color: "#EEF2FF", iconColor: "#2E5BFF" },
+            { label: "이번 달 통화", value: "—", Icon: PhoneCall, color: "#EFF8FF", iconColor: "#2E5BFF" },
+            { label: "분석 완료", value: "—", Icon: Activity, color: "#ECFDF3", iconColor: "#12B76A" },
+            { label: "주의 신호", value: alertCount, Icon: Bell, color: alertCount > 0 ? "#FEF3F2" : "#F5F7FB", iconColor: alertCount > 0 ? "#F04438" : "#98A2B3" },
+          ].map(({ label, value, Icon, color, iconColor }) => (
+            <div key={label} className="rounded-2xl p-4" style={{ backgroundColor: "#fff", border: "1px solid #E7EBF3" }}>
+              <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl" style={{ backgroundColor: color }}>
+                <Icon size={17} color={iconColor} strokeWidth={1.8} />
+              </div>
+              <p style={{ fontSize: 28, fontWeight: 700, color: "#101828", margin: 0, lineHeight: 1 }}>{value}</p>
+              <p style={{ fontSize: 12, color: "#98A2B3", margin: "4px 0 0" }}>{label}</p>
+            </div>
+          ))}
+        </div>
 
         {/* ── AI 비서 피처 카드 ── */}
         <Link
           href="/dashboard/assistant"
-          className="group relative flex items-center justify-between gap-4 overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 to-indigo-700 p-6 shadow-lg shadow-blue-500/25 transition-all hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5 sm:p-7 animate-rag-fade-in-up"
-          style={{ animationDelay: "60ms" }}
+          className="group relative flex items-center justify-between gap-4 overflow-hidden rounded-2xl p-5 transition-all hover:opacity-95 animate-rag-fade-in-up"
+          style={{ background: "linear-gradient(135deg,#12183F,#1B2660)", textDecoration: "none", animationDelay: "80ms" }}
         >
-          <div className="pointer-events-none absolute -right-6 -top-6 h-32 w-32 rounded-full bg-white/5" />
+          <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.05)" }} />
           <div className="min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-blue-200">AI Assistant</p>
-            <h2 className="mt-1.5 text-xl font-bold text-white">돌봄 기록 AI 비서</h2>
-            <p className="mt-1 text-sm text-blue-200">질문하면 근거를 찾아 정리해드려요</p>
+            <p style={{ fontSize: 11, fontWeight: 700, color: "#8FA6FF", textTransform: "uppercase", letterSpacing: "0.12em", margin: 0 }}>AI Assistant</p>
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: "#fff", margin: "4px 0 3px" }}>돌봄 기록 AI 비서</h2>
+            <p style={{ fontSize: 13, color: "#A7B4E8", margin: 0 }}>질문하면 근거를 찾아 정리해드려요</p>
           </div>
-          <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 transition-colors group-hover:bg-white/20">
-            <svg viewBox="0 0 40 40" fill="none" className="h-9 w-9" aria-hidden="true">
-              <rect x="3" y="5" width="28" height="22" rx="5" fill="white" fillOpacity="0.2" stroke="white" strokeWidth="1.8" strokeLinejoin="round" />
-              <path d="M3 27l5-5" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
-              <path d="M11 27v5l6-5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-              <circle cx="11" cy="16" r="2" fill="white" />
-              <circle cx="17" cy="16" r="2" fill="white" />
-              <circle cx="23" cy="16" r="2" fill="white" />
-              <path d="M30 2l.9 2.6L33.5 5.5l-2.6.9L30 9l-.9-2.6L26.5 5.5l2.6-.9L30 2z" fill="white" />
-            </svg>
-          </div>
+          <ChevronRight size={20} color="#8FA6FF" strokeWidth={1.8} style={{ flexShrink: 0 }} />
         </Link>
 
         {/* ── 온보딩 모달 ── */}
-        <OnboardingModal parentCount={parentCount} />
+        <OnboardingModal parentCount={parents.length} />
 
         {/* ── Bento 그리드 ── */}
         <div
           className="grid grid-cols-2 gap-3 sm:grid-cols-3 animate-rag-fade-in-up"
           style={{ animationDelay: "120ms" }}
         >
-          {BENTO.map(({ href, title, sub, icon, iconBg, wide }) => (
+          {BENTO.map(({ href, title, sub, emoji, color, wide }) => (
             <Link
               key={href}
               href={href}
               className={[
                 wide ? "col-span-2 flex items-center gap-4 sm:col-span-2" : "flex flex-col gap-3",
-                "group rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-100 transition-all dark:bg-slate-800 dark:ring-slate-700",
-                "hover:-translate-y-0.5 hover:shadow-md hover:ring-blue-200 sm:p-5 dark:hover:ring-blue-700",
+                "group rounded-2xl p-4 transition-all hover:-translate-y-0.5 hover:shadow-md sm:p-5",
               ].join(" ")}
+              style={{ backgroundColor: "#fff", border: "1px solid #E7EBF3", textDecoration: "none" }}
             >
               <div
-                className={[
-                  "flex shrink-0 items-center justify-center rounded-xl text-xl",
-                  iconBg,
-                  wide ? "h-12 w-12" : "h-10 w-10",
-                ].join(" ")}
+                className={["flex shrink-0 items-center justify-center rounded-xl text-xl", wide ? "h-12 w-12" : "h-10 w-10"].join(" ")}
+                style={{ backgroundColor: color }}
               >
-                {icon}
+                {emoji}
               </div>
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold leading-tight text-slate-800 dark:text-slate-200">{title}</p>
-                <p className="mt-0.5 truncate text-xs leading-tight text-slate-400 dark:text-slate-500">{sub}</p>
+                <p className="truncate text-sm font-semibold leading-tight" style={{ color: "#101828", margin: 0 }}>{title}</p>
+                <p className="mt-0.5 truncate text-xs leading-tight" style={{ color: "#98A2B3" }}>{sub}</p>
               </div>
             </Link>
           ))}
