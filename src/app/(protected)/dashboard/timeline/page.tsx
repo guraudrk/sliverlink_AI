@@ -10,7 +10,7 @@ export default async function DashboardTimelinePage() {
   const parents = await listParentProfiles(supabase);
 
   return (
-    <div className="flex flex-1 flex-col items-center px-4 py-10 sm:py-16" style={{ backgroundColor: "#F5F7FB" }}>
+    <div className="flex flex-1 flex-col items-center px-4 py-10 sm:py-16" style={{ backgroundColor: "var(--sl-bg)" }}>
       <div className="mx-auto w-full max-w-2xl">
         {/* 헤더 */}
         <div className="mb-6 flex items-center gap-4 animate-rag-fade-in-up">
@@ -22,7 +22,7 @@ export default async function DashboardTimelinePage() {
           </div>
           <div>
             <p className="text-sm font-bold uppercase tracking-widest" style={{ color: "#2E5BFF" }}>SilverLink AI</p>
-            <h1 className="mt-0.5 text-2xl font-bold sm:text-3xl" style={{ color: "#101828" }}>케어 여정 타임라인</h1>
+            <h1 className="mt-0.5 text-2xl font-bold sm:text-3xl" style={{ color: "var(--sl-ink)" }}>케어 여정 타임라인</h1>
           </div>
         </div>
         <p className="mb-8 text-sm leading-relaxed animate-rag-fade-in-up" style={{ color: "#667085" }}>
@@ -30,7 +30,7 @@ export default async function DashboardTimelinePage() {
         </p>
 
         {parents.length === 0 ? (
-          <div className="rounded-2xl px-8 py-12 text-center" style={{ backgroundColor: "#fff", border: "1px solid #E7EBF3" }}>
+          <div className="rounded-2xl px-8 py-12 text-center" style={{ backgroundColor: "var(--sl-card)", border: "1px solid var(--sl-border)" }}>
             <p style={{ color: "#667085" }}>등록된 부모님이 없어요.</p>
             <Link
               href="/parents"

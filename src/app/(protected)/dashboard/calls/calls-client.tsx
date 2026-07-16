@@ -128,10 +128,10 @@ export function CallsClient({ initialRecordings, parents }: Props) {
 
   if (recordings.length === 0) {
     return (
-      <div className="flex flex-1 flex-col items-center px-4 py-12" style={{ backgroundColor: "#F5F7FB" }}>
+      <div className="flex flex-1 flex-col items-center px-4 py-12" style={{ backgroundColor: "var(--sl-bg)" }}>
         <div className="w-full max-w-sm space-y-4">
           <WebRecorder parents={parents} onUploaded={() => router.refresh()} />
-          <div className="rounded-2xl p-8 text-center space-y-3" style={{ backgroundColor: "#fff", border: "1px solid #E7EBF3" }}>
+          <div className="rounded-2xl p-8 text-center space-y-3" style={{ backgroundColor: "var(--sl-card)", border: "1px solid var(--sl-border)" }}>
             <p className="text-4xl">📂</p>
             <p className="text-base font-semibold" style={{ color: "#344054" }}>아직 녹음 기록이 없어요</p>
             <p className="text-sm" style={{ color: "#667085" }}>위에서 녹음을 시작하거나 예시 데이터를 추가해 보세요.</p>
@@ -150,13 +150,13 @@ export function CallsClient({ initialRecordings, parents }: Props) {
   }
 
   return (
-    <div className="flex flex-1 flex-col px-4 py-8 sm:px-8" style={{ backgroundColor: "#F5F7FB" }}>
+    <div className="flex flex-1 flex-col px-4 py-8 sm:px-8" style={{ backgroundColor: "var(--sl-bg)" }}>
       <div className="mx-auto w-full max-w-3xl">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
             <p className="text-sm font-bold uppercase tracking-widest" style={{ color: "#2E5BFF" }}>SilverLink AI</p>
-            <h1 className="mt-1 text-2xl font-bold" style={{ color: "#101828" }}>통화 녹음 · AI 분석</h1>
-            <p className="mt-1 text-sm" style={{ color: "#667085" }}>녹음별로 AI 분석을 요청하고 안전 신호를 확인하세요.</p>
+            <h1 className="mt-1 text-2xl font-bold" style={{ color: "var(--sl-ink)" }}>통화 녹음 · AI 분석</h1>
+            <p className="mt-1 text-sm" style={{ color: "var(--sl-muted)" }}>녹음별로 AI 분석을 요청하고 안전 신호를 확인하세요.</p>
           </div>
           <button
             onClick={handleSeed}
@@ -185,12 +185,12 @@ export function CallsClient({ initialRecordings, parents }: Props) {
             const isAnalyzing = analyzing[rec.id];
 
             return (
-              <li key={rec.id} className="overflow-hidden rounded-2xl" style={{ backgroundColor: "#fff", border: "1px solid #E7EBF3" }}>
+              <li key={rec.id} className="overflow-hidden rounded-2xl" style={{ backgroundColor: "var(--sl-card)", border: "1px solid var(--sl-border)" }}>
                 {/* 카드 헤더 */}
                 <div className="flex items-center gap-3 p-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold" style={{ color: "#101828" }}>
+                      <span className="font-semibold" style={{ color: "var(--sl-ink)" }}>
                         {rec.parent_display_name ?? "알 수 없음"}
                       </span>
                       {rec.parent_relation && (

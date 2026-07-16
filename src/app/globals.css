@@ -40,12 +40,17 @@
 .dark {
   --background: #0C1024;
   --foreground: #F4F6FE;
-  --sl-bg:    #0C1024;
-  --sl-card:  #131834;
-  --sl-border: #232B54;
-  --sl-ink:   #F4F6FE;
-  --sl-body:  #E7EAF8;
-  --sl-muted: #7C87AD;
+  --sl-bg:              #0C1024;
+  --sl-card:            #131834;
+  --sl-border:          #232B54;
+  --sl-border-light:    #1E2748;
+  --sl-ink:             #F4F6FE;
+  --sl-body:            #E7EAF8;
+  --sl-body-strong:     #C8D0EF;
+  --sl-muted:           #7C87AD;
+  --sl-placeholder:     #5A6690;
+  --sl-primary-tint:    rgba(46, 91, 255, 0.18);
+  --sl-primary-border:  rgba(46, 91, 255, 0.35);
 }
 
 @theme inline {

@@ -51,8 +51,8 @@ export function SidebarNav({ alertCount }: Props) {
               padding: "9px 12px",
               borderRadius: 10,
               marginBottom: 2,
-              backgroundColor: active ? "#EEF2FF" : "transparent",
-              color: active ? "#2E5BFF" : "#475467",
+              backgroundColor: active ? "var(--sl-primary-tint)" : "transparent",
+              color: active ? "#2E5BFF" : "var(--sl-body)",
               textDecoration: "none",
               fontSize: 14,
               fontWeight: active ? 600 : 500,
@@ -60,7 +60,7 @@ export function SidebarNav({ alertCount }: Props) {
             }}
             onMouseEnter={(e) => {
               if (!active) {
-                (e.currentTarget as HTMLAnchorElement).style.backgroundColor = "#F5F7FB";
+                (e.currentTarget as HTMLAnchorElement).style.backgroundColor = "var(--sl-bg)";
               }
             }}
             onMouseLeave={(e) => {
