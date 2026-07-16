@@ -5,6 +5,7 @@ import { DashboardNavBar } from "@/components/app/dashboard-nav-bar";
 import { MobileBottomNav } from "@/components/app/mobile-bottom-nav";
 import { NavigationProgress } from "@/components/app/navigation-progress";
 import { SidebarNav } from "@/components/app/sidebar-nav";
+import { ThemeToggle } from "@/components/app/theme-toggle";
 import { getServerUser } from "@/lib/supabase/server-user";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { countUnacknowledgedAlerts } from "@/lib/supabase/safety-alerts-repo";
@@ -101,6 +102,9 @@ export default async function ProtectedLayout({ children }: { children: React.Re
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {/* Theme toggle */}
+            <ThemeToggle />
+
             {/* Bell */}
             <Link href="/dashboard/alerts" style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: 10, border: "1px solid #E7EBF3", backgroundColor: "#fff", textDecoration: "none" }}>
               <Bell size={16} color="#475467" strokeWidth={1.8} />
