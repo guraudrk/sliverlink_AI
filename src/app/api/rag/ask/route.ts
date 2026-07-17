@@ -1,4 +1,5 @@
 import { ZodError } from "zod";
+import { createClient } from "@supabase/supabase-js";
 import { ragQueryRequestSchema } from "@/lib/silverlink/rag/schema";
 import { resolveRagEvidence } from "@/lib/silverlink/rag/evidence-service";
 import { generateAssistantAnswer } from "@/lib/silverlink/rag/assistant-response";
@@ -11,12 +12,38 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json; charset=utf-8" },
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Access-Control-Allow-Origin": "*",
+    },
+  });
+}
+
+export async function OPTIONS() {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    },
   });
 }
 
 export async function POST(request: Request) {
-  const supabase = await createSupabaseServerClient();
+  // 모바일 앱에서 Bearer 토큰으로 인증하는 경우 지원
+  const authHeader = request.headers.get("Authorization");
+  let supabase;
+  if (authHeader?.startsWith("Bearer ")) {
+    supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+  } else {
+    supabase = await createSupabaseServerClient();
+  }
+
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) {
     return jsonResponse({ ok: false, error: "unauthorized" }, 401);
