@@ -7,9 +7,14 @@ import {
   Mic,
   UserPlus,
   CalendarDays,
-  Clock,
+  Calendar,
   BookOpen,
-  Settings,
+  AlertTriangle,
+  BarChart2,
+  Send,
+  Sparkles,
+  FileText,
+  Upload,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { getServerUser } from "@/lib/supabase/server-user";
@@ -49,45 +54,37 @@ async function AlertBanner() {
   );
 }
 
-const MAIN_FEATURES = [
+const QUICK_ACCESS = [
   {
     href: "/dashboard/calls",
-    title: "통화 기록",
-    sub: "녹음 · 통화 내용 정리",
-    emoji: "🎙️",
-    bgColor: "#F0EDFF",
-  },
-  {
-    href: "/dashboard/alerts",
-    title: "안전 알림",
-    sub: "우려사항 모니터링",
-    emoji: "🔔",
-    bgColor: "#FEF3F2",
-  },
-  {
-    href: "/dashboard/assistant",
-    title: "AI 케어 비서",
-    sub: "질문하면 근거 있는 답변",
-    emoji: "✨",
-    bgColor: "#EEF2FF",
-  },
-  {
-    href: "/dashboard/social",
-    title: "AI 케어 리포트",
-    sub: "8주 추이 · 사회 연결 상태",
-    emoji: "📊",
+    title: "통화 요약 보기",
+    sub: "통화 기록 · AI 분석 결과 확인",
+    Icon: FileText,
     bgColor: "#ECFDF3",
+    iconColor: "#10B981",
+  },
+  {
+    href: "/dashboard/calls",
+    title: "통화 녹음 저장",
+    sub: "녹음 파일 업로드 · 공유",
+    Icon: Upload,
+    bgColor: "#EFF8FF",
+    iconColor: "#0EA5E9",
   },
 ] as const;
 
-type SecondaryLink = { href: string; label: string; Icon: LucideIcon };
+type MoreMenuItem = { href: string; label: string; Icon: LucideIcon; color: string; iconColor: string };
 
-const SECONDARY_LINKS: SecondaryLink[] = [
-  { href: "/dashboard/timeline",   label: "케어 타임라인", Icon: CalendarDays },
-  { href: "/dashboard/tasks",      label: "일정 관리",     Icon: Clock },
-  { href: "/dashboard/deliveries", label: "알림 이력",     Icon: Bell },
-  { href: "/dashboard/references", label: "서비스 근거",   Icon: BookOpen },
-  { href: "/dashboard/settings",   label: "설정",          Icon: Settings },
+const MORE_MENU: MoreMenuItem[] = [
+  { href: "/dashboard/alerts",    label: "안전 알림",       Icon: AlertTriangle, color: "#FEF3F2", iconColor: "#EF4444" },
+  { href: "/dashboard/tasks",     label: "일정 관리",       Icon: Calendar,      color: "#FFF8EB", iconColor: "#F59E0B" },
+  { href: "/dashboard/social",    label: "AI 케어 리포트",  Icon: BarChart2,     color: "#ECFDF3", iconColor: "#10B981" },
+  { href: "/dashboard/deliveries",label: "알림/메시지 이력",Icon: Send,          color: "#EFF8FF", iconColor: "#0EA5E9" },
+  { href: "/dashboard/assistant", label: "AI 케어 비서",    Icon: Sparkles,      color: "#EEF2FF", iconColor: "#6366F1" },
+  { href: "/dashboard/references",label: "서비스 근거",     Icon: BookOpen,      color: "#F5F3FF", iconColor: "#7C3AED" },
+  { href: "/dashboard/calls",     label: "통화 기록",       Icon: FileText,      color: "#FFF8EB", iconColor: "#F59E0B" },
+  { href: "/parents",             label: "어르신 추가",     Icon: UserPlus,      color: "#F0FDFA", iconColor: "#0F766E" },
+  { href: "/dashboard/timeline",  label: "케어 타임라인",   Icon: CalendarDays,  color: "#F0F9FF", iconColor: "#0369A1" },
 ];
 
 export default async function DashboardPage() {
@@ -118,57 +115,73 @@ export default async function DashboardPage() {
 
   return (
     <div style={{ backgroundColor: "var(--sl-bg)", minHeight: "100vh" }}>
-      <div className="mx-auto max-w-2xl space-y-6 px-4 py-8 sm:px-6">
 
-        {/* ── 인사 헤더 ── */}
-        <div className="flex items-start justify-between gap-4 animate-rag-fade-in-up">
-          <div>
-            <p style={{ fontSize: 13, color: "var(--sl-muted)", margin: 0 }}>{dateLabel}</p>
-            <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--sl-ink)", margin: "4px 0 0" }}>
-              안녕하세요, {emailPrefix}님
-            </h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/dashboard/calls"
-              className="flex items-center gap-1.5 rounded-xl px-4 py-2.5"
-              style={{
-                backgroundColor: "var(--sl-primary)",
-                color: "#fff",
-                textDecoration: "none",
-                fontSize: 13,
-                fontWeight: 700,
-              }}
-            >
-              <Mic size={13} strokeWidth={2} />
-              새 녹음
-            </Link>
-            <form action={logout}>
-              <button
-                type="submit"
+      {/* ── Navy gradient 헤더 ── */}
+      <div
+        style={{
+          background: "linear-gradient(135deg, #1E3A8A 0%, #2563EB 100%)",
+          paddingBottom: 32,
+        }}
+      >
+        <div className="mx-auto max-w-2xl px-4 pt-10 sm:px-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", margin: 0 }}>{dateLabel}</p>
+              <h1 style={{ fontSize: 24, fontWeight: 800, color: "#fff", margin: "6px 0 0", lineHeight: 1.2 }}>
+                안녕하세요,<br />{emailPrefix}님 👋
+              </h1>
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              <Link
+                href="/dashboard/calls"
+                className="flex items-center gap-1.5"
                 style={{
-                  padding: "9px 14px",
-                  borderRadius: 10,
-                  border: "1px solid var(--sl-border)",
-                  backgroundColor: "var(--sl-card)",
-                  color: "var(--sl-muted)",
+                  padding: "9px 16px",
+                  borderRadius: 12,
+                  backgroundColor: "rgba(255,255,255,0.18)",
+                  border: "1px solid rgba(255,255,255,0.30)",
+                  color: "#fff",
+                  textDecoration: "none",
                   fontSize: 13,
-                  fontWeight: 500,
-                  cursor: "pointer",
+                  fontWeight: 700,
+                  backdropFilter: "blur(8px)",
+                  whiteSpace: "nowrap",
                 }}
               >
-                로그아웃
-              </button>
-            </form>
+                <Mic size={13} strokeWidth={2} />
+                새 녹음
+              </Link>
+              <form action={logout}>
+                <button
+                  type="submit"
+                  style={{
+                    padding: "9px 14px",
+                    borderRadius: 12,
+                    border: "1px solid rgba(255,255,255,0.25)",
+                    backgroundColor: "rgba(255,255,255,0.10)",
+                    color: "rgba(255,255,255,0.80)",
+                    fontSize: 13,
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  로그아웃
+                </button>
+              </form>
+            </div>
           </div>
         </div>
+      </div>
+
+      <div className="mx-auto max-w-2xl space-y-6 px-4 sm:px-6" style={{ marginTop: -20 }}>
 
         {/* ── 알림 배너 ── */}
         <Suspense fallback={null}>
           <AlertBanner />
         </Suspense>
 
-        {/* ── 주요 기능 (2×2 그리드) ── */}
+        {/* ── 빠른 액세스 ── */}
         <div className="animate-rag-fade-in-up" style={{ animationDelay: "40ms" }}>
           <p
             style={{
@@ -180,14 +193,14 @@ export default async function DashboardPage() {
               margin: "0 0 12px",
             }}
           >
-            주요 기능
+            빠른 액세스
           </p>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {MAIN_FEATURES.map(({ href, title, sub, emoji, bgColor }) => (
+          <div className="flex flex-col gap-3">
+            {QUICK_ACCESS.map(({ href, title, sub, Icon, bgColor, iconColor }) => (
               <Link
-                key={href}
+                key={title}
                 href={href}
-                className="group flex items-center gap-4 transition-all hover:-translate-y-0.5 hover:shadow-md"
+                className="flex items-center gap-4 transition-all hover:-translate-y-0.5 hover:shadow-md"
                 style={{
                   borderRadius: 20,
                   padding: 20,
@@ -198,10 +211,10 @@ export default async function DashboardPage() {
                 }}
               >
                 <div
-                  className="flex shrink-0 items-center justify-center rounded-2xl text-2xl"
+                  className="flex shrink-0 items-center justify-center rounded-2xl"
                   style={{ width: 52, height: 52, backgroundColor: bgColor }}
                 >
-                  {emoji}
+                  <Icon size={22} strokeWidth={1.8} style={{ color: iconColor }} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p style={{ fontSize: 15, fontWeight: 700, color: "var(--sl-ink)", margin: 0 }}>
@@ -338,24 +351,33 @@ export default async function DashboardPage() {
               overflow: "hidden",
             }}
           >
-            {SECONDARY_LINKS.map(({ href, label, Icon }, idx) => (
+            {MORE_MENU.map(({ href, label, Icon, color, iconColor }, idx) => (
               <Link
                 key={href}
                 href={href}
-                className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-slate-50"
+                className="flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-slate-50 dark:hover:bg-white/5"
                 style={{
                   textDecoration: "none",
                   borderBottom:
-                    idx < SECONDARY_LINKS.length - 1
+                    idx < MORE_MENU.length - 1
                       ? "1px solid var(--sl-border)"
                       : "none",
                 }}
               >
-                <Icon
-                  size={16}
-                  strokeWidth={1.8}
-                  style={{ flexShrink: 0, color: "var(--sl-muted)" }}
-                />
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 10,
+                    backgroundColor: color,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <Icon size={17} strokeWidth={1.8} style={{ color: iconColor }} />
+                </div>
                 <span style={{ flex: 1, fontSize: 14, fontWeight: 500, color: "var(--sl-ink)" }}>
                   {label}
                 </span>
@@ -372,6 +394,7 @@ export default async function DashboardPage() {
         {/* ── 온보딩 모달 ── */}
         <OnboardingModal parentCount={parents.length} />
 
+        <div style={{ height: 32 }} />
       </div>
     </div>
   );
