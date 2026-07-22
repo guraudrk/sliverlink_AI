@@ -397,6 +397,40 @@ AI 통화 직후 Gemini가 스크립트를 분석해 위험 신호를 자동 감
 - **로딩 속도 개선**: `next.config.ts`에 `optimizePackageImports`(`@supabase/supabase-js` 등) 추가, 알림 배너를 Suspense로 분리해 페이지 셸 즉시 스트리밍, 그리드 애니메이션 딜레이 최대 630ms → 360ms 단축.
 - **Web Push 버튼 임시 비활성화**: 구독 저장까지만 구현된 미완성 상태 확인 → 버튼 숨김 처리, 실제 전송 로직은 별도 Day에 완성 예정.
 
+## 32. Day 30 — 웹 대시보드 앱과 동일 구조 재편 + 모바일 전체 UI/UX 리디자인
+
+웹과 모바일을 같은 디자인 언어로 통일한 대규모 업데이트입니다.
+
+**웹 대시보드 (이 저장소):**
+- **Navy Gradient 헤더**: 전체 너비 `linear-gradient(135deg, #1E3A8A → #2563EB)` 배너. 날짜·인사·반투명 유리 버튼(새 녹음·로그아웃). 콘텐츠 영역이 `-20px` 오버랩해 카드 겹침 효과.
+- **빠른 액세스 2카드**: 기존 이모지 4카드(2×2) → lucide-react 아이콘 카드 2개("통화 요약 보기" · "통화 녹음 저장")로 교체. 컬러 아이콘 박스(52×52).
+- **더 보기 9항목**: 안전 알림·일정 관리·AI 케어 리포트·알림이력·AI 케어 비서·서비스 근거·통화 기록·어르신 추가·케어 타임라인을 컬러 아이콘 박스와 함께 나열.
+- **용어 통일**: "부모님 관리" → "어르신 관리", "AI 분석" → "통화 내용 정리", "학술 참조" → "서비스 근거" 등 사용자 화면에서 개발자 용어 전면 제거.
+
+**모바일 앱 (별도 저장소 `silverlink-mobile`):**
+- 디자인 토큰(`lib/design-tokens.ts`) 도입 + 공통 컴포넌트 5개(`SLCard`, `SLButton`, `SLChip`, `SectionHeader`, `StatusBadge`)
+- 탭 구조 재편(홈·기록·리포트·AI비서·설정), 전체 13개 화면 StaggerView 애니메이션 적용
+- 크래시 근본 원인 수정: `expo-splash-screen` SDK 버전 불일치 해소 + `expo-updates` OTA 캐시 충돌 임시 비활성화 (versionCode 55)
+- 홈 온보딩 히어로 카드(어르신 0명 시), 통화 기록 분석 완료 카드 초록 강조, 안전 알림 일괄 읽음 기능 (versionCode 56)
+
+## 33. Day 31 — Supabase Realtime 알림 배너 · 대시보드 스켈레톤 로딩
+
+**Realtime AlertBanner (`src/components/app/alert-banner.tsx`):**
+- 기존 서버 컴포넌트 → 클라이언트 컴포넌트로 전환
+- `createSupabaseBrowserClient()`로 `safety_alerts` 테이블 Realtime 구독
+- `INSERT` 이벤트 시 카운트 +1, `UPDATE`(acknowledged_at 설정) 시 -1 자동 반영
+- 서버에서 초기값(`initialCount`)만 전달받고 이후 변경은 Realtime으로 처리
+
+**대시보드 스켈레톤 로딩 (`dashboard/loading.tsx`):**
+- "로딩하는 중..." 텍스트 → 전체 레이아웃 형태의 animate-pulse 뼈대로 교체
+- Navy 헤더·빠른 액세스 2개·어르신 목록 2개·더보기 4개 항목 구조를 그대로 복제
+- `var(--sl-border)` CSS 변수 사용으로 다크모드 자동 대응
+
+**기타:**
+- `.gitignore`에 `*.bak`, `test-rag.mjs` 추가
+- `expo-updates` 재활성화: `runtimeVersion.policy: "appVersion"`으로 네이티브 불일치 OTA 크래시 차단 (versionCode 57)
+- 모바일 `share-import.tsx`에 Samsung 외 기기 호환 안내 배너 추가
+
 ## 개발일지
 
 - [2026-07-22 개발일지](docs/work-log/2026-07-22.md)
