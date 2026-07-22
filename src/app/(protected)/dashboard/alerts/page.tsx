@@ -13,7 +13,7 @@ export default async function DashboardAlertsPage() {
           <p className="text-sm font-semibold uppercase tracking-widest text-rose-500">SilverLink AI</p>
           <h1 className="mt-2 text-3xl font-bold text-slate-900">안전 알림</h1>
           <p className="mt-2 text-slate-500">
-            안부전화 분석 결과 감지된 안전 우려사항이에요.
+            통화 분석 결과 감지된 돌봄 관련 주의사항이에요.
           </p>
         </div>
       </div>

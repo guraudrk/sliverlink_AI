@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { ReferenceAccordion } from "@/components/app/reference-accordion";
 
-export const metadata: Metadata = { title: "학술 참조 — SilverLink AI" };
+export const metadata: Metadata = { title: "서비스 근거 — SilverLink AI" };
 
 export default function ReferencesPage() {
   return (
@@ -12,9 +12,9 @@ export default function ReferencesPage() {
           <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
             Research &amp; Evidence
           </p>
-          <h1 className="mt-2 text-3xl font-bold text-slate-900">학술 참조</h1>
+          <h1 className="mt-2 text-3xl font-bold text-slate-900">서비스 근거</h1>
           <p className="mt-3 text-base text-slate-500 leading-relaxed">
-            SilverLink AI의 각 기능이 어떤 연구를 근거로 만들어졌는지 쉽게 정리했어요.
+            SilverLink AI가 참고한 연구 자료와 서비스 근거입니다.
             <br />
             <span className="text-sm text-slate-400">각 항목을 클릭하면 세부 내용과 논문 링크를 볼 수 있어요.</span>
           </p>

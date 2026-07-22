@@ -41,10 +41,10 @@ export function DashboardNavBar({ role }: Props) {
           <Link
             href="/dashboard/references"
             className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-400 ring-1 ring-slate-200 transition-colors hover:bg-slate-50 hover:text-slate-600 dark:ring-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-300"
-            title="학술 참조 — 이 서비스가 참고한 논문"
+            title="서비스 근거 — 이 서비스가 참고한 자료"
           >
             <BookOpenIcon className="h-3.5 w-3.5" />
-            참조
+            서비스 근거
           </Link>
         </div>
       </div>

@@ -63,8 +63,8 @@ export function DeliveriesClient({ initialAttempts, parentById }: Props) {
 
         <div className="mb-6 text-center animate-rag-fade-in-up">
           <p className="text-xs font-semibold uppercase tracking-widest text-blue-600">SilverLink AI</p>
-          <h1 className="mt-1 text-2xl font-bold text-slate-900">발송 기록</h1>
-          <p className="mt-1 text-sm text-slate-500">SMS · 음성 전화 발송 이력</p>
+          <h1 className="mt-1 text-2xl font-bold text-slate-900">알림 이력</h1>
+          <p className="mt-1 text-sm text-slate-500">SMS · 음성 전화 발송 내역</p>
         </div>
 
         {initialAttempts.length === 0 ? (

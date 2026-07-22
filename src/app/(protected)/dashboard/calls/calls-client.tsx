@@ -25,10 +25,10 @@ const RISK_CONFIG = {
 };
 
 const STATUS_CONFIG: Record<string, { label: string; cls: string; style?: React.CSSProperties }> = {
-  pending:      { label: "대기 중",    cls: "font-semibold rounded-full px-2 py-0.5 text-xs", style: { backgroundColor: "#F5F7FB", color: "#667085" } },
-  transcribing: { label: "분석 중",    cls: "font-semibold rounded-full px-2 py-0.5 text-xs animate-pulse", style: { backgroundColor: "#EEF2FF", color: "#2E5BFF" } },
+  pending:      { label: "처리 중",    cls: "font-semibold rounded-full px-2 py-0.5 text-xs", style: { backgroundColor: "#F5F7FB", color: "#667085" } },
+  transcribing: { label: "처리 중",    cls: "font-semibold rounded-full px-2 py-0.5 text-xs animate-pulse", style: { backgroundColor: "#EEF2FF", color: "#2E5BFF" } },
   analyzed:     { label: "분석 완료",  cls: "font-semibold rounded-full px-2 py-0.5 text-xs", style: { backgroundColor: "#ECFDF3", color: "#087443" } },
-  failed:       { label: "실패",       cls: "font-semibold rounded-full px-2 py-0.5 text-xs", style: { backgroundColor: "#FEF3F2", color: "#B42318" } },
+  failed:       { label: "오류",       cls: "font-semibold rounded-full px-2 py-0.5 text-xs", style: { backgroundColor: "#FEF3F2", color: "#B42318" } },
 };
 
 function formatDate(iso: string) {
@@ -155,8 +155,8 @@ export function CallsClient({ initialRecordings, parents }: Props) {
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
             <p className="text-sm font-bold uppercase tracking-widest" style={{ color: "#2E5BFF" }}>SilverLink AI</p>
-            <h1 className="mt-1 text-2xl font-bold" style={{ color: "var(--sl-ink)" }}>통화 녹음 · AI 분석</h1>
-            <p className="mt-1 text-sm" style={{ color: "var(--sl-muted)" }}>녹음별로 AI 분석을 요청하고 안전 신호를 확인하세요.</p>
+            <h1 className="mt-1 text-2xl font-bold" style={{ color: "var(--sl-ink)" }}>통화 기록 · 통화 내용 정리</h1>
+            <p className="mt-1 text-sm" style={{ color: "var(--sl-muted)" }}>녹음별로 통화 내용 정리를 요청하고 안전 신호를 확인하세요.</p>
           </div>
           <button
             onClick={handleSeed}
@@ -214,7 +214,7 @@ export function CallsClient({ initialRecordings, parents }: Props) {
                         className="rounded-xl px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
                         style={{ backgroundColor: "#2E5BFF" }}
                       >
-                        {isAnalyzing ? "분석 중..." : "AI 분석"}
+                        {isAnalyzing ? "분석 중..." : "통화 내용 정리"}
                       </button>
                     )}
                     {rec.status === "transcribing" && (
@@ -238,7 +238,7 @@ export function CallsClient({ initialRecordings, parents }: Props) {
                 {isExpanded && parsed && (
                   <div className="space-y-4 border-t p-4" style={{ borderColor: "#F0F3F9", backgroundColor: "#F9FAFD" }}>
                     <div>
-                      <p className="mb-1 text-xs font-bold uppercase tracking-widest" style={{ color: "#98A2B3" }}>AI 요약</p>
+                      <p className="mb-1 text-xs font-bold uppercase tracking-widest" style={{ color: "#98A2B3" }}>통화 요약</p>
                       <p className="text-sm leading-relaxed" style={{ color: "#344054" }}>{parsed.summary}</p>
                     </div>
 

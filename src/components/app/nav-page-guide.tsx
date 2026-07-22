@@ -90,7 +90,7 @@ function getGuide(pathname: string): Guide | null {
               </li>
               <li className="flex items-start gap-2">
                 <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-800 text-[10px] font-bold text-white">4</span>
-                <span><strong>안전 알림 · 타임라인</strong>에서 AI 분석 결과 확인</span>
+                <span><strong>안전 알림 · 타임라인</strong>에서 통화 내용 정리 결과 확인</span>
               </li>
             </ol>
           </section>
@@ -100,7 +100,7 @@ function getGuide(pathname: string): Guide | null {
             <span className="text-base">📚</span>
             <p className="text-xs text-purple-700 leading-relaxed">
               이 서비스는 노인 돌봄 관련 <strong>12편의 학술 논문</strong>을 근거로 설계되었어요.
-              하단 <strong>학술 참조</strong> 메뉴에서 확인할 수 있습니다.
+              <strong>서비스 근거</strong> 메뉴에서 확인할 수 있습니다.
             </p>
           </div>
         </>

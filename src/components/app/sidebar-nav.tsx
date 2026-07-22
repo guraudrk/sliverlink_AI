@@ -15,12 +15,12 @@ import {
 
 const NAV_ITEMS = [
   { href: "/dashboard",           label: "대시보드",       Icon: LayoutDashboard },
-  { href: "/parents",             label: "부모님 관리",    Icon: Users },
+  { href: "/parents",             label: "어르신 관리",    Icon: Users },
   { href: "/dashboard/calls",     label: "통화 기록",      Icon: PhoneCall },
   { href: "/dashboard/alerts",    label: "안전 알림",      Icon: Bell },
   { href: "/dashboard/timeline",  label: "케어 타임라인",  Icon: CalendarDays },
-  { href: "/dashboard/social",    label: "사회 연결 점수", Icon: Activity },
-  { href: "/dashboard/assistant", label: "AI 비서",        Icon: Sparkles },
+  { href: "/dashboard/social",    label: "AI 케어 리포트", Icon: Activity },
+  { href: "/dashboard/assistant", label: "돌봄 기록 AI 비서", Icon: Sparkles },
   { href: "/dashboard/settings",  label: "설정",           Icon: Settings },
 ] as const;
 
