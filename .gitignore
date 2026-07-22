@@ -53,3 +53,7 @@ node_modules
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# dev scratch files
+*.bak
+test-rag.mjs

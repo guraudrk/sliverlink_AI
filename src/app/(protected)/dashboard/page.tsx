@@ -1,8 +1,6 @@
-import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
-  Bell,
   ChevronRight,
   Mic,
   UserPlus,
@@ -22,37 +20,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { countUnacknowledgedAlerts } from "@/lib/supabase/safety-alerts-repo";
 import { listParentProfiles } from "@/lib/supabase/parent-profiles-repo";
 import { OnboardingModal } from "@/components/app/onboarding-modal";
-
-async function AlertBanner() {
-  const supabase = await createSupabaseServerClient();
-  const count = await countUnacknowledgedAlerts(supabase);
-  if (count === 0) return null;
-  return (
-    <Link
-      href="/dashboard/alerts"
-      className="flex items-center justify-between gap-3 rounded-2xl px-5 py-4 transition-all hover:opacity-90 animate-rag-fade-in-up"
-      style={{ backgroundColor: "#FEF3F2", border: "1px solid #FECDCA" }}
-    >
-      <div className="flex items-center gap-3">
-        <div
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
-          style={{ backgroundColor: "#FECDCA" }}
-        >
-          <Bell size={16} color="#B42318" strokeWidth={2} />
-        </div>
-        <div>
-          <p style={{ fontWeight: 600, color: "#B42318", fontSize: 14, margin: 0 }}>
-            미확인 안전 알림 {count}건
-          </p>
-          <p style={{ fontSize: 12, color: "#F04438", margin: "2px 0 0" }}>
-            지금 바로 확인해 주세요
-          </p>
-        </div>
-      </div>
-      <span style={{ fontSize: 12, fontWeight: 700, color: "#B42318" }}>확인 →</span>
-    </Link>
-  );
-}
+import { AlertBanner } from "@/components/app/alert-banner";
 
 const QUICK_ACCESS = [
   {
@@ -92,7 +60,7 @@ export default async function DashboardPage() {
   if (!user) redirect("/login");
 
   const supabase = await createSupabaseServerClient();
-  const [parents] = await Promise.all([
+  const [parents, alertCount] = await Promise.all([
     listParentProfiles(supabase),
     countUnacknowledgedAlerts(supabase),
   ]);
@@ -176,10 +144,8 @@ export default async function DashboardPage() {
 
       <div className="mx-auto max-w-2xl space-y-6 px-4 sm:px-6" style={{ marginTop: -20 }}>
 
-        {/* ── 알림 배너 ── */}
-        <Suspense fallback={null}>
-          <AlertBanner />
-        </Suspense>
+        {/* ── 알림 배너 (Realtime 클라이언트 컴포넌트) ── */}
+        <AlertBanner initialCount={alertCount} />
 
         {/* ── 빠른 액세스 ── */}
         <div className="animate-rag-fade-in-up" style={{ animationDelay: "40ms" }}>
