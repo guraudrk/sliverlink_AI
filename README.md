@@ -431,8 +431,36 @@ AI 통화 직후 Gemini가 스크립트를 분석해 위험 신호를 자동 감
 - `expo-updates` 재활성화: `runtimeVersion.policy: "appVersion"`으로 네이티브 불일치 OTA 크래시 차단 (versionCode 57)
 - 모바일 `share-import.tsx`에 Samsung 외 기기 호환 안내 배너 추가
 
+## 34. Day 33 — Play Store 출시 준비 · 개인정보처리방침 · 스토어 그래픽 · versionCode 58
+
+Google Play Store 비공개 테스트 제출을 위한 전체 출시 준비 작업을 완료했습니다.
+
+**개인정보처리방침 (GitHub Pages):**
+- 앱 실제 사용 권한(RECORD_AUDIO·READ_CONTACTS·READ_PHONE_STATE·READ_CALL_LOG·POST_NOTIFICATIONS)·제3자 서비스(Supabase·Google OAuth·Gemini AI) 기반 8개 섹션 작성
+- GitHub Pages로 퍼블리시 (guraudrk GitHub 계정)
+
+**Play Store 스토어 등록정보:**
+- 앱 이름: 실버링크 / 카테고리: 의료(Medical) / 연락처 및 웹사이트 등록
+- 간단한 설명(80자) + 자세한 설명(4000자 이내) 작성
+- 검토 안내: 로그인 방법·권한 사용 목적·2FA 없음 명시
+
+**그래픽 자료 자동 생성 (HTML Canvas + Edge 헤드리스):**
+- 그래픽 이미지 (1024×500): 네이비 그라데이션 배너 + 폰 일러스트 + 알림 카드 → `assets/[그래픽이미지]_1024x500_PlayStore배너.png`
+- 스크린샷 3종 (1080×1920): 홈 대시보드 / 안전 알림 / AI 분석 결과 모의화면 → `assets/[스크린샷0N]_*.png`
+- Figma 없이 코드 전용으로 완결 (`store-render.html?s=` URL 파라미터 방식)
+
+**`app.json` 수정 (bare workflow 대응):**
+- `expo.updates.runtimeVersion` 위치 오류 → `expo.runtimeVersion`(최상단)으로 이동
+- `{ "policy": "appVersion" }` (managed-only) → 문자열 `"1.0.56"` 변경
+
+**로컬 Gradle 빌드 + Play Store 제출:**
+- EAS 클라우드 무료 플랜 한도 초과 → `gradlew.bat bundleRelease`로 직접 빌드 (1분 22초, 35MB AAB)
+- `versionCode 57 → 58` (57 이미 사용됨 오류 해결)
+- 비공개 테스트 트랙 업로드 완료 (심사 중)
+
 ## 개발일지
 
+- [2026-07-23 개발일지](docs/work-log/2026-07-23.md)
 - [2026-07-22 개발일지](docs/work-log/2026-07-22.md)
 - [2026-07-18 개발일지](docs/work-log/2026-07-18.md)
 - [2026-07-17 개발일지](docs/work-log/2026-07-17.md)
