@@ -7,10 +7,9 @@ type Props = {
 
 export function CaseworkerKpiHeader({ elders }: Props) {
   const total = elders.length;
-  const highRisk = elders.filter(
-    (e) =>
-      e.flags.some((f) => f.type === "urgent") ||
-      (e.latestScore !== null && e.latestScore <= 39)
+  // A안: urgent 플래그 기준만 사용 (score <= 39 AND 3회 연속 no_answer)
+  const highRisk = elders.filter((e) =>
+    e.flags.some((f) => f.type === "urgent")
   ).length;
   const worsening = elders.filter((e) =>
     e.flags.some((f) => f.type === "worsening")

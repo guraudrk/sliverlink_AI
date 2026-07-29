@@ -46,9 +46,7 @@ export function CaseworkerClient({ elders, currentUserId, orgRole }: Props) {
 
         const matchFilter =
           filter === "all" ||
-          (filter === "urgent" &&
-            (e.flags.some((f) => f.type === "urgent") ||
-              (e.latestScore !== null && e.latestScore <= 39))) ||
+          (filter === "urgent" && e.flags.some((f) => f.type === "urgent")) ||
           (filter === "worsening" &&
             (e.flags.some((f) => f.type === "worsening") ||
               e.flags.some((f) => f.type === "unacked_alerts"))) ||
