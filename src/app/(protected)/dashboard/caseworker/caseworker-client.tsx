@@ -19,14 +19,23 @@ const FILTER_LABELS: Record<FilterType, string> = {
   normal: "정상",
 };
 
+type OrgRole = "admin" | "social_worker" | "field_worker" | null;
+
 type Props = {
   elders: ElderWithFlags[];
+  currentUserId: string | null;
+  orgRole: OrgRole;
 };
 
-export function CaseworkerClient({ elders }: Props) {
+export function CaseworkerClient({ elders, currentUserId, orgRole }: Props) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterType>("all");
+  const [mineOnly, setMineOnly] = useState(false);
   const [reportTarget, setReportTarget] = useState<{ id: string; name: string } | null>(null);
+
+  // admin·social_worker만 "내 담당만" 필터를 볼 수 있다
+  const canFilterByAssignee =
+    orgRole === "admin" || orgRole === "social_worker";
 
   const filtered = useMemo(() => {
     return elders
@@ -47,14 +56,17 @@ export function CaseworkerClient({ elders }: Props) {
             e.flags.length === 0 &&
             (e.latestScore === null || e.latestScore >= 40));
 
-        return matchSearch && matchFilter;
+        const matchAssignee =
+          !mineOnly || e.assigned_user_id === currentUserId;
+
+        return matchSearch && matchFilter && matchAssignee;
       })
       .sort(
         (a, b) =>
           getRiskWeight(a.flags, a.latestScore) -
           getRiskWeight(b.flags, b.latestScore)
       );
-  }, [elders, search, filter]);
+  }, [elders, search, filter, mineOnly, currentUserId]);
 
   return (
     <>
@@ -106,6 +118,18 @@ export function CaseworkerClient({ elders }: Props) {
               {FILTER_LABELS[f]}
             </button>
           ))}
+          {canFilterByAssignee && (
+            <button
+              onClick={() => setMineOnly((v) => !v)}
+              className={`rounded-xl px-3.5 py-2 text-sm font-semibold transition-colors ${
+                mineOnly
+                  ? "bg-teal-600 text-white shadow-sm"
+                  : "bg-white text-slate-600 ring-1 ring-slate-200 hover:ring-teal-300"
+              }`}
+            >
+              내 담당
+            </button>
+          )}
         </div>
       </div>
 

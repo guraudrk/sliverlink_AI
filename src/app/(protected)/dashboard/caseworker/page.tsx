@@ -25,7 +25,26 @@ function CaseworkerIcon() {
 
 export default async function CaseworkerPage() {
   const supabase = await createSupabaseServerClient();
-  const summaries = await listElderSummaries(supabase);
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const [summaries, membershipResult] = await Promise.all([
+    listElderSummaries(supabase),
+    supabase
+      .from("org_members")
+      .select("role")
+      .eq("user_id", user?.id ?? "")
+      .maybeSingle(),
+  ]);
+
+  const orgRole =
+    (membershipResult.data?.role as
+      | "admin"
+      | "social_worker"
+      | "field_worker"
+      | null) ?? null;
 
   const eldersWithFlags = summaries
     .map((s) => ({ ...s, flags: computeRiskFlags(s) }))
@@ -63,7 +82,11 @@ export default async function CaseworkerPage() {
             </Link>
           </div>
         ) : (
-          <CaseworkerClient elders={eldersWithFlags} />
+          <CaseworkerClient
+            elders={eldersWithFlags}
+            currentUserId={user?.id ?? null}
+            orgRole={orgRole}
+          />
         )}
       </div>
     </div>
