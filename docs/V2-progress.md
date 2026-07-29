@@ -1,7 +1,7 @@
 # V2 진행 상황
 최종 갱신: 2026-07-29
-현재 위치: Day 36 / S4 대기 🛑
-다음 작업: 3분 시연 리허설 — /demo에서 데이터 생성 후 /dashboard/caseworker 확인
+현재 위치: Day 36 / S5 완료 보고
+다음 작업: Day 37 — F3 AI 배치 리포트 (기관 미팅 결과 대기 항목 있음)
 🛑 대기 중인 승인: 없음
 
 ## 슬라이스 체크리스트
@@ -30,7 +30,7 @@
 - [x] Day36 S1 organizations.is_demo + 실데이터 격리 ✅ (V2 migration에서 이미 완료)
 - [x] Day36 S2 POST /api/demo/seed-org ✅ (2026-07-29)
 - [x] Day36 S3 데모 계정 로그인 경로 ✅ (2026-07-29) — /demo 페이지
-- [ ] Day36 S4 3분 시연 리허설 🛑 (오너 직접 확인 필요)
+- [x] Day36 S4 3분 시연 리허설 ✅ (2026-07-29) — SECURITY DEFINER 함수로 RLS 우회, 데모 seed 성공 확인
 - [ ] Day36 S5 완료 보고 🛑
 
 ### Day 37 — F3 AI 배치 리포트
