@@ -4,6 +4,8 @@ export type ElderSummary = {
   id: string;
   display_name: string;
   relationship: string | null;
+  /** 담당 생활지원사 UUID (기관 어르신만 설정됨, S4 필터용) */
+  assigned_user_id: string | null;
   /** 최신 주 연결 점수 (데이터 없으면 null) */
   latestScore: number | null;
   latestWeekStart: string | null;
@@ -17,7 +19,9 @@ export type ElderSummary = {
 
 /**
  * 담당 어르신 전체의 요약 데이터를 4개 배치 쿼리로 가져온다.
- * 모든 쿼리는 RLS를 통해 owner_user_id = auth.uid() 로 자동 필터된다.
+ * RLS가 개인 경로(org_id IS NULL + owner_user_id)와
+ * 기관 경로(org_members 소속 + role 권한)를 자동으로 분기한다.
+ * field_worker는 assigned_user_id = auth.uid() 인 어르신만 반환된다.
  */
 export async function listElderSummaries(
   supabase: SupabaseClient
@@ -25,7 +29,7 @@ export async function listElderSummaries(
   // 1. 어르신 목록
   const { data: parents, error: pErr } = await supabase
     .from("parent_profiles")
-    .select("id, display_name, relationship")
+    .select("id, display_name, relationship, assigned_user_id")
     .order("created_at", { ascending: false });
   if (pErr) throw pErr;
   if (!parents || parents.length === 0) return [];
@@ -95,7 +99,7 @@ export async function listElderSummaries(
     );
   }
 
-  return parents.map((parent: { id: string; display_name: string; relationship: string | null }) => {
+  return parents.map((parent: { id: string; display_name: string; relationship: string | null; assigned_user_id: string | null }) => {
     const scores = scoresByParent.get(parent.id) ?? [];
     const recentCalls = allCalls
       .filter((c) => c.parent_id === parent.id)
@@ -106,6 +110,7 @@ export async function listElderSummaries(
       id: parent.id,
       display_name: parent.display_name,
       relationship: parent.relationship,
+      assigned_user_id: parent.assigned_user_id,
       latestScore: scores[0]?.score ?? null,
       latestWeekStart: scores[0]?.week_start ?? null,
       prevScore: scores[1]?.score ?? null,

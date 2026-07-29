@@ -1,7 +1,7 @@
 # V2 진행 상황
 최종 갱신: 2026-07-29
-현재 위치: Day 35 / S1 대기
-다음 작업: listElderSummaries 기관 스코프 확장
+현재 위치: Day 35 / S2 대기
+다음 작업: KPI 헤더 — 담당 어르신 수 / 즉시확인 / 추세악화 / 이번주 미통화
 🛑 대기 중인 승인: 없음
 
 ## 슬라이스 체크리스트
@@ -19,7 +19,7 @@
 
 ### Day 35 — F2 기관 통합 대시보드
 - [x] Day35 S0 디자인 락 ✅ (docs/design-system.md 생성 2026-07-29)
-- [ ] Day35 S1 listElderSummaries 기관 스코프 확장
+- [x] Day35 S1 listElderSummaries 기관 스코프 확장 ✅ (2026-07-29)
 - [ ] Day35 S2 KPI 헤더
 - [ ] Day35 S3 위험도 정렬 + 플래그 사유 노출
 - [ ] Day35 S4 담당자 필터
