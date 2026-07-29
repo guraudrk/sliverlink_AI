@@ -1,7 +1,7 @@
 # V2 진행 상황
 최종 갱신: 2026-07-29
-현재 위치: Day 34 완료 → Day 35 대기
-다음 작업: Day 35 S0 — 디자인 락 (docs/design-system.md 생성)
+현재 위치: Day 35 / S1 대기
+다음 작업: listElderSummaries 기관 스코프 확장
 🛑 대기 중인 승인: 없음
 
 ## 슬라이스 체크리스트
@@ -18,7 +18,7 @@
 - [x] Day34 S7 회귀 테스트 + RLS 침투 테스트 ✅ (PT-0~3 전부 통과 2026-07-29)
 
 ### Day 35 — F2 기관 통합 대시보드
-- [ ] Day35 S0 디자인 락 (docs/design-system.md 생성)
+- [x] Day35 S0 디자인 락 ✅ (docs/design-system.md 생성 2026-07-29)
 - [ ] Day35 S1 listElderSummaries 기관 스코프 확장
 - [ ] Day35 S2 KPI 헤더
 - [ ] Day35 S3 위험도 정렬 + 플래그 사유 노출
