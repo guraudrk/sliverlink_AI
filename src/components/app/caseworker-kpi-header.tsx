@@ -15,7 +15,12 @@ export function CaseworkerKpiHeader({ elders }: Props) {
   const worsening = elders.filter((e) =>
     e.flags.some((f) => f.type === "worsening")
   ).length;
-  const totalUnacked = elders.reduce((sum, e) => sum + e.unackedAlertCount, 0);
+  // B안: 이번 주 통화 시도가 1건 이상이지만 전부 미응답인 어르신 수
+  const noAnswerThisWeek = elders.filter(
+    (e) =>
+      e.thisWeekCallStatuses.length > 0 &&
+      e.thisWeekCallStatuses.every((s) => s === "no_answer")
+  ).length;
 
   const stats = [
     {
@@ -27,7 +32,7 @@ export function CaseworkerKpiHeader({ elders }: Props) {
       border: "ring-slate-200",
     },
     {
-      label: "위험군",
+      label: "즉시확인",
       value: highRisk,
       unit: "명",
       color: highRisk > 0 ? "text-rose-600" : "text-slate-400",
@@ -35,7 +40,7 @@ export function CaseworkerKpiHeader({ elders }: Props) {
       border: highRisk > 0 ? "ring-rose-200" : "ring-slate-200",
     },
     {
-      label: "추세 악화",
+      label: "추세악화",
       value: worsening,
       unit: "명",
       color: worsening > 0 ? "text-amber-600" : "text-slate-400",
@@ -43,12 +48,12 @@ export function CaseworkerKpiHeader({ elders }: Props) {
       border: worsening > 0 ? "ring-amber-200" : "ring-slate-200",
     },
     {
-      label: "미확인 알림",
-      value: totalUnacked,
-      unit: "건",
-      color: totalUnacked > 0 ? "text-orange-600" : "text-slate-400",
-      bg: totalUnacked > 0 ? "bg-orange-50" : "bg-slate-50",
-      border: totalUnacked > 0 ? "ring-orange-200" : "ring-slate-200",
+      label: "이번주 미통화",
+      value: noAnswerThisWeek,
+      unit: "명",
+      color: noAnswerThisWeek > 0 ? "text-blue-600" : "text-slate-400",
+      bg: noAnswerThisWeek > 0 ? "bg-blue-50" : "bg-slate-50",
+      border: noAnswerThisWeek > 0 ? "ring-blue-200" : "ring-slate-200",
     },
   ];
 

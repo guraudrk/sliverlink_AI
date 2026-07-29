@@ -15,6 +15,8 @@ export type ElderSummary = {
   recentCallStatuses: string[];
   /** 미확인 안전 알림 수 */
   unackedAlertCount: number;
+  /** 이번 주(월~오늘) 통화 시도 status 목록 (KPI 미통화 계산용) */
+  thisWeekCallStatuses: string[];
 };
 
 /**
@@ -99,11 +101,22 @@ export async function listElderSummaries(
     );
   }
 
+  // 이번 주 월요일 00:00 KST → UTC ISO 문자열 (B안 미통화 계산 기준)
+  const kstNow = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const daysFromMonday = (kstNow.getUTCDay() + 6) % 7;
+  const kstMondayMidnight = new Date(kstNow);
+  kstMondayMidnight.setUTCDate(kstNow.getUTCDate() - daysFromMonday);
+  kstMondayMidnight.setUTCHours(0, 0, 0, 0);
+  const weekStartISO = new Date(
+    kstMondayMidnight.getTime() - 9 * 60 * 60 * 1000
+  ).toISOString();
+
   return parents.map((parent: { id: string; display_name: string; relationship: string | null; assigned_user_id: string | null }) => {
     const scores = scoresByParent.get(parent.id) ?? [];
-    const recentCalls = allCalls
-      .filter((c) => c.parent_id === parent.id)
-      .slice(0, 3)
+    const parentCalls = allCalls.filter((c) => c.parent_id === parent.id);
+    const recentCalls = parentCalls.slice(0, 3).map((c) => c.status);
+    const thisWeekCalls = parentCalls
+      .filter((c) => c.created_at >= weekStartISO)
       .map((c) => c.status);
 
     return {
@@ -116,6 +129,7 @@ export async function listElderSummaries(
       prevScore: scores[1]?.score ?? null,
       recentCallStatuses: recentCalls,
       unackedAlertCount: alertCountByParent.get(parent.id) ?? 0,
+      thisWeekCallStatuses: thisWeekCalls,
     };
   });
 }
