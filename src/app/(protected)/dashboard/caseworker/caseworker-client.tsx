@@ -6,6 +6,7 @@ import type { RiskFlag } from "@/lib/caseworker/risk-flags";
 import { CaseworkerKpiHeader } from "@/components/app/caseworker-kpi-header";
 import { CaseworkerElderCard } from "@/components/app/caseworker-elder-card";
 import { CareReportPanel } from "@/components/app/care-report-panel";
+import { getRiskWeight } from "@/lib/caseworker/risk-flags";
 
 type ElderWithFlags = ElderSummary & { flags: RiskFlag[] };
 
@@ -28,25 +29,31 @@ export function CaseworkerClient({ elders }: Props) {
   const [reportTarget, setReportTarget] = useState<{ id: string; name: string } | null>(null);
 
   const filtered = useMemo(() => {
-    return elders.filter((e) => {
-      const matchSearch =
-        search === "" ||
-        e.display_name.toLowerCase().includes(search.toLowerCase());
+    return elders
+      .filter((e) => {
+        const matchSearch =
+          search === "" ||
+          e.display_name.toLowerCase().includes(search.toLowerCase());
 
-      const matchFilter =
-        filter === "all" ||
-        (filter === "urgent" &&
-          (e.flags.some((f) => f.type === "urgent") ||
-            (e.latestScore !== null && e.latestScore <= 39))) ||
-        (filter === "worsening" &&
-          (e.flags.some((f) => f.type === "worsening") ||
-            e.flags.some((f) => f.type === "unacked_alerts"))) ||
-        (filter === "normal" &&
-          e.flags.length === 0 &&
-          (e.latestScore === null || e.latestScore >= 40));
+        const matchFilter =
+          filter === "all" ||
+          (filter === "urgent" &&
+            (e.flags.some((f) => f.type === "urgent") ||
+              (e.latestScore !== null && e.latestScore <= 39))) ||
+          (filter === "worsening" &&
+            (e.flags.some((f) => f.type === "worsening") ||
+              e.flags.some((f) => f.type === "unacked_alerts"))) ||
+          (filter === "normal" &&
+            e.flags.length === 0 &&
+            (e.latestScore === null || e.latestScore >= 40));
 
-      return matchSearch && matchFilter;
-    });
+        return matchSearch && matchFilter;
+      })
+      .sort(
+        (a, b) =>
+          getRiskWeight(a.flags, a.latestScore) -
+          getRiskWeight(b.flags, b.latestScore)
+      );
   }, [elders, search, filter]);
 
   return (

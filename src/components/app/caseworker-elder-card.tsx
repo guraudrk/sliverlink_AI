@@ -122,6 +122,15 @@ export function CaseworkerElderCard({ elder, index, onGenerateReport }: Props) {
                   <FlagBadge key={flag.type} flag={flag} />
                 ))}
               </div>
+              {elder.flags.length > 0 && (
+                <div className="mt-1 space-y-0.5">
+                  {elder.flags.map((flag) => (
+                    <p key={flag.type} className="text-xs text-slate-500">
+                      {flag.reason}
+                    </p>
+                  ))}
+                </div>
+              )}
               <div className="mt-2">
                 <CallDots statuses={elder.recentCallStatuses} />
               </div>
