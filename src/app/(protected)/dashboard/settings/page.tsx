@@ -3,6 +3,8 @@ import { getServerUser } from "@/lib/supabase/server-user";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { RoleToggle } from "@/components/app/role-toggle";
 import { PasteTemplateEditor } from "@/components/app/paste-template-editor";
+import { ScheduleEditor } from "@/components/app/schedule-editor";
+import { SendLogsSection } from "@/components/app/send-logs-section";
 import { DEFAULT_PASTE_TEMPLATE } from "@/app/api/org/paste-template/route";
 import type { UserRole } from "@/app/api/user/role/route";
 
@@ -16,25 +18,24 @@ export default async function SettingsPage() {
   const supabase = await createSupabaseServerClient();
   let orgId: string | null = null;
   let pasteTemplate: string | null = null;
+  let scheduleEnabled   = false;
+  let scheduleEmails:   string[] = [];
   if (user) {
-    const [memberRes, tmplRes] = await Promise.all([
-      supabase
-        .from("org_members")
-        .select("org_id, role")
-        .eq("user_id", user.id)
-        .maybeSingle(),
-      Promise.resolve(null), // placeholder — tmpl fetch below
-    ]);
-    void tmplRes;
+    const { data: memberData } = await supabase
+      .from("org_members")
+      .select("org_id, role")
+      .eq("user_id", user.id)
+      .maybeSingle();
 
-    if (memberRes.data?.role === "admin") {
-      orgId = memberRes.data.org_id as string;
-      const { data: tmpl } = await supabase
-        .from("paste_templates")
-        .select("template")
-        .eq("org_id", orgId)
-        .maybeSingle();
-      pasteTemplate = tmpl?.template ?? DEFAULT_PASTE_TEMPLATE;
+    if (memberData?.role === "admin") {
+      orgId = memberData.org_id as string;
+      const [tmplRes, schedRes] = await Promise.all([
+        supabase.from("paste_templates").select("template").eq("org_id", orgId).maybeSingle(),
+        supabase.from("report_schedules").select("enabled, recipient_emails").eq("org_id", orgId).maybeSingle(),
+      ]);
+      pasteTemplate     = tmplRes.data?.template ?? DEFAULT_PASTE_TEMPLATE;
+      scheduleEnabled   = schedRes.data?.enabled ?? false;
+      scheduleEmails    = (schedRes.data?.recipient_emails as string[]) ?? [];
     }
   }
 
@@ -78,6 +79,39 @@ export default async function SettingsPage() {
               변경 사항은 다음 리포트 생성부터 적용됩니다.
             </p>
             <PasteTemplateEditor orgId={orgId} initialTemplate={pasteTemplate} />
+          </section>
+        )}
+
+        {/* 기관 관리자 전용: 주간 리포트 자동 발송 */}
+        {orgId && (
+          <section
+            className="animate-rag-fade-in-up rounded-2xl bg-white px-5 py-5 shadow-sm ring-1 ring-slate-200"
+            style={{ animationDelay: "240ms" }}
+          >
+            <h2 className="mb-1 text-sm font-bold uppercase tracking-widest text-slate-400">
+              주간 리포트 자동 발송 <span className="ml-1 rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-semibold text-indigo-600 normal-case">관리자</span>
+            </h2>
+            <p className="mb-4 text-xs text-slate-400">
+              매주 월요일 08:00에 어르신 전체 요약을 이메일로 자동 발송합니다.
+            </p>
+            <ScheduleEditor
+              orgId={orgId}
+              initialEnabled={scheduleEnabled}
+              initialEmails={scheduleEmails}
+            />
+          </section>
+        )}
+
+        {/* 기관 관리자 전용: 발송 이력 */}
+        {orgId && (
+          <section
+            className="animate-rag-fade-in-up rounded-2xl bg-white px-5 py-5 shadow-sm ring-1 ring-slate-200"
+            style={{ animationDelay: "300ms" }}
+          >
+            <h2 className="mb-3 text-sm font-bold uppercase tracking-widest text-slate-400">
+              발송 이력 <span className="ml-1 rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-semibold text-indigo-600 normal-case">관리자</span>
+            </h2>
+            <SendLogsSection orgId={orgId} />
           </section>
         )}
       </div>
