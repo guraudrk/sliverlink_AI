@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { ParentProfile } from "@/lib/supabase/parent-profiles-repo";
 import type { TimelineEvent, WeeklyTrend } from "@/app/api/timeline/route";
@@ -28,6 +28,113 @@ function formatDate(iso: string) {
 
 function formatDateOnly(iso: string) {
   return new Date(iso).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "short" });
+}
+
+const DOW = ["월", "화", "수", "목", "금", "토", "일"];
+
+function MonthCalendar({
+  eventDates,
+  selectedDate,
+  onSelect,
+}: {
+  eventDates: Set<string>;
+  selectedDate: string | null;
+  onSelect: (d: string | null) => void;
+}) {
+  const today = new Date();
+  const [year, setYear] = useState(today.getFullYear());
+  const [month, setMonth] = useState(today.getMonth()); // 0-indexed
+
+  function prevMonth() {
+    if (month === 0) { setYear(y => y - 1); setMonth(11); }
+    else setMonth(m => m - 1);
+  }
+  function nextMonth() {
+    if (month === 11) { setYear(y => y + 1); setMonth(0); }
+    else setMonth(m => m + 1);
+  }
+
+  const cells = useMemo(() => {
+    const first = new Date(year, month, 1);
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const dowFirst = first.getDay(); // 0=Sun
+    const mondayOffset = dowFirst === 0 ? 6 : dowFirst - 1;
+    const arr: (number | null)[] = Array(mondayOffset).fill(null);
+    for (let d = 1; d <= daysInMonth; d++) arr.push(d);
+    while (arr.length % 7 !== 0) arr.push(null);
+    return arr;
+  }, [year, month]);
+
+  const todayStr = today.toISOString().slice(0, 10);
+
+  return (
+    <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+      {/* 月 헤더 */}
+      <div className="mb-3 flex items-center justify-between">
+        <button
+          onClick={prevMonth}
+          className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
+        >
+          ‹
+        </button>
+        <span className="text-sm font-bold text-slate-700">{year}년 {month + 1}월</span>
+        <button
+          onClick={nextMonth}
+          className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
+        >
+          ›
+        </button>
+      </div>
+
+      {/* 요일 헤더 */}
+      <div className="mb-1 grid grid-cols-7 text-center">
+        {DOW.map((d) => (
+          <div key={d} className="py-1 text-xs font-semibold text-slate-400">{d}</div>
+        ))}
+      </div>
+
+      {/* 날짜 셀 */}
+      <div className="grid grid-cols-7 gap-0.5">
+        {cells.map((day, i) => {
+          if (!day) return <div key={i} />;
+          const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+          const hasEv = eventDates.has(dateStr);
+          const isSel = selectedDate === dateStr;
+          const isToday = dateStr === todayStr;
+          return (
+            <button
+              key={i}
+              type="button"
+              onClick={() => onSelect(isSel ? null : dateStr)}
+              className={`relative flex flex-col items-center justify-center rounded-lg py-1 text-sm transition-colors ${
+                isSel
+                  ? "bg-blue-600 text-white"
+                  : isToday
+                  ? "bg-blue-50 font-bold text-blue-700"
+                  : "text-slate-700 hover:bg-slate-100"
+              }`}
+            >
+              {day}
+              {hasEv && (
+                <span
+                  className={`mt-0.5 h-1.5 w-1.5 rounded-full ${isSel ? "bg-white/80" : "bg-blue-400"}`}
+                />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {selectedDate && (
+        <button
+          onClick={() => onSelect(null)}
+          className="mt-3 w-full rounded-lg py-1 text-xs text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+        >
+          선택 해제
+        </button>
+      )}
+    </div>
+  );
 }
 
 function KpiCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color: string }) {
@@ -169,16 +276,21 @@ export function CareJourneyClient({ parents }: Props) {
 
   const currentParent = parents.find((p) => p.id === currentParentId);
 
-  // 날짜별 그룹핑
-  const dateGroups = (() => {
-    const map = new Map<string, (TimelineEvent & { parentId: string })[]>();
-    for (const ev of allEvents) {
-      const day = ev.date.slice(0, 10);
-      if (!map.has(day)) map.set(day, []);
-      map.get(day)!.push(ev);
-    }
-    return [...map.entries()].sort((a, b) => b[0].localeCompare(a[0]));
-  })();
+  // 날짜별 뷰: 달력 선택 날짜
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  // 이벤트가 존재하는 날짜 Set (달력 점 표시용)
+  const eventDates = useMemo(() => {
+    const s = new Set<string>();
+    for (const ev of allEvents) s.add(ev.date.slice(0, 10));
+    return s;
+  }, [allEvents]);
+
+  // 선택된 날짜의 이벤트 (없으면 전체)
+  const selectedDayEvents = useMemo(() => {
+    if (!selectedDate) return [];
+    return allEvents.filter((ev) => ev.date.slice(0, 10) === selectedDate);
+  }, [allEvents, selectedDate]);
 
   return (
     <div className="space-y-5">
@@ -264,43 +376,60 @@ export function CareJourneyClient({ parents }: Props) {
           )}
         </>
       ) : (
-        /* 날짜별 뷰 */
+        /* 날짜별 뷰 — 달력 + 이벤트 목록 */
         allLoading ? (
           <div className="flex h-40 items-center justify-center">
             <p className="text-slate-400 text-sm">불러오는 중…</p>
           </div>
-        ) : dateGroups.length === 0 ? (
-          <div className="rounded-2xl bg-white px-6 py-10 text-center text-sm text-slate-400 shadow-sm ring-1 ring-slate-200">
-            아직 기록된 이벤트가 없어요.
-          </div>
         ) : (
-          <div className="space-y-6">
-            {dateGroups.map(([day, dayEvents]) => (
-              <div key={day}>
-                <div className="mb-3 flex items-center gap-3">
-                  <span className="rounded-lg bg-slate-200 px-2.5 py-1 text-xs font-bold text-slate-600">
-                    {formatDateOnly(day)}
-                  </span>
-                  <div className="flex-1 border-t border-slate-200" />
-                  <span className="text-xs text-slate-400">{dayEvents.length}건</span>
+          <div className="flex flex-col gap-4 lg:flex-row lg:gap-6">
+            {/* 달력 사이드바 */}
+            <div className="shrink-0 lg:w-72">
+              <MonthCalendar
+                eventDates={eventDates}
+                selectedDate={selectedDate}
+                onSelect={setSelectedDate}
+              />
+            </div>
+
+            {/* 이벤트 목록 */}
+            <div className="min-w-0 flex-1">
+              {!selectedDate ? (
+                <div className="flex h-40 flex-col items-center justify-center rounded-2xl bg-white text-sm text-slate-400 shadow-sm ring-1 ring-slate-200">
+                  <span className="text-2xl mb-2">📅</span>
+                  달력에서 날짜를 선택하면 해당 날의 기록을 볼 수 있어요
                 </div>
-                <ol className="relative space-y-0">
-                  {dayEvents.map((ev, i) => {
-                    const parentName = parents.find((p) => p.id === ev.parentId)?.display_name;
-                    return (
-                      <EventItem
-                        key={ev.id}
-                        ev={ev}
-                        expandedId={expandedId}
-                        setExpandedId={setExpandedId}
-                        parentName={parentName}
-                        isLast={i === dayEvents.length - 1}
-                      />
-                    );
-                  })}
-                </ol>
-              </div>
-            ))}
+              ) : selectedDayEvents.length === 0 ? (
+                <div className="flex h-40 flex-col items-center justify-center rounded-2xl bg-white text-sm text-slate-400 shadow-sm ring-1 ring-slate-200">
+                  <span className="text-2xl mb-2">🗓️</span>
+                  {formatDateOnly(selectedDate)}에는 기록이 없어요
+                </div>
+              ) : (
+                <div>
+                  <div className="mb-3 flex items-center gap-3">
+                    <span className="rounded-lg bg-blue-100 px-2.5 py-1 text-xs font-bold text-blue-700">
+                      {formatDateOnly(selectedDate)}
+                    </span>
+                    <span className="text-xs text-slate-400">{selectedDayEvents.length}건</span>
+                  </div>
+                  <ol className="relative space-y-0">
+                    {selectedDayEvents.map((ev, i) => {
+                      const parentName = parents.find((p) => p.id === ev.parentId)?.display_name;
+                      return (
+                        <EventItem
+                          key={ev.id}
+                          ev={ev}
+                          expandedId={expandedId}
+                          setExpandedId={setExpandedId}
+                          parentName={parentName}
+                          isLast={i === selectedDayEvents.length - 1}
+                        />
+                      );
+                    })}
+                  </ol>
+                </div>
+              )}
+            </div>
           </div>
         )
       )}

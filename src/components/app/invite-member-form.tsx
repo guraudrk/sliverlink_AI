@@ -42,19 +42,19 @@ export function InviteMemberForm({ orgId }: Props) {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-2 sm:flex-row">
-        <input
-          type="email"
-          placeholder="초대할 이메일"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-        />
+    <div className="space-y-3">
+      <input
+        type="email"
+        placeholder="초대할 이메일"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+      />
+      <div className="flex gap-2">
         <select
           value={role}
           onChange={(e) => setRole(e.target.value)}
-          className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-indigo-400 focus:outline-none"
+          className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-indigo-400 focus:outline-none"
         >
           {ROLE_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
@@ -63,12 +63,11 @@ export function InviteMemberForm({ orgId }: Props) {
         <button
           onClick={submit}
           disabled={sending}
-          className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+          className="shrink-0 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
         >
-          {sending ? "처리 중…" : "초대 링크 생성"}
+          {sending ? "처리 중…" : "생성"}
         </button>
       </div>
-
       {error && <p className="text-sm text-rose-500">{error}</p>}
 
       {joinUrl && (

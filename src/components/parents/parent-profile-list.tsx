@@ -38,19 +38,31 @@ export function ParentProfileList({
   return (
     <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
       {profiles.map((profile, i) => (
-        <li key={profile.id} className="relative animate-rag-fade-in-up" style={{ animationDelay: `${i * 60}ms` }}>
-          <button
-            type="button"
+        <li key={profile.id} className="animate-rag-fade-in-up" style={{ animationDelay: `${i * 60}ms` }}>
+          {/* 전체 카드: onClick → 수정 모드 */}
+          <div
+            role="button"
+            tabIndex={0}
             onClick={() => onSelect(profile)}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onSelect(profile); }}
             className={
-              "w-full rounded-2xl bg-white shadow-sm ring-1 transition-colors hover:ring-blue-300 flex flex-col items-center justify-center " +
+              "relative w-full cursor-pointer rounded-2xl bg-white shadow-sm ring-1 transition-colors hover:ring-blue-300 flex flex-col items-center pb-3 pt-4 px-3 " +
               (selectedId === profile.id ? "ring-2 ring-blue-400" : "ring-slate-200")
             }
-            style={{ aspectRatio: "1", padding: "16px 12px" }}
+            style={{ minHeight: 140 }}
           >
+            {/* 현황 링크 — 카드 안에 배치, 클릭 전파 차단 */}
+            <Link
+              href={`/dashboard/parents/${profile.id}`}
+              onClick={(e) => e.stopPropagation()}
+              className="absolute right-2.5 top-2.5 text-xs font-semibold text-slate-400 underline-offset-2 hover:text-blue-500 hover:underline"
+            >
+              현황
+            </Link>
+
             <div
-              className="flex shrink-0 items-center justify-center rounded-full text-lg font-bold"
-              style={{ width: 52, height: 52, backgroundColor: "#EEF2FF", color: "#4F46E5", marginBottom: 10 }}
+              className="flex shrink-0 items-center justify-center rounded-full text-lg font-bold mb-2.5"
+              style={{ width: 52, height: 52, backgroundColor: "#EEF2FF", color: "#4F46E5" }}
             >
               {(profile.display_name ?? "?").charAt(0)}
             </div>
@@ -58,14 +70,8 @@ export function ParentProfileList({
             {profile.relationship ? (
               <p className="mt-0.5 text-xs text-slate-500 truncate w-full text-center">{profile.relationship}</p>
             ) : null}
-            <p className="mt-1.5 text-xs text-blue-500 font-semibold">수정</p>
-          </button>
-          <Link
-            href={`/dashboard/parents/${profile.id}`}
-            className="absolute right-2.5 top-2.5 text-xs font-semibold text-slate-400 underline-offset-2 hover:text-blue-500 hover:underline"
-          >
-            현황
-          </Link>
+            <p className="mt-2 text-xs text-blue-500 font-semibold">수정</p>
+          </div>
         </li>
       ))}
     </ul>
