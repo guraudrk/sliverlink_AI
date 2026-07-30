@@ -15,6 +15,9 @@ CREATE TABLE IF NOT EXISTS public.report_schedules (
 
 ALTER TABLE public.report_schedules ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "report_schedules_select_member" ON public.report_schedules;
+DROP POLICY IF EXISTS "report_schedules_all_admin"     ON public.report_schedules;
+
 -- 기관 멤버는 조회 가능
 CREATE POLICY "report_schedules_select_member"
   ON public.report_schedules FOR SELECT
@@ -55,6 +58,9 @@ CREATE TABLE IF NOT EXISTS public.report_send_logs (
 );
 
 ALTER TABLE public.report_send_logs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "report_send_logs_select_member" ON public.report_send_logs;
+DROP POLICY IF EXISTS "report_send_logs_insert_admin"  ON public.report_send_logs;
 
 -- 기관 멤버는 자기 기관 이력만 조회
 CREATE POLICY "report_send_logs_select_member"

@@ -1,7 +1,7 @@
 # V2 진행 상황
 최종 갱신: 2026-07-30
-현재 위치: Day 41 S3 완료 (S1·S2·S4 사용자 액션 대기)
-다음 작업: Day 41 S1 브라우저 검증 + S2 인덱스 SQL 실행 + S4 최종 보고
+현재 위치: Day 41 S1·S2·S3 완료 (S4 최종 보고 대기)
+다음 작업: Day 41 S4 — 영업 개시 최종 보고
 🛑 대기 중인 승인: 없음
 
 ## 슬라이스 체크리스트
@@ -63,8 +63,8 @@
 - [x] Day40 S5 docs/privacy-for-orgs.md ✅ (2026-07-30) — 기관 계약 검토용 1장 (수집·파기·암호화·위치·법적근거)
 
 ### Day 41 — 영업 개시 전 최종 점검
-- [ ] Day41 S1 데모 계정으로 F3~F7 전체 플로우 재검증 (사용자 브라우저 검증)
-- [ ] Day41 S2 성능 인덱스 SQL 실제 적용 → migration-v2-performance-indexes.sql Supabase 실행
+- [x] Day41 S1 데모 계정으로 F3~F7 전체 플로우 재검증 ✅ (2026-07-30) — 배치 생성·기록 복사·CSV·자동발송 설정·개인정보 전 항목 통과
+- [x] Day41 S2 성능 인덱스 SQL 실제 적용 ✅ (2026-07-30) — migration-v2-performance-indexes.sql + migration-v2-invite.sql + access_logs INSERT 패치 3건 Supabase 실행 완료
 - [x] Day41 S3 멤버 초대 플로우 완성 ✅ (2026-07-30) — org_invites 테이블 + 토큰 방식 초대 + /join 페이지 + InviteMemberForm
 - [ ] Day41 S4 🛑 "영업 개시 가능" 최종 보고
 
