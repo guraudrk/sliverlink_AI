@@ -15,6 +15,7 @@ type BatchBody = {
   periodEnd?: string;
   elderIds?: string[];
   reportSetId?: string;
+  retryErrors?: boolean;   // true이면 error 행을 pending으로 리셋 후 재시도
 };
 
 export async function POST(request: Request) {
@@ -29,9 +30,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "invalid_json" }, { status: 400 });
   }
 
-  const { orgId, periodStart, periodEnd, elderIds, reportSetId } = body;
+  const { orgId, periodStart, periodEnd, elderIds, reportSetId, retryErrors } = body;
 
-  // ── 재개: reportSetId 제공됨 ──
+  // ── 재개 / 에러 재시도: reportSetId 제공됨 ──
   if (reportSetId) {
     const { data: sample } = await supabase
       .from("reports")
@@ -42,6 +43,15 @@ export async function POST(request: Request) {
 
     if (!sample) {
       return NextResponse.json({ error: "report_set_not_found" }, { status: 404 });
+    }
+
+    // retryErrors: error 행을 pending으로 리셋해서 다음 processChunk에서 재처리
+    if (retryErrors) {
+      await supabase
+        .from("reports")
+        .update({ status: "pending", error_msg: null })
+        .eq("report_set_id", reportSetId)
+        .eq("status", "error");
     }
 
     const progress = await processChunk(
