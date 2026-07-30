@@ -1,7 +1,7 @@
 # V2 진행 상황
 최종 갱신: 2026-07-30
-현재 위치: Day 39 전체 완료
-다음 작업: Day 40 S1 — 녹음 원본 파기 정책
+현재 위치: Day 40 전체 완료
+다음 작업: Day 41 S1 — 데모 계정 전체 플로우 재검증
 🛑 대기 중인 승인: 없음
 
 ## 슬라이스 체크리스트
@@ -56,11 +56,11 @@
 - [x] Day39 S5 실패 재시도 ✅ (2026-07-30) — POST /api/org/send-logs/retry, SendLogsSection [재전송] 버튼
 
 ### Day 40 — F7 개인정보
-- [ ] Day40 S1 녹음 원본 파기 정책 (기본값: 즉시 파기, 기관 옵트인 보관 + 기간 설정)
-- [ ] Day40 S2 어르신 동의 획득 절차 (동의 일자·방법 기록)
-- [ ] Day40 S3 접근 로그 (누가 언제 어떤 어르신 데이터를 조회했는가)
-- [ ] Day40 S4 데이터 삭제 요청 기능 (기관 관리자용)
-- [ ] Day40 S5 docs/privacy-for-orgs.md — 기관 검토용 1장 요약
+- [x] Day40 S1 녹음 원본 파기 정책 ✅ (2026-07-30) — organizations.recording_retention_days + analyze route 즉시 파기 + PrivacySettingsEditor UI
+- [x] Day40 S2 어르신 동의 획득 절차 ✅ (2026-07-30) — parent_profiles.consent_given_at/consent_method 컬럼 추가
+- [x] Day40 S3 접근 로그 ✅ (2026-07-30) — access_logs 테이블 + report_view/csv_download/data_delete 3개 액션
+- [x] Day40 S4 데이터 삭제 요청 기능 ✅ (2026-07-30) — DELETE /api/org/delete-elder (Storage + DB 완전 삭제)
+- [x] Day40 S5 docs/privacy-for-orgs.md ✅ (2026-07-30) — 기관 계약 검토용 1장 (수집·파기·암호화·위치·법적근거)
 
 ### Day 41 — 영업 개시 전 최종 점검
 - [ ] Day41 S1 데모 계정으로 F3~F7 전체 플로우 재검증

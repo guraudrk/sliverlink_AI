@@ -5,6 +5,7 @@ import { RoleToggle } from "@/components/app/role-toggle";
 import { PasteTemplateEditor } from "@/components/app/paste-template-editor";
 import { ScheduleEditor } from "@/components/app/schedule-editor";
 import { SendLogsSection } from "@/components/app/send-logs-section";
+import { PrivacySettingsEditor } from "@/components/app/privacy-settings-editor";
 import { DEFAULT_PASTE_TEMPLATE } from "@/app/api/org/paste-template/route";
 import type { UserRole } from "@/app/api/user/role/route";
 
@@ -20,6 +21,7 @@ export default async function SettingsPage() {
   let pasteTemplate: string | null = null;
   let scheduleEnabled   = false;
   let scheduleEmails:   string[] = [];
+  let retentionDays:    number | null = null;
   if (user) {
     const { data: memberData } = await supabase
       .from("org_members")
@@ -29,13 +31,15 @@ export default async function SettingsPage() {
 
     if (memberData?.role === "admin") {
       orgId = memberData.org_id as string;
-      const [tmplRes, schedRes] = await Promise.all([
+      const [tmplRes, schedRes, orgRes] = await Promise.all([
         supabase.from("paste_templates").select("template").eq("org_id", orgId).maybeSingle(),
         supabase.from("report_schedules").select("enabled, recipient_emails").eq("org_id", orgId).maybeSingle(),
+        supabase.from("organizations").select("recording_retention_days").eq("id", orgId).maybeSingle(),
       ]);
       pasteTemplate     = tmplRes.data?.template ?? DEFAULT_PASTE_TEMPLATE;
       scheduleEnabled   = schedRes.data?.enabled ?? false;
       scheduleEmails    = (schedRes.data?.recipient_emails as string[]) ?? [];
+      retentionDays     = orgRes.data?.recording_retention_days ?? null;
     }
   }
 
@@ -112,6 +116,23 @@ export default async function SettingsPage() {
               발송 이력 <span className="ml-1 rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-semibold text-indigo-600 normal-case">관리자</span>
             </h2>
             <SendLogsSection orgId={orgId} />
+          </section>
+        )}
+
+        {/* 기관 관리자 전용: 개인정보 처리 설정 */}
+        {orgId && (
+          <section
+            className="animate-rag-fade-in-up rounded-2xl bg-white px-5 py-5 shadow-sm ring-1 ring-slate-200"
+            style={{ animationDelay: "360ms" }}
+          >
+            <h2 className="mb-1 text-sm font-bold uppercase tracking-widest text-slate-400">
+              개인정보 처리 <span className="ml-1 rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-semibold text-indigo-600 normal-case">관리자</span>
+            </h2>
+            <p className="mb-4 text-xs text-slate-400">
+              녹음 파일은 AI 분석 후 자동 파기됩니다. 어르신 데이터 삭제는
+              담당 복지사에게 문의하거나 아래 설정을 사용하세요.
+            </p>
+            <PrivacySettingsEditor orgId={orgId} initialRetentionDays={retentionDays} />
           </section>
         )}
       </div>

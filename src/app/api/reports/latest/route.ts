@@ -23,6 +23,18 @@ export async function GET(request: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data) return NextResponse.json({ pasteText: null, period: null });
 
+  // 접근 로그 — 실패해도 응답에 영향 없음
+  void (async () => {
+    const { data: profile } = await supabase
+      .from("parent_profiles").select("org_id").eq("id", parentId).maybeSingle();
+    if (profile?.org_id) {
+      await supabase.from("access_logs").insert({
+        org_id: profile.org_id, user_id: user.id,
+        parent_id: parentId, action: "report_view",
+      });
+    }
+  })();
+
   return NextResponse.json({
     pasteText: data.paste_text,
     period: `${data.period_start} ~ ${data.period_end}`,

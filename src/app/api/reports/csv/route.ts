@@ -70,6 +70,11 @@ export async function GET(request: Request) {
     : "report";
   const filename = `silverlink_${period}.csv`;
 
+  // 접근 로그 — CSV 다운로드
+  void supabase.from("access_logs").insert({
+    org_id: orgId, user_id: user.id, parent_id: null, action: "csv_download",
+  });
+
   return new NextResponse(BOM + csv, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",

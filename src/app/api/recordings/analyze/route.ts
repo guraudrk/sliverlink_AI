@@ -93,6 +93,33 @@ export async function POST(request: NextRequest) {
       updateSocialScoreFromRecording(supabase, recordingMeta, result),
     ]);
 
+    // 녹음 원본 파기 — 기관의 recording_retention_days가 NULL(기본값)이면 즉시 삭제
+    if (recording.storage_path) {
+      const { data: profile } = await supabase
+        .from("parent_profiles")
+        .select("org_id")
+        .eq("id", recording.parent_id)
+        .maybeSingle();
+
+      if (profile?.org_id) {
+        const { data: org } = await supabase
+          .from("organizations")
+          .select("recording_retention_days")
+          .eq("id", profile.org_id)
+          .maybeSingle();
+
+        if (org?.recording_retention_days == null) {
+          // 즉시 파기
+          await supabase.storage.from("call-recordings").remove([recording.storage_path]);
+          await supabase
+            .from("call_recordings")
+            .update({ storage_path: null })
+            .eq("id", recordingId);
+          console.log(`[analyze] 녹음 파기 완료: ${recording.storage_path}`);
+        }
+      }
+    }
+
     return NextResponse.json({ ok: true, result });
   } catch (err: any) {
     await updateCallRecordingAnalysis(supabase, recordingId, { status: "failed" });
