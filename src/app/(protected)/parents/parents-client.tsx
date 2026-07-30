@@ -28,35 +28,41 @@ export function ParentsClient({ initialProfiles }: Props) {
           </p>
         </div>
 
-        <div className="animate-rag-fade-in-up" style={{ animationDelay: "70ms" }}>
-        <ParentProfileList
-          profiles={profiles}
-          loading={false}
-          onSelect={setEditingProfile}
-          selectedId={editingProfile?.id}
-        />
-        </div>
-
-        <div className="animate-rag-fade-in-up" style={{ animationDelay: "140ms" }}>
         {editingProfile ? (
-          <ParentProfileForm
-            mode="edit"
-            profile={editingProfile}
-            onCancelEdit={() => setEditingProfile(null)}
-            onSaved={(updated) => {
-              setProfiles((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
-              setEditingProfile(null);
-            }}
-          />
+          /* 수정 모드: 폼을 전면에 표시 */
+          <div className="animate-rag-fade-in-up">
+            <ParentProfileForm
+              mode="edit"
+              profile={editingProfile}
+              onCancelEdit={() => setEditingProfile(null)}
+              onSaved={(updated) => {
+                setProfiles((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+                setEditingProfile(null);
+              }}
+            />
+          </div>
         ) : (
-          <ParentProfileForm
-            onSaved={(profile) => {
-              setProfiles((prev) => [profile, ...prev]);
-              setTimeout(() => router.push("/dashboard"), REDIRECT_DELAY_MS);
-            }}
-          />
+          /* 기본 모드: 목록 + 신규 등록 폼 */
+          <>
+            <div className="animate-rag-fade-in-up" style={{ animationDelay: "70ms" }}>
+              <ParentProfileList
+                profiles={profiles}
+                loading={false}
+                onSelect={setEditingProfile}
+                selectedId={undefined}
+              />
+            </div>
+
+            <div className="animate-rag-fade-in-up" style={{ animationDelay: "140ms" }}>
+              <ParentProfileForm
+                onSaved={(profile) => {
+                  setProfiles((prev) => [profile, ...prev]);
+                  setTimeout(() => router.push("/dashboard"), REDIRECT_DELAY_MS);
+                }}
+              />
+            </div>
+          </>
         )}
-        </div>
       </div>
     </div>
   );

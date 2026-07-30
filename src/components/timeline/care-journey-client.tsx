@@ -405,28 +405,30 @@ export function CareJourneyClient({ parents }: Props) {
                   {formatDateOnly(selectedDate)}에는 기록이 없어요
                 </div>
               ) : (
-                <div>
+                <div className="flex flex-col">
                   <div className="mb-3 flex items-center gap-3">
                     <span className="rounded-lg bg-blue-100 px-2.5 py-1 text-xs font-bold text-blue-700">
                       {formatDateOnly(selectedDate)}
                     </span>
                     <span className="text-xs text-slate-400">{selectedDayEvents.length}건</span>
                   </div>
-                  <ol className="relative space-y-0">
-                    {selectedDayEvents.map((ev, i) => {
-                      const parentName = parents.find((p) => p.id === ev.parentId)?.display_name;
-                      return (
-                        <EventItem
-                          key={ev.id}
-                          ev={ev}
-                          expandedId={expandedId}
-                          setExpandedId={setExpandedId}
-                          parentName={parentName}
-                          isLast={i === selectedDayEvents.length - 1}
-                        />
-                      );
-                    })}
-                  </ol>
+                  <div className="max-h-[60vh] overflow-y-auto pr-1">
+                    <ol className="relative space-y-0">
+                      {selectedDayEvents.map((ev, i) => {
+                        const parentName = parents.find((p) => p.id === ev.parentId)?.display_name;
+                        return (
+                          <EventItem
+                            key={ev.id}
+                            ev={ev}
+                            expandedId={expandedId}
+                            setExpandedId={setExpandedId}
+                            parentName={parentName}
+                            isLast={i === selectedDayEvents.length - 1}
+                          />
+                        );
+                      })}
+                    </ol>
+                  </div>
                 </div>
               )}
             </div>
