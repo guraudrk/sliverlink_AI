@@ -10,5 +10,13 @@ export async function POST() {
   const { error } = await supabase.rpc("run_demo_seed", { p_user_id: user.id });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  return NextResponse.json({ elderCount: 30 });
+  // seed 직후 org_members에서 데모 orgId 조회
+  const { data: membership } = await supabase
+    .from("org_members")
+    .select("org_id")
+    .eq("user_id", user.id)
+    .limit(1)
+    .maybeSingle();
+
+  return NextResponse.json({ elderCount: 30, orgId: membership?.org_id ?? null });
 }
