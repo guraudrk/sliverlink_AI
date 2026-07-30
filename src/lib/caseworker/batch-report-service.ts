@@ -1,6 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getGeminiClient, getLlmModel } from "@/lib/silverlink/rag/gemini-client";
-import { CARE_REPORT_SYSTEM_PROMPT } from "@/lib/caseworker/care-report-prompt";
 
 export type BatchElderData = {
   parentId: string;
@@ -20,6 +19,87 @@ const STATUS_KO: Record<string, string> = {
   in_progress: "진행 중",
   prepared: "준비됨",
 };
+
+// 기존 CARE_REPORT_SYSTEM_PROMPT는 1인·스트리밍용이라 배치 전용 프롬프트를 따로 정의한다.
+const BATCH_SYSTEM_PROMPT = `당신은 한국 노인 복지 실무 전문가입니다.
+아래 형식 5개 섹션을 순서대로 작성하세요. 형식을 절대 바꾸지 마세요.
+
+[절대 규칙]
+- 제공된 데이터에 없는 내용은 절대 만들어 내지 않습니다
+- 데이터가 없는 항목은 정확히 "데이터 부족"이라고 씁니다
+- 통화 횟수·응답률 등 수치는 [사실 요약] 섹션의 값을 그대로 씁니다. 다른 숫자를 쓰지 않습니다
+- 권장 조치는 반드시 1개만 씁니다. 2개 이상이면 실패입니다
+- 의학적 진단·확정적 판단 금지 — 관찰 사실과 경향만 기술합니다`;
+
+/** 실제 데이터에서 계산된 핵심 수치 (프롬프트에 명시적으로 포함 → AI가 수치를 발명할 여지 없음) */
+type ReportFacts = {
+  totalCalls: number;
+  answeredCalls: number;
+  responseRate: string;   // "N%" 형식
+  latestScore: number | null;
+  prevScore: number | null;
+  scoreTrend: string;
+};
+
+export function computeReportFacts(data: BatchElderData): ReportFacts {
+  const totalCalls = data.calls.length;
+  const answeredCalls = data.calls.filter(
+    (c) => c.status === "completed" || c.status === "help_requested"
+  ).length;
+  const responseRate =
+    totalCalls > 0 ? `${Math.round((answeredCalls / totalCalls) * 100)}%` : "데이터 부족";
+
+  const latestScore = data.scores.at(-1)?.score ?? null;
+  const prevScore   = data.scores.at(-2)?.score ?? null;
+  let scoreTrend = "데이터 부족";
+  if (latestScore !== null && prevScore !== null) {
+    const diff = latestScore - prevScore;
+    scoreTrend = diff > 0 ? `${latestScore}점 (전주 대비 ▲${diff}점 상승)`
+      : diff < 0 ? `${latestScore}점 (전주 대비 ▼${Math.abs(diff)}점 하락)`
+      : `${latestScore}점 (전주 동일)`;
+  } else if (latestScore !== null) {
+    scoreTrend = `${latestScore}점 (비교 기준 없음)`;
+  }
+
+  return { totalCalls, answeredCalls, responseRate, latestScore, prevScore, scoreTrend };
+}
+
+export type FactCheckResult = {
+  passed: boolean;
+  issues: string[];
+};
+
+/** 생성된 리포트 텍스트에서 핵심 수치를 추출해 실제 팩트와 비교한다. */
+export function verifyReportFacts(
+  text: string,
+  facts: ReportFacts,
+  data: BatchElderData
+): FactCheckResult {
+  const issues: string[] = [];
+
+  // 데이터 없는데 내용 생성한 경우
+  if (data.calls.length === 0 && !text.includes("데이터 부족") && !text.includes("통화 기록 없음")) {
+    issues.push("통화 데이터 없음에도 '데이터 부족' 미표기");
+  }
+
+  // 통화 횟수 수치 불일치 검사 (숫자+"회" 패턴 추출)
+  if (facts.totalCalls > 0) {
+    const callCountMatches = [...text.matchAll(/(\d+)\s*회/g)].map((m) => parseInt(m[1], 10));
+    const validCounts = callCountMatches.filter((n) => n > 0 && n <= 200);
+    // 생성 텍스트에 숫자가 있는데 실제 값과 하나도 일치하지 않으면 의심
+    if (validCounts.length > 0 && !validCounts.includes(facts.totalCalls) && !validCounts.includes(facts.answeredCalls)) {
+      issues.push(`통화 횟수 불일치: 실제 ${facts.totalCalls}회·응답 ${facts.answeredCalls}회인데 생성 텍스트에 없는 값 포함`);
+    }
+  }
+
+  // 권장 조치 2개 이상 감지 (번호 매긴 목록 또는 "첫째/둘째" 패턴)
+  const actionPatterns = text.match(/권장\s*조치\s*:?([\s\S]{0,300})/i)?.[1] ?? "";
+  if ((actionPatterns.match(/\n[-•·①②③]|\d\)\s/g)?.length ?? 0) > 1) {
+    issues.push("권장 조치가 2개 이상 감지됨");
+  }
+
+  return { passed: issues.length === 0, issues };
+}
 
 /** 지정 기간 어르신 데이터를 org 스코프로 병렬 수집. owner_user_id 필터 없음 — RLS가 처리. */
 export async function fetchBatchElderData(
@@ -96,7 +176,7 @@ export function computeRiskLevel(
   return "normal";
 }
 
-export function buildBatchReportPrompt(data: BatchElderData): string {
+export function buildBatchReportPrompt(data: BatchElderData, facts: ReportFacts): string {
   const hasData =
     data.scores.length > 0 || data.calls.length > 0 ||
     data.alerts.length > 0 || data.briefs.length > 0;
@@ -105,72 +185,126 @@ export function buildBatchReportPrompt(data: BatchElderData): string {
     return `대상자: ${data.name}
 보고 기간: ${data.periodStart} ~ ${data.periodEnd}
 
-통화·점수·알림 데이터가 없습니다.
-각 섹션을 "데이터 부족"으로 기재해주세요. 절대 추측하거나 없는 내용을 지어내지 마세요.`;
+[사실 요약]
+통화 횟수: 0회 / 응답 횟수: 0회 / 응답률: 데이터 부족
+연결 점수: 데이터 부족
+
+모든 데이터가 없습니다. 아래 5개 섹션 각각에 "데이터 부족"이라고 쓰세요.
+
+1. 이번 기간 통화 현황
+
+2. 상태 변화 요약
+
+3. 위험 플래그와 근거
+
+4. 특이사항
+
+5. 권장 조치`;
   }
+
+  // 핵심 수치를 계산된 값으로 명시 → AI가 수치를 발명할 여지 제거
+  const factSummary = `[사실 요약 — 이 숫자를 그대로 쓰세요]
+통화 횟수: ${facts.totalCalls}회 / 응답: ${facts.answeredCalls}회 / 응답률: ${facts.responseRate}
+사회 연결 점수 추이: ${facts.scoreTrend}`;
 
   const scoreLines = data.scores.length > 0
     ? data.scores.map((s) =>
-        `  - ${s.week_start} 주: 연결 점수 ${s.score}점 (통화 ${s.call_count}회, 응답 ${s.answered_count}회)`
+        `  - ${s.week_start} 주: ${s.score}점 (통화 ${s.call_count}회, 응답 ${s.answered_count}회)`
       ).join("\n")
-    : "  - 점수 데이터 없음";
+    : "  - 없음";
 
   const callLines = data.calls.length > 0
     ? data.calls.slice(0, 8).map((c) => {
         const d = new Date(c.created_at).toLocaleDateString("ko-KR");
         return `  - [${d}] ${STATUS_KO[c.status] ?? c.status}${c.summary ? ` — ${c.summary.slice(0, 80)}` : ""}`;
       }).join("\n")
-    : "  - 통화 기록 없음";
+    : "  - 없음";
 
   const alertLines = data.alerts.length > 0
     ? data.alerts.slice(0, 5).map((a) =>
         `  - [${a.severity}] ${a.title}: ${a.description.slice(0, 80)} (${a.acknowledged ? "확인됨" : "미확인"})`
       ).join("\n")
-    : "  - 안전 알림 없음";
+    : "  - 없음";
 
   const briefLines = data.briefs.filter((b) => b.attention_item).slice(0, 3)
-    .map((b) => `  - ${b.attention_item}`).join("\n") || "  - 특이 사항 없음";
+    .map((b) => `  - ${b.attention_item}`).join("\n") || "  - 없음";
 
   return `대상자: ${data.name}
 보고 기간: ${data.periodStart} ~ ${data.periodEnd}
 
-=== 사회 연결 점수 (기간 내) ===
+${factSummary}
+
+=== 주간 연결 점수 ===
 ${scoreLines}
 
-=== 안부전화 이력 (기간 내, 최대 8건) ===
+=== 안부전화 이력 (최대 8건) ===
 ${callLines}
 
 === 안전 알림 ===
 ${alertLines}
 
-=== AI 브리핑 주요 관찰 ===
+=== AI 브리핑 관찰 ===
 ${briefLines}
 
-위 데이터를 바탕으로 케어 보고서를 작성하세요.
-데이터가 없는 항목은 "데이터 부족"으로 명시하고 절대 추측하지 마세요.
+위 데이터를 바탕으로 아래 5개 섹션을 순서대로 작성하세요.
+[사실 요약]의 수치를 그대로 인용하고, 없는 내용은 반드시 "데이터 부족"으로 쓰세요.
 
-형식:
-1. 이번 기간 통화 현황 (통화 횟수·응답률 수치를 반드시 포함)
+1. 이번 기간 통화 현황 ([사실 요약]의 통화 횟수·응답률 수치를 그대로 포함)
 
-2. 상태 변화 요약 (3줄 이내)
+2. 상태 변화 요약 (3줄 이내, 지난 기간 대비 변화 위주)
 
-3. 위험 플래그와 근거 (알림 없으면 "이상 없음")
+3. 위험 플래그와 근거 (알림 없으면 "이상 없음", 있으면 알림 제목과 근거 문장)
 
 4. 특이사항 (수면·식사·통증·외출·정서 언급이 있으면 발췌, 없으면 "언급 없음")
 
-5. 권장 조치 1개 (반드시 1개만. 없으면 "정기 모니터링 유지")`;
+5. 권장 조치 (반드시 1개만. 조치 없으면 "정기 모니터링 유지")`;
 }
 
-export async function generateBatchReportText(data: BatchElderData): Promise<string> {
-  const prompt = buildBatchReportPrompt(data);
+async function callGemini(prompt: string): Promise<string> {
   const result = await getGeminiClient().models.generateContent({
     model: getLlmModel(),
     contents: prompt,
     config: {
-      systemInstruction: CARE_REPORT_SYSTEM_PROMPT,
+      systemInstruction: BATCH_SYSTEM_PROMPT,
       thinkingConfig: { thinkingBudget: 0 },
       maxOutputTokens: 1024,
     },
   });
   return result.text ?? "";
+}
+
+/**
+ * 2단계 사실성 검증 포함 리포트 생성.
+ * 1단계: 생성 → 2단계: 팩트 대조 → 불일치 시 재생성 1회.
+ * 2차 시도도 실패하면 경고 헤더를 붙여 반환 (배치 전체를 막지 않는다).
+ */
+export async function generateBatchReportText(
+  data: BatchElderData
+): Promise<{ text: string; factIssues: string[] }> {
+  const facts  = computeReportFacts(data);
+  const prompt = buildBatchReportPrompt(data, facts);
+
+  let text = await callGemini(prompt);
+  let check = verifyReportFacts(text, facts, data);
+
+  if (!check.passed) {
+    // 재시도: 불일치 내역을 힌트로 포함
+    const retryPrompt = `${prompt}
+
+[검증 실패 — 재작성 요청]
+이전 출력에서 다음 문제가 발견됐습니다:
+${check.issues.map((i) => `- ${i}`).join("\n")}
+위 문제를 수정해서 다시 작성하세요.`;
+
+    text  = await callGemini(retryPrompt);
+    check = verifyReportFacts(text, facts, data);
+  }
+
+  // 2차 시도 후에도 문제가 있으면 경고 헤더를 붙여 저장 (배치 멈추지 않음)
+  if (!check.passed) {
+    const warning = `[자동 검증 경고: ${check.issues.join(" / ")}]\n\n`;
+    text = warning + text;
+  }
+
+  return { text, factIssues: check.passed ? [] : check.issues };
 }

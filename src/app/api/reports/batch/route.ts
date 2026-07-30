@@ -140,17 +140,17 @@ async function processChunk(
         continue;
       }
 
-      const summaryMd  = await generateBatchReportText(elderData);
-      const riskLevel  = computeRiskLevel(elderData.alerts);
+      const { text, factIssues } = await generateBatchReportText(elderData);
+      const riskLevel = computeRiskLevel(elderData.alerts);
 
       await supabase.from("reports").update({
-        summary_md:   summaryMd,
-        paste_text:   summaryMd,   // Day 38에서 포맷 분리
+        summary_md:   text,
+        paste_text:   text,   // Day 38에서 포맷 분리
         risk_level:   riskLevel,
         status:       "done",
         generated_at: new Date().toISOString(),
         model:        process.env.GEMINI_LLM_MODEL ?? "gemini-2.5-flash",
-        error_msg:    null,
+        error_msg:    factIssues.length > 0 ? `검증 경고: ${factIssues.join("; ")}` : null,
       }).eq("id", row.id);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "unknown_error";
