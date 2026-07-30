@@ -43,14 +43,14 @@ export async function listSocialScores(
 export async function upsertSocialScore(
   supabase: SupabaseClient,
   input: SocialScoreUpsert
-): Promise<SocialScore> {
+): Promise<SocialScore | null> {
   const { data, error } = await supabase
     .from("social_scores")
     .upsert(input, { onConflict: "owner_user_id,parent_id,week_start" })
     .select("*")
-    .single();
+    .maybeSingle();
   if (error) throw error;
-  return data as SocialScore;
+  return data as SocialScore | null;
 }
 
 export function getWeekStart(date: Date): string {

@@ -252,42 +252,39 @@ export default async function DashboardPage() {
               </div>
             </Link>
           ) : (
-            <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {parents.map((p) => (
                 <Link
                   key={p.id}
                   href="/parents"
-                  className="flex items-center gap-4 transition-all hover:-translate-y-0.5 hover:shadow-md"
+                  className="flex flex-col items-center justify-center transition-all hover:-translate-y-0.5 hover:shadow-md"
                   style={{
                     borderRadius: 20,
-                    padding: 16,
+                    padding: "20px 12px",
+                    aspectRatio: "1",
                     backgroundColor: "var(--sl-card)",
                     border: "1px solid var(--sl-border)",
                     boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
                     textDecoration: "none",
+                    gap: 10,
                   }}
                 >
                   <div
-                    className="flex shrink-0 items-center justify-center rounded-full text-base font-bold"
-                    style={{ width: 44, height: 44, backgroundColor: "#EEF2FF", color: "var(--sl-primary)" }}
+                    className="flex shrink-0 items-center justify-center rounded-full text-lg font-bold"
+                    style={{ width: 52, height: 52, backgroundColor: "#EEF2FF", color: "var(--sl-primary)" }}
                   >
                     {(p.display_name ?? "?").charAt(0)}
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p style={{ fontSize: 15, fontWeight: 600, color: "var(--sl-ink)", margin: 0 }}>
+                  <div className="min-w-0 w-full text-center">
+                    <p className="truncate" style={{ fontSize: 14, fontWeight: 600, color: "var(--sl-ink)", margin: 0 }}>
                       {p.display_name ?? "이름 없음"}
                     </p>
                     {p.relationship && (
-                      <p style={{ fontSize: 12, color: "var(--sl-muted)", margin: "2px 0 0" }}>
+                      <p className="truncate" style={{ fontSize: 11, color: "var(--sl-muted)", margin: "2px 0 0" }}>
                         {p.relationship}
                       </p>
                     )}
                   </div>
-                  <ChevronRight
-                    size={16}
-                    strokeWidth={2}
-                    style={{ flexShrink: 0, color: "var(--sl-border)" }}
-                  />
                 </Link>
               ))}
             </div>

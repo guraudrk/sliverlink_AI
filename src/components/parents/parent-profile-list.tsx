@@ -36,38 +36,35 @@ export function ParentProfileList({
   }
 
   return (
-    <ul className="space-y-3">
+    <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
       {profiles.map((profile, i) => (
         <li key={profile.id} className="relative animate-rag-fade-in-up" style={{ animationDelay: `${i * 60}ms` }}>
           <button
             type="button"
             onClick={() => onSelect(profile)}
             className={
-              "w-full rounded-2xl bg-white p-5 text-left shadow-sm ring-1 transition-colors hover:ring-blue-300 " +
+              "w-full rounded-2xl bg-white shadow-sm ring-1 transition-colors hover:ring-blue-300 flex flex-col items-center justify-center " +
               (selectedId === profile.id ? "ring-2 ring-blue-400" : "ring-slate-200")
             }
+            style={{ aspectRatio: "1", padding: "16px 12px" }}
           >
-            <div className="flex items-baseline justify-between gap-3">
-              <p className="text-lg font-bold text-slate-800">{profile.display_name}</p>
-              <span className="flex items-center gap-2">
-                {profile.relationship ? (
-                  <span className="text-sm text-slate-500">{profile.relationship}</span>
-                ) : null}
-                <span className="text-xs font-semibold text-blue-500">수정</span>
-              </span>
+            <div
+              className="flex shrink-0 items-center justify-center rounded-full text-lg font-bold"
+              style={{ width: 52, height: 52, backgroundColor: "#EEF2FF", color: "#4F46E5", marginBottom: 10 }}
+            >
+              {(profile.display_name ?? "?").charAt(0)}
             </div>
-            <p className="mt-1 text-sm text-slate-400">
-              알림 채널: {NOTIFICATION_PREFERENCE_LABELS[profile.notification_preference ?? "none"]}
-            </p>
-            {profile.care_context ? (
-              <p className="mt-2 text-sm text-slate-600">{profile.care_context}</p>
+            <p className="text-sm font-bold text-slate-800 truncate w-full text-center">{profile.display_name}</p>
+            {profile.relationship ? (
+              <p className="mt-0.5 text-xs text-slate-500 truncate w-full text-center">{profile.relationship}</p>
             ) : null}
+            <p className="mt-1.5 text-xs text-blue-500 font-semibold">수정</p>
           </button>
           <Link
             href={`/dashboard/parents/${profile.id}`}
-            className="absolute right-5 bottom-4 text-xs font-semibold text-slate-400 underline-offset-2 hover:text-blue-500 hover:underline"
+            className="absolute right-2.5 top-2.5 text-xs font-semibold text-slate-400 underline-offset-2 hover:text-blue-500 hover:underline"
           >
-            현황 보기
+            현황
           </Link>
         </li>
       ))}

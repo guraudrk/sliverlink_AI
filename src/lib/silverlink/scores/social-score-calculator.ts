@@ -128,16 +128,20 @@ export async function recalculateAllHistory(
     const responseScore = Math.min(responseCount, 3) * 10;
     const score = Math.round(callScore + responseScore);
 
-    await upsertSocialScore(supabase, {
-      owner_user_id: ownerId,
-      parent_id: bucket.parentId,
-      week_start: bucket.weekStart,
-      score,
-      call_count: callCount,
-      answered_count: answeredCount,
-      response_count: responseCount,
-    });
-    count++;
+    try {
+      await upsertSocialScore(supabase, {
+        owner_user_id: ownerId,
+        parent_id: bucket.parentId,
+        week_start: bucket.weekStart,
+        score,
+        call_count: callCount,
+        answered_count: answeredCount,
+        response_count: responseCount,
+      });
+      count++;
+    } catch {
+      // 버킷 하나 실패해도 나머지 계속 처리
+    }
   }
 
   return count;
