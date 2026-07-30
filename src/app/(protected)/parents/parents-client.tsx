@@ -28,9 +28,35 @@ export function ParentsClient({ initialProfiles }: Props) {
           </p>
         </div>
 
-        {editingProfile ? (
-          /* 수정 모드: 폼을 전면에 표시 */
-          <div className="animate-rag-fade-in-up">
+        <div className="animate-rag-fade-in-up" style={{ animationDelay: "70ms" }}>
+          <ParentProfileList
+            profiles={profiles}
+            loading={false}
+            onSelect={setEditingProfile}
+            selectedId={undefined}
+          />
+        </div>
+
+        <div className="animate-rag-fade-in-up" style={{ animationDelay: "140ms" }}>
+          <ParentProfileForm
+            onSaved={(profile) => {
+              setProfiles((prev) => [profile, ...prev]);
+              setTimeout(() => router.push("/dashboard"), REDIRECT_DELAY_MS);
+            }}
+          />
+        </div>
+      </div>
+
+      {/* 수정 모달 오버레이 */}
+      {editingProfile && (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 px-4 py-10"
+          onClick={() => setEditingProfile(null)}
+        >
+          <div
+            className="w-full max-w-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <ParentProfileForm
               mode="edit"
               profile={editingProfile}
@@ -41,29 +67,8 @@ export function ParentsClient({ initialProfiles }: Props) {
               }}
             />
           </div>
-        ) : (
-          /* 기본 모드: 목록 + 신규 등록 폼 */
-          <>
-            <div className="animate-rag-fade-in-up" style={{ animationDelay: "70ms" }}>
-              <ParentProfileList
-                profiles={profiles}
-                loading={false}
-                onSelect={setEditingProfile}
-                selectedId={undefined}
-              />
-            </div>
-
-            <div className="animate-rag-fade-in-up" style={{ animationDelay: "140ms" }}>
-              <ParentProfileForm
-                onSaved={(profile) => {
-                  setProfiles((prev) => [profile, ...prev]);
-                  setTimeout(() => router.push("/dashboard"), REDIRECT_DELAY_MS);
-                }}
-              />
-            </div>
-          </>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
