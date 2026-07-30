@@ -6,6 +6,7 @@ import { PasteTemplateEditor } from "@/components/app/paste-template-editor";
 import { ScheduleEditor } from "@/components/app/schedule-editor";
 import { SendLogsSection } from "@/components/app/send-logs-section";
 import { PrivacySettingsEditor } from "@/components/app/privacy-settings-editor";
+import { InviteMemberForm } from "@/components/app/invite-member-form";
 import { DEFAULT_PASTE_TEMPLATE } from "@/app/api/org/paste-template/route";
 import type { UserRole } from "@/app/api/user/role/route";
 
@@ -119,11 +120,27 @@ export default async function SettingsPage() {
           </section>
         )}
 
-        {/* 기관 관리자 전용: 개인정보 처리 설정 */}
+        {/* 기관 관리자 전용: 멤버 초대 */}
         {orgId && (
           <section
             className="animate-rag-fade-in-up rounded-2xl bg-white px-5 py-5 shadow-sm ring-1 ring-slate-200"
             style={{ animationDelay: "360ms" }}
+          >
+            <h2 className="mb-1 text-sm font-bold uppercase tracking-widest text-slate-400">
+              멤버 초대 <span className="ml-1 rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-semibold text-indigo-600 normal-case">관리자</span>
+            </h2>
+            <p className="mb-4 text-xs text-slate-400">
+              초대 링크를 생성해 전달하면 상대방이 가입 후 자동으로 기관에 편입됩니다. (7일 유효)
+            </p>
+            <InviteMemberForm orgId={orgId} />
+          </section>
+        )}
+
+        {/* 기관 관리자 전용: 개인정보 처리 설정 */}
+        {orgId && (
+          <section
+            className="animate-rag-fade-in-up rounded-2xl bg-white px-5 py-5 shadow-sm ring-1 ring-slate-200"
+            style={{ animationDelay: "420ms" }}
           >
             <h2 className="mb-1 text-sm font-bold uppercase tracking-widest text-slate-400">
               개인정보 처리 <span className="ml-1 rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-semibold text-indigo-600 normal-case">관리자</span>
