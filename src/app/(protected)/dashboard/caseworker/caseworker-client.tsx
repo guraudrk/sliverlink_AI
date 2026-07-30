@@ -25,9 +25,10 @@ type Props = {
   elders: ElderWithFlags[];
   currentUserId: string | null;
   orgRole: OrgRole;
+  orgId: string | null;
 };
 
-export function CaseworkerClient({ elders, currentUserId, orgRole }: Props) {
+export function CaseworkerClient({ elders, currentUserId, orgRole, orgId }: Props) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterType>("all");
   const [mineOnly, setMineOnly] = useState(false);
@@ -131,12 +132,26 @@ export function CaseworkerClient({ elders, currentUserId, orgRole }: Props) {
         </div>
       </div>
 
-      {/* 결과 수 */}
-      <p className="text-sm text-slate-500">
-        {filtered.length === elders.length
-          ? `${elders.length}명 전체`
-          : `${filtered.length}명 / ${elders.length}명`}
-      </p>
+      {/* 결과 수 + CSV 다운로드 */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-slate-500">
+          {filtered.length === elders.length
+            ? `${elders.length}명 전체`
+            : `${filtered.length}명 / ${elders.length}명`}
+        </p>
+        {orgId && (
+          <a
+            href={`/api/reports/csv?orgId=${orgId}`}
+            download
+            className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm hover:border-teal-300 hover:text-teal-700 transition-colors"
+          >
+            <svg viewBox="0 0 16 16" fill="currentColor" className="h-3.5 w-3.5" aria-hidden="true">
+              <path d="M8 1a.75.75 0 01.75.75v5.69l1.97-1.97a.75.75 0 111.06 1.06l-3.25 3.25a.75.75 0 01-1.06 0L4.22 6.53a.75.75 0 011.06-1.06L7.25 7.44V1.75A.75.75 0 018 1zM1.5 10.75a.75.75 0 011.5 0v1.5a.5.5 0 00.5.5h9a.5.5 0 00.5-.5v-1.5a.75.75 0 011.5 0v1.5A2 2 0 0113 14.5H3A2 2 0 011 12.25v-1.5z"/>
+            </svg>
+            CSV 다운로드
+          </a>
+        )}
+      </div>
 
       {/* 어르신 카드 목록 */}
       {filtered.length === 0 ? (

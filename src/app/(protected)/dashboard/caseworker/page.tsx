@@ -34,7 +34,7 @@ export default async function CaseworkerPage() {
     listElderSummaries(supabase),
     supabase
       .from("org_members")
-      .select("role")
+      .select("role, org_id")
       .eq("user_id", user?.id ?? "")
       .maybeSingle(),
   ]);
@@ -45,6 +45,7 @@ export default async function CaseworkerPage() {
       | "social_worker"
       | "field_worker"
       | null) ?? null;
+  const orgId = (membershipResult.data?.org_id as string | null) ?? null;
 
   const eldersWithFlags = summaries
     .map((s) => ({ ...s, flags: computeRiskFlags(s) }))
@@ -86,6 +87,7 @@ export default async function CaseworkerPage() {
             elders={eldersWithFlags}
             currentUserId={user?.id ?? null}
             orgRole={orgRole}
+            orgId={orgId}
           />
         )}
       </div>

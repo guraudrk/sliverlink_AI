@@ -22,14 +22,15 @@ const STATUS_KO: Record<string, string> = {
 
 // 기존 CARE_REPORT_SYSTEM_PROMPT는 1인·스트리밍용이라 배치 전용 프롬프트를 따로 정의한다.
 const BATCH_SYSTEM_PROMPT = `당신은 한국 노인 복지 실무 전문가입니다.
-아래 형식 5개 섹션을 순서대로 작성하세요. 형식을 절대 바꾸지 마세요.
+5개 섹션 보고서를 작성한 뒤, ---PASTE--- 구분자와 복붙용 요약을 반드시 함께 출력하세요.
 
 [절대 규칙]
 - 제공된 데이터에 없는 내용은 절대 만들어 내지 않습니다
 - 데이터가 없는 항목은 정확히 "데이터 부족"이라고 씁니다
 - 통화 횟수·응답률 등 수치는 [사실 요약] 섹션의 값을 그대로 씁니다. 다른 숫자를 쓰지 않습니다
 - 권장 조치는 반드시 1개만 씁니다. 2개 이상이면 실패입니다
-- 의학적 진단·확정적 판단 금지 — 관찰 사실과 경향만 기술합니다`;
+- 의학적 진단·확정적 판단 금지 — 관찰 사실과 경향만 기술합니다
+- 5개 섹션 작성 후 반드시 ---PASTE--- 줄을 출력하고, 그 아래에 복붙용 요약을 작성합니다`;
 
 /** 실제 데이터에서 계산된 핵심 수치 (프롬프트에 명시적으로 포함 → AI가 수치를 발명할 여지 없음) */
 type ReportFacts = {
@@ -176,7 +177,11 @@ export function computeRiskLevel(
   return "normal";
 }
 
-export function buildBatchReportPrompt(data: BatchElderData, facts: ReportFacts): string {
+export function buildBatchReportPrompt(
+  data: BatchElderData,
+  facts: ReportFacts,
+  orgPasteTemplate?: string,
+): string {
   const hasData =
     data.scores.length > 0 || data.calls.length > 0 ||
     data.alerts.length > 0 || data.briefs.length > 0;
@@ -199,7 +204,14 @@ export function buildBatchReportPrompt(data: BatchElderData, facts: ReportFacts)
 
 4. 특이사항
 
-5. 권장 조치`;
+5. 권장 조치
+
+---PASTE---
+[${data.periodStart} ~ ${data.periodEnd}] ${data.name} 어르신
+· 통화 0회 중 0회 응답 (응답률 데이터 부족)
+· 특이사항: 해당 없음
+· 상태: 데이터 부족
+· 권장: 정기 모니터링 유지`;
   }
 
   // 핵심 수치를 계산된 값으로 명시 → AI가 수치를 발명할 여지 제거
@@ -257,7 +269,40 @@ ${briefLines}
 
 4. 특이사항 (수면·식사·통증·외출·정서 언급이 있으면 발췌, 없으면 "언급 없음")
 
-5. 권장 조치 (반드시 1개만. 조치 없으면 "정기 모니터링 유지")`;
+5. 권장 조치 (반드시 1개만. 조치 없으면 "정기 모니터링 유지")
+
+5개 섹션 작성 후, 반드시 아래 구분자 줄을 그대로 출력하고 복붙용 요약을 작성하세요.
+${buildPasteInstruction(data, facts, orgPasteTemplate)}`;
+}
+
+/** paste 지시 블록 생성. 기관 커스텀 템플릿이 있으면 그것을 형식으로 제시한다. */
+function buildPasteInstruction(
+  data: BatchElderData,
+  facts: ReportFacts,
+  orgPasteTemplate?: string,
+): string {
+  const defaultBlock = `
+---PASTE---
+[${data.periodStart} ~ ${data.periodEnd}] ${data.name} 어르신
+· 통화 ${facts.totalCalls}회 중 ${facts.answeredCalls}회 응답 (응답률 ${facts.responseRate})
+· 특이사항: (4번 특이사항에서 핵심 1줄. 없으면 "해당 없음")
+· 상태: (점수 추이 1줄. 데이터 없으면 "데이터 부족")
+· 권장: (5번 권장 조치 그대로 복사)`;
+
+  if (!orgPasteTemplate) return defaultBlock;
+
+  // 기관 템플릿의 변수를 실제 값으로 치환한 뒤, AI가 채워야 할 부분을 안내로 추가
+  const filled = orgPasteTemplate
+    .replace(/\{\{period\}\}/g, `${data.periodStart} ~ ${data.periodEnd}`)
+    .replace(/\{\{name\}\}/g, data.name)
+    .replace(/\{\{total_calls\}\}/g, String(facts.totalCalls))
+    .replace(/\{\{answered_calls\}\}/g, String(facts.answeredCalls))
+    .replace(/\{\{response_rate\}\}/g, facts.responseRate)
+    .replace(/\{\{attention\}\}/g, "(4번 특이사항에서 핵심 1줄. 없으면 \"해당 없음\")")
+    .replace(/\{\{score_state\}\}/g, "(점수 추이 1줄. 데이터 없으면 \"데이터 부족\")")
+    .replace(/\{\{recommendation\}\}/g, "(5번 권장 조치 그대로 복사)");
+
+  return `\n---PASTE---\n${filled}`;
 }
 
 async function callGemini(prompt: string): Promise<string> {
@@ -267,25 +312,55 @@ async function callGemini(prompt: string): Promise<string> {
     config: {
       systemInstruction: BATCH_SYSTEM_PROMPT,
       thinkingConfig: { thinkingBudget: 0 },
-      maxOutputTokens: 1024,
+      maxOutputTokens: 1536,  // paste 섹션 추가로 여유 확보
     },
   });
   return result.text ?? "";
+}
+
+/** AI 파싱 실패 시 수치 기반 fallback paste_text */
+function buildFallbackPasteText(data: BatchElderData, facts: ReportFacts): string {
+  const scoreState = facts.latestScore !== null ? facts.scoreTrend : "데이터 부족";
+  return `[${data.periodStart} ~ ${data.periodEnd}] ${data.name} 어르신
+· 통화 ${facts.totalCalls}회 중 ${facts.answeredCalls}회 응답 (응답률 ${facts.responseRate})
+· 특이사항: 데이터 부족
+· 상태: ${scoreState}
+· 권장: 정기 모니터링 유지`;
+}
+
+/** AI 응답에서 summary_md와 paste_text를 ---PASTE--- 구분자로 분리 */
+function splitReportOutput(
+  raw: string,
+  data: BatchElderData,
+  facts: ReportFacts,
+): { summaryMd: string; pasteText: string } {
+  const SEPARATOR = "---PASTE---";
+  const idx = raw.indexOf(SEPARATOR);
+  if (idx === -1) {
+    return { summaryMd: raw.trim(), pasteText: buildFallbackPasteText(data, facts) };
+  }
+  return {
+    summaryMd: raw.slice(0, idx).trim(),
+    pasteText: raw.slice(idx + SEPARATOR.length).trim(),
+  };
 }
 
 /**
  * 2단계 사실성 검증 포함 리포트 생성.
  * 1단계: 생성 → 2단계: 팩트 대조 → 불일치 시 재생성 1회.
  * 2차 시도도 실패하면 경고 헤더를 붙여 반환 (배치 전체를 막지 않는다).
+ * 반환: summary_md(5섹션 보고서), pasteText(복붙용 4줄), factIssues(검증 경고).
  */
 export async function generateBatchReportText(
-  data: BatchElderData
-): Promise<{ text: string; factIssues: string[] }> {
+  data: BatchElderData,
+  orgPasteTemplate?: string,
+): Promise<{ summaryMd: string; pasteText: string; factIssues: string[] }> {
   const facts  = computeReportFacts(data);
-  const prompt = buildBatchReportPrompt(data, facts);
+  const prompt = buildBatchReportPrompt(data, facts, orgPasteTemplate);
 
-  let text = await callGemini(prompt);
-  let check = verifyReportFacts(text, facts, data);
+  let raw   = await callGemini(prompt);
+  let { summaryMd, pasteText } = splitReportOutput(raw, data, facts);
+  let check = verifyReportFacts(summaryMd, facts, data);
 
   if (!check.passed) {
     // 재시도: 불일치 내역을 힌트로 포함
@@ -296,15 +371,16 @@ export async function generateBatchReportText(
 ${check.issues.map((i) => `- ${i}`).join("\n")}
 위 문제를 수정해서 다시 작성하세요.`;
 
-    text  = await callGemini(retryPrompt);
-    check = verifyReportFacts(text, facts, data);
+    raw   = await callGemini(retryPrompt);
+    ({ summaryMd, pasteText } = splitReportOutput(raw, data, facts));
+    check = verifyReportFacts(summaryMd, facts, data);
   }
 
   // 2차 시도 후에도 문제가 있으면 경고 헤더를 붙여 저장 (배치 멈추지 않음)
   if (!check.passed) {
     const warning = `[자동 검증 경고: ${check.issues.join(" / ")}]\n\n`;
-    text = warning + text;
+    summaryMd = warning + summaryMd;
   }
 
-  return { text, factIssues: check.passed ? [] : check.issues };
+  return { summaryMd, pasteText, factIssues: check.passed ? [] : check.issues };
 }

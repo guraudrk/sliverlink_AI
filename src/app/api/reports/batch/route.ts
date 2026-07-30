@@ -41,6 +41,7 @@ export async function POST(request: Request) {
       .limit(1)
       .maybeSingle();
 
+
     if (!sample) {
       return NextResponse.json({ error: "report_set_not_found" }, { status: 404 });
     }
@@ -54,9 +55,16 @@ export async function POST(request: Request) {
         .eq("status", "error");
     }
 
+    const { data: tmpl } = await supabase
+      .from("paste_templates")
+      .select("template")
+      .eq("org_id", sample.org_id as string)
+      .maybeSingle();
+
     const progress = await processChunk(
       supabase, reportSetId,
       sample.period_start as string, sample.period_end as string,
+      tmpl?.template,
     );
     return NextResponse.json({ reportSetId, ...progress });
   }
@@ -112,8 +120,15 @@ export async function POST(request: Request) {
   );
   if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 });
 
+  // 기관 붙여넣기 템플릿 조회 (없으면 기본 형식 사용)
+  const { data: tmpl } = await supabase
+    .from("paste_templates")
+    .select("template")
+    .eq("org_id", orgId)
+    .maybeSingle();
+
   // 첫 청크 처리
-  const progress = await processChunk(supabase, newSetId, periodStart, periodEnd);
+  const progress = await processChunk(supabase, newSetId, periodStart, periodEnd, tmpl?.template);
   return NextResponse.json({ reportSetId: newSetId, ...progress });
 }
 
@@ -122,6 +137,7 @@ async function processChunk(
   reportSetId: string,
   periodStart: string,
   periodEnd: string,
+  orgPasteTemplate?: string,
 ): Promise<{ total: number; done: number; errors: number; remaining: number }> {
   // pending 행 청크 취득
   const { data: pendingRows } = await supabase
@@ -150,12 +166,12 @@ async function processChunk(
         continue;
       }
 
-      const { text, factIssues } = await generateBatchReportText(elderData);
+      const { summaryMd, pasteText, factIssues } = await generateBatchReportText(elderData, orgPasteTemplate);
       const riskLevel = computeRiskLevel(elderData.alerts);
 
       await supabase.from("reports").update({
-        summary_md:   text,
-        paste_text:   text,   // Day 38에서 포맷 분리
+        summary_md:   summaryMd,
+        paste_text:   pasteText,
         risk_level:   riskLevel,
         status:       "done",
         generated_at: new Date().toISOString(),

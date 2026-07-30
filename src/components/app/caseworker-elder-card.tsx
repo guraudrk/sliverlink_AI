@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ElderSummary } from "@/lib/supabase/caseworker-queries";
 import type { RiskFlag } from "@/lib/caseworker/risk-flags";
+import { CopyRecordButton } from "./copy-record-button";
 
 type ElderWithFlags = ElderSummary & { flags: RiskFlag[] };
 
@@ -149,6 +150,12 @@ export function CaseworkerElderCard({ elder, index, onGenerateReport }: Props) {
             </svg>
           </div>
         </Link>
+
+        {/* 구분선 */}
+        <div className="w-px bg-slate-100" />
+
+        {/* 기록 복사 버튼 */}
+        <CopyRecordButton parentId={elder.id} />
 
         {/* 구분선 */}
         <div className="w-px bg-slate-100" />
