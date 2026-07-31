@@ -1,14 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { UserPlus } from "lucide-react";
 import { ElderQuickPopup } from "@/components/app/elder-quick-popup";
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 type Elder = {
   id: string;
   display_name?: string | null;
   relationship?: string | null;
+  phone?: string | null;
 };
 
 type Props = {
@@ -18,6 +20,28 @@ type Props = {
 export function DashboardEldersSection({ parents }: Props) {
   const [selected, setSelected] = useState<Elder | null>(null);
   const [reportCache, setReportCache] = useState<Record<string, string>>({});
+
+  // WebView 셸 브릿지: React Native에 어르신 목록과 인증 토큰을 동기화
+  useEffect(() => {
+    const rn = (window as any).ReactNativeWebView as { postMessage: (msg: string) => void } | undefined;
+    if (!rn) return;
+    (async () => {
+      try {
+        const supabase = createSupabaseBrowserClient();
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        rn.postMessage(JSON.stringify({
+          type: "SYNC_ELDERS",
+          elders: parents.map((p) => ({ id: p.id, display_name: p.display_name ?? "", phone: p.phone ?? null })),
+          token: session.access_token,
+          supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+          supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
+          ownerUserId: session.user.id,
+          apiBaseUrl: process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin,
+        }));
+      } catch { /* ignore */ }
+    })();
+  }, [parents]);
 
   function handleReportGenerated(parentId: string, text: string) {
     setReportCache((prev) => ({ ...prev, [parentId]: text }));
