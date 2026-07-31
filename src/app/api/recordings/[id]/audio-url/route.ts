@@ -4,8 +4,9 @@ import { getCallRecordingById } from "@/lib/supabase/call-recordings-repo";
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
@@ -13,7 +14,7 @@ export async function GET(
   }
 
   // RLS가 소유권을 검증 — 조회 실패(null) = 없거나 권한 없음
-  const recording = await getCallRecordingById(supabase, params.id);
+  const recording = await getCallRecordingById(supabase, id);
   if (!recording || !recording.storage_path) {
     return NextResponse.json({ error: "녹음을 찾을 수 없습니다." }, { status: 404 });
   }
