@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { CallRecording } from "@/lib/supabase/call-recordings-repo";
 import type { SafetySignal } from "@/lib/silverlink/audio/audio-analyzer";
@@ -51,15 +51,50 @@ function formatDuration(sec: number | null) {
 
 type Props = {
   initialRecordings: CallRecording[];
-  parents: Pick<ParentProfile, "id" | "display_name" | "relationship">[];
+  parents: Pick<ParentProfile, "id" | "display_name" | "relationship" | "phone">[];
+  initialParentId?: string;
+  fromCall?: boolean;
+  durSec?: number;
 };
 
-export function CallsClient({ initialRecordings, parents }: Props) {
+export function CallsClient({ initialRecordings, parents, initialParentId, fromCall, durSec }: Props) {
   const router = useRouter();
   const [recordings, setRecordings] = useState<CallRecording[]>(initialRecordings);
   const [analyzing, setAnalyzing] = useState<Record<string, boolean>>({});
   const [expanded, setExpanded] = useState<string | null>(null);
   const [seeding, setSeeding] = useState(false);
+  // "loading" | URL 문자열 | "error" — undefined 키 = 아직 미요청
+  const [audioUrls, setAudioUrls] = useState<Record<string, string>>({});
+
+  // 행이 펼쳐질 때 서명 URL을 lazy하게 1회만 가져온다
+  useEffect(() => {
+    if (!expanded) return;
+    const rec = recordings.find((r) => r.id === expanded);
+    if (!rec?.storage_path) return;
+    void fetchAudioUrl(expanded);
+  }, [expanded]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function fetchAudioUrl(id: string) {
+    let shouldFetch = false;
+    setAudioUrls((prev) => {
+      if (id in prev) return prev; // 이미 요청 중이거나 완료
+      shouldFetch = true;
+      return { ...prev, [id]: "loading" };
+    });
+    if (!shouldFetch) return;
+
+    try {
+      const res = await fetch(`/api/recordings/${id}/audio-url`);
+      if (!res.ok) {
+        setAudioUrls((prev) => ({ ...prev, [id]: "error" }));
+        return;
+      }
+      const { url } = (await res.json()) as { url: string };
+      setAudioUrls((prev) => ({ ...prev, [id]: url }));
+    } catch {
+      setAudioUrls((prev) => ({ ...prev, [id]: "error" }));
+    }
+  }
 
   async function handleSeed() {
     setSeeding(true);
@@ -130,7 +165,12 @@ export function CallsClient({ initialRecordings, parents }: Props) {
     return (
       <div className="flex flex-1 flex-col items-center px-4 py-12" style={{ backgroundColor: "var(--sl-bg)" }}>
         <div className="w-full max-w-sm space-y-4">
-          <WebRecorder parents={parents} onUploaded={() => router.refresh()} />
+          <WebRecorder
+            parents={parents}
+            onUploaded={() => router.refresh()}
+            initialParentId={initialParentId}
+            autoFocus={fromCall}
+          />
           <div className="rounded-2xl p-8 text-center space-y-3" style={{ backgroundColor: "var(--sl-card)", border: "1px solid var(--sl-border)" }}>
             <p className="text-4xl">📂</p>
             <p className="text-base font-semibold" style={{ color: "#344054" }}>아직 녹음 기록이 없어요</p>
@@ -170,9 +210,21 @@ export function CallsClient({ initialRecordings, parents }: Props) {
 
         {/* 웹 녹음 패널 */}
         <div className="mb-6">
+          {fromCall && durSec && (() => {
+            const elder = initialParentId
+              ? (parents.find((p) => p.id === initialParentId)?.display_name ?? "어르신")
+              : null;
+            return elder ? (
+              <div className="mb-4 rounded-2xl px-4 py-3 text-sm font-medium" style={{ backgroundColor: "#ECFDF3", border: "1px solid #6CE9A6", color: "#087443" }}>
+                방금 {elder}님과 {Math.floor(durSec / 60)}분 통화하셨네요. 녹음 파일을 선택해 주세요.
+              </div>
+            ) : null;
+          })()}
           <WebRecorder
             parents={parents}
             onUploaded={() => router.refresh()}
+            initialParentId={initialParentId}
+            autoFocus={fromCall}
           />
         </div>
 
@@ -237,6 +289,44 @@ export function CallsClient({ initialRecordings, parents }: Props) {
                 {/* 분석 결과 확장 패널 */}
                 {isExpanded && parsed && (
                   <div className="space-y-4 border-t p-4" style={{ borderColor: "#F0F3F9", backgroundColor: "#F9FAFD" }}>
+                    {/* 재생 영역 */}
+                    {rec.storage_path ? (
+                      <div>
+                        <p className="mb-2 text-xs font-bold uppercase tracking-widest" style={{ color: "#98A2B3" }}>녹음 듣기</p>
+                        {audioUrls[rec.id] === "loading" && (
+                          <p className="text-sm" style={{ color: "#98A2B3" }}>불러오는 중…</p>
+                        )}
+                        {audioUrls[rec.id] === "error" && (
+                          <p className="text-sm" style={{ color: "#B42318" }}>불러오기에 실패했습니다.</p>
+                        )}
+                        {audioUrls[rec.id] && audioUrls[rec.id] !== "loading" && audioUrls[rec.id] !== "error" && (
+                          <>
+                            <p className="mb-2 text-sm font-medium" style={{ color: "#344054" }}>
+                              {rec.parent_display_name ?? "어르신"}님 · {formatDate(rec.recorded_at)} · {formatDuration(rec.duration_sec)}
+                            </p>
+                            <audio
+                              controls
+                              preload="none"
+                              src={audioUrls[rec.id]}
+                              className="w-full"
+                              aria-label={`${rec.parent_display_name ?? "어르신"}님 통화 녹음 듣기`}
+                              onError={() => {
+                                // 서명 URL 만료(5분) → 키 삭제 후 재발급
+                                setAudioUrls((prev) => {
+                                  const copy = { ...prev };
+                                  delete copy[rec.id];
+                                  return copy;
+                                });
+                                void fetchAudioUrl(rec.id);
+                              }}
+                            />
+                          </>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-xs" style={{ color: "#98A2B3" }}>텍스트 요약으로 분석된 기록입니다</p>
+                    )}
+
                     <div>
                       <p className="mb-1 text-xs font-bold uppercase tracking-widest" style={{ color: "#98A2B3" }}>통화 요약</p>
                       <p className="text-sm leading-relaxed" style={{ color: "#344054" }}>{parsed.summary}</p>

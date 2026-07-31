@@ -5,7 +5,12 @@ import { CallsClient } from "./calls-client";
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardCallsPage() {
+export default async function DashboardCallsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ parentId?: string; from?: string; dur?: string }>;
+}) {
+  const params = await searchParams;
   const supabase = await createSupabaseServerClient();
 
   const [recordings, parents] = await Promise.all([
@@ -16,5 +21,13 @@ export default async function DashboardCallsPage() {
     listParentProfiles(supabase).catch(() => []),
   ]);
 
-  return <CallsClient initialRecordings={recordings} parents={parents} />;
+  return (
+    <CallsClient
+      initialRecordings={recordings}
+      parents={parents}
+      initialParentId={params.parentId}
+      fromCall={params.from === "call"}
+      durSec={params.dur ? Number(params.dur) : undefined}
+    />
+  );
 }
