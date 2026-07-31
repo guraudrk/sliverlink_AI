@@ -53,14 +53,14 @@ export function NavigationProgress() {
         />
       </div>
 
-      {/* 스피너 뱃지 — 모바일: 바텀내비 위쪽 / 데스크톱: 우상단 */}
+      {/* 스피너 — 화면 정중앙 */}
       {state === "loading" && (
         <div
-          className="pointer-events-none fixed bottom-[4.5rem] right-4 z-[9999] sm:bottom-auto sm:right-4 sm:top-[3.75rem]"
+          className="pointer-events-none fixed inset-0 z-[9999] flex items-center justify-center"
           aria-hidden
         >
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-lg ring-1 ring-slate-100">
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-200 border-t-blue-500" />
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/90 shadow-xl ring-1 ring-slate-100 backdrop-blur-sm">
+            <div className="h-7 w-7 animate-spin rounded-full border-[3px] border-slate-200 border-t-blue-500" />
           </div>
         </div>
       )}

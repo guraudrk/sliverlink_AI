@@ -21,6 +21,7 @@ import { countUnacknowledgedAlerts } from "@/lib/supabase/safety-alerts-repo";
 import { listParentProfiles } from "@/lib/supabase/parent-profiles-repo";
 import { OnboardingModal } from "@/components/app/onboarding-modal";
 import { AlertBanner } from "@/components/app/alert-banner";
+import { DashboardEldersSection } from "@/components/app/dashboard-elders-section";
 
 const QUICK_ACCESS = [
   {
@@ -84,19 +85,19 @@ export default async function DashboardPage() {
   return (
     <div style={{ backgroundColor: "var(--sl-bg)", minHeight: "100vh" }}>
 
-      {/* ── Navy gradient 헤더 ── */}
+      {/* ── Navy gradient 헤더 — 높이 고정(min-h) ── */}
       <div
         style={{
           background: "linear-gradient(135deg, #1E3A8A 0%, #2563EB 100%)",
-          paddingBottom: 32,
+          minHeight: 160,
         }}
       >
-        <div className="mx-auto max-w-2xl px-4 pt-10 sm:px-6">
+        <div className="mx-auto max-w-2xl px-4 pt-10 pb-10 sm:px-6">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", margin: 0 }}>{dateLabel}</p>
-              <h1 style={{ fontSize: 24, fontWeight: 800, color: "#fff", margin: "6px 0 0", lineHeight: 1.2 }}>
-                안녕하세요,<br />{emailPrefix}님 👋
+              <h1 style={{ fontSize: 22, fontWeight: 800, color: "#fff", margin: "6px 0 0", lineHeight: 1.3 }}>
+                안녕하세요, {emailPrefix}님
               </h1>
             </div>
             <div className="flex items-center gap-2 pt-1">
@@ -223,72 +224,7 @@ export default async function DashboardPage() {
             </Link>
           </div>
 
-          {parents.length === 0 ? (
-            <Link
-              href="/parents"
-              className="flex items-center gap-4 transition-all hover:opacity-90"
-              style={{
-                borderRadius: 20,
-                padding: 20,
-                backgroundColor: "var(--sl-card)",
-                border: "1px dashed var(--sl-border)",
-                boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
-                textDecoration: "none",
-              }}
-            >
-              <div
-                className="flex shrink-0 items-center justify-center rounded-2xl"
-                style={{ width: 52, height: 52, backgroundColor: "var(--sl-primary-tint)" }}
-              >
-                <UserPlus size={20} color="var(--sl-primary)" strokeWidth={2} />
-              </div>
-              <div>
-                <p style={{ fontSize: 14, fontWeight: 600, color: "var(--sl-ink)", margin: 0 }}>
-                  어르신을 추가해 보세요
-                </p>
-                <p style={{ fontSize: 12, color: "var(--sl-muted)", margin: "3px 0 0" }}>
-                  등록 후 통화 기록과 알림을 함께 관리할 수 있어요
-                </p>
-              </div>
-            </Link>
-          ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {parents.map((p) => (
-                <Link
-                  key={p.id}
-                  href="/parents"
-                  className="flex flex-col items-center justify-center transition-all hover:-translate-y-0.5 hover:shadow-md"
-                  style={{
-                    borderRadius: 20,
-                    padding: "20px 12px",
-                    aspectRatio: "1",
-                    backgroundColor: "var(--sl-card)",
-                    border: "1px solid var(--sl-border)",
-                    boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
-                    textDecoration: "none",
-                    gap: 10,
-                  }}
-                >
-                  <div
-                    className="flex shrink-0 items-center justify-center rounded-full text-lg font-bold"
-                    style={{ width: 52, height: 52, backgroundColor: "#EEF2FF", color: "var(--sl-primary)" }}
-                  >
-                    {(p.display_name ?? "?").charAt(0)}
-                  </div>
-                  <div className="min-w-0 w-full text-center">
-                    <p className="truncate" style={{ fontSize: 14, fontWeight: 600, color: "var(--sl-ink)", margin: 0 }}>
-                      {p.display_name ?? "이름 없음"}
-                    </p>
-                    {p.relationship && (
-                      <p className="truncate" style={{ fontSize: 11, color: "var(--sl-muted)", margin: "2px 0 0" }}>
-                        {p.relationship}
-                      </p>
-                    )}
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
+          <DashboardEldersSection parents={parents} />
         </div>
 
         {/* ── 더 보기 ── */}

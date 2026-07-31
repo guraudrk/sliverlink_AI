@@ -3,6 +3,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { MarkdownContent } from "@/components/app/markdown-content";
 
+const CHARS_PER_TICK = 12; // 타이핑 속도: 약 750자/초
+const TICK_MS = 16;
+
 type Props = {
   parentId: string;
   elderName: string;
@@ -12,19 +15,46 @@ type Props = {
 };
 
 export function CareReportPanel({ parentId, elderName, onClose, initialText, onGenerated }: Props) {
-  const [text, setText] = useState(initialText ?? "");
+  const [displayText, setDisplayText] = useState(initialText ?? "");
+  const [isTyping, setIsTyping] = useState(false);
   const [loading, setLoading] = useState(!initialText);
-  const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // API에서 받은 전체 텍스트를 버퍼로 보관 (setState 없이 ref)
+  const bufferRef = useRef(initialText ?? "");
+  const displayIdxRef = useRef(initialText?.length ?? 0);
   const textRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
+  // 타이핑 인터벌 — 컴포넌트 수명 동안 계속 실행
+  // bufferRef에 내용이 생기면 12자씩 displayText를 전진시킨다
+  useEffect(() => {
+    const id = setInterval(() => {
+      const buf = bufferRef.current;
+      const cur = displayIdxRef.current;
+      if (cur >= buf.length) {
+        setIsTyping(false);
+        return;
+      }
+      const next = Math.min(cur + CHARS_PER_TICK, buf.length);
+      displayIdxRef.current = next;
+      setIsTyping(next < buf.length);
+      setDisplayText(buf.slice(0, next));
+      if (textRef.current) {
+        textRef.current.scrollTop = textRef.current.scrollHeight;
+      }
+    }, TICK_MS);
+    return () => clearInterval(id);
+  }, []); // 마운트 시 한 번만
+
   const generate = useCallback(async () => {
-    setText("");
+    bufferRef.current = "";
+    displayIdxRef.current = 0;
+    setDisplayText("");
     setError(null);
     setLoading(true);
-    setStreaming(false);
+    setIsTyping(false);
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -47,43 +77,41 @@ export function CareReportPanel({ parentId, elderName, onClose, initialText, onG
       const decoder = new TextDecoder();
 
       setLoading(false);
-      setStreaming(true);
 
-      let fullText = "";
+      // 수신된 텍스트는 bufferRef에만 저장 — 화면 표시는 인터벌이 담당
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        fullText += chunk;
-        setText((prev) => prev + chunk);
-        if (textRef.current) {
-          textRef.current.scrollTop = textRef.current.scrollHeight;
-        }
+        bufferRef.current += decoder.decode(value, { stream: true });
       }
 
-      setStreaming(false);
-      onGenerated?.(fullText);
+      onGenerated?.(bufferRef.current);
     } catch (e) {
       if ((e as Error).name !== "AbortError") {
         setError("생성 중 오류가 발생했어요.");
       }
-      setStreaming(false);
     } finally {
       setLoading(false);
     }
   }, [parentId, onGenerated]);
 
   useEffect(() => {
-    if (initialText) return;
+    if (initialText) {
+      bufferRef.current = initialText;
+      displayIdxRef.current = initialText.length;
+      return;
+    }
     generate();
     return () => {
       abortRef.current?.abort();
     };
   }, [generate, initialText]);
 
+  const fullText = bufferRef.current;
+
   async function handleCopy() {
-    if (!text) return;
-    await navigator.clipboard.writeText(text);
+    if (!fullText) return;
+    await navigator.clipboard.writeText(fullText);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
@@ -94,29 +122,27 @@ export function CareReportPanel({ parentId, elderName, onClose, initialText, onG
     win.document.write(`
       <html><head><title>${elderName} 주간 케어 보고서</title>
       <style>body{font-family:sans-serif;padding:2rem;line-height:1.7;white-space:pre-wrap;font-size:14px}</style>
-      </head><body>${text}</body></html>
+      </head><body>${fullText}</body></html>
     `);
     win.document.close();
     win.print();
   }
 
   return (
-    /* 오버레이 */
     <div
       className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
       role="dialog"
       aria-modal="true"
       aria-label="AI 주간 케어 보고서"
     >
-      {/* 배경 딤 */}
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
         onClick={onClose}
         aria-hidden="true"
       />
 
-      {/* 패널 */}
-      <div className="relative z-10 flex w-full flex-col rounded-t-3xl bg-white shadow-2xl sm:max-w-2xl sm:rounded-3xl sm:mx-4 sm:my-4"
+      <div
+        className="relative z-10 flex w-full flex-col rounded-t-3xl bg-white shadow-2xl sm:max-w-2xl sm:rounded-3xl sm:mx-4 sm:my-4"
         style={{ height: "88dvh", maxHeight: "88dvh" }}
       >
         {/* 헤더 */}
@@ -141,7 +167,7 @@ export function CareReportPanel({ parentId, elderName, onClose, initialText, onG
           ref={textRef}
           className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 text-sm leading-relaxed text-slate-700 sm:px-6"
         >
-          {loading && !text && (
+          {loading && (
             <div className="flex flex-col items-center gap-3 py-10 text-slate-400">
               <div className="h-7 w-7 animate-spin rounded-full border-2 border-slate-200 border-t-teal-500" />
               <p className="text-sm">보고서 생성 중…</p>
@@ -158,16 +184,20 @@ export function CareReportPanel({ parentId, elderName, onClose, initialText, onG
               </button>
             </div>
           )}
-          {text && (
-            <>
-              <MarkdownContent text={text} />
-              {streaming && (
-                <span
-                  className="inline-block h-4 w-0.5 translate-y-0.5 bg-teal-500 animate-cursor-blink ml-0.5"
-                  aria-hidden="true"
-                />
-              )}
-            </>
+          {displayText && (
+            isTyping
+              ? /* 타이핑 중: plain text + 커서 */
+                <div>
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
+                    {displayText}
+                    <span
+                      className="inline-block h-[1em] w-0.5 translate-y-0.5 bg-teal-500 animate-cursor-blink ml-[1px] align-middle"
+                      aria-hidden="true"
+                    />
+                  </p>
+                </div>
+              : /* 완료: 마크다운 렌더링 */
+                <MarkdownContent text={displayText} />
           )}
         </div>
 
@@ -177,14 +207,14 @@ export function CareReportPanel({ parentId, elderName, onClose, initialText, onG
           <div className="flex gap-2">
             <button
               onClick={handlePrint}
-              disabled={!text || loading}
+              disabled={!displayText || loading || isTyping}
               className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50 disabled:opacity-40 transition-colors"
             >
               인쇄
             </button>
             <button
               onClick={handleCopy}
-              disabled={!text || loading}
+              disabled={!displayText || loading || isTyping}
               className="rounded-xl bg-teal-600 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-40 transition-colors"
             >
               {copied ? "복사됨 ✓" : "복사"}
