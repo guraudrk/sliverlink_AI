@@ -12,11 +12,13 @@ export function ParentProfileList({
   loading,
   onSelect,
   selectedId,
+  onDelete,
 }: {
   profiles: ParentProfile[];
   loading: boolean;
   onSelect: (profile: ParentProfile) => void;
   selectedId?: string;
+  onDelete?: (id: string) => void;
 }) {
   if (loading) {
     return (
@@ -59,6 +61,24 @@ export function ParentProfileList({
             >
               현황
             </Link>
+
+            {/* 삭제 버튼 */}
+            {onDelete && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (window.confirm(`${profile.display_name}을(를) 삭제할까요?\n이 작업은 되돌릴 수 없어요.`)) {
+                    onDelete(profile.id);
+                  }
+                }}
+                className="absolute left-2 top-2 rounded-full p-1 text-rose-300 hover:bg-rose-50 hover:text-rose-500 transition-colors"
+                aria-label="삭제"
+              >
+                <svg viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5" aria-hidden="true">
+                  <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                </svg>
+              </button>
+            )}
 
             <div
               className="flex shrink-0 items-center justify-center rounded-full text-lg font-bold mb-2.5"

@@ -7,7 +7,7 @@ const NAV_ITEMS = [
   { href: "/dashboard", label: "홈", icon: HomeIcon, exact: true },
   { href: "/dashboard/caseworker", label: "케어 관리", icon: ClipboardIcon, exact: false },
   { href: "/dashboard/responses", label: "응답", icon: ChatIcon, exact: false },
-  { href: "/parents", label: "부모님", icon: UsersIcon, exact: false },
+  { href: "/parents", label: "어르신", icon: UsersIcon, exact: false },
   { href: "/dashboard/assistant", label: "AI비서", icon: SparkleIcon, exact: false },
 ];
 

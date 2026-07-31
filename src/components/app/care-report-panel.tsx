@@ -7,11 +7,14 @@ type Props = {
   parentId: string;
   elderName: string;
   onClose: () => void;
+  initialText?: string;
+  onGenerated?: (text: string) => void;
 };
 
-export function CareReportPanel({ parentId, elderName, onClose }: Props) {
-  const [text, setText] = useState("");
-  const [loading, setLoading] = useState(true);
+export function CareReportPanel({ parentId, elderName, onClose, initialText, onGenerated }: Props) {
+  const [text, setText] = useState(initialText ?? "");
+  const [loading, setLoading] = useState(!initialText);
+  const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const textRef = useRef<HTMLDivElement>(null);
@@ -21,6 +24,7 @@ export function CareReportPanel({ parentId, elderName, onClose }: Props) {
     setText("");
     setError(null);
     setLoading(true);
+    setStreaming(false);
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -43,32 +47,39 @@ export function CareReportPanel({ parentId, elderName, onClose }: Props) {
       const decoder = new TextDecoder();
 
       setLoading(false);
+      setStreaming(true);
 
+      let fullText = "";
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         const chunk = decoder.decode(value, { stream: true });
+        fullText += chunk;
         setText((prev) => prev + chunk);
-        // 자동 스크롤
         if (textRef.current) {
           textRef.current.scrollTop = textRef.current.scrollHeight;
         }
       }
+
+      setStreaming(false);
+      onGenerated?.(fullText);
     } catch (e) {
       if ((e as Error).name !== "AbortError") {
         setError("생성 중 오류가 발생했어요.");
       }
+      setStreaming(false);
     } finally {
       setLoading(false);
     }
-  }, [parentId]);
+  }, [parentId, onGenerated]);
 
   useEffect(() => {
+    if (initialText) return;
     generate();
     return () => {
       abortRef.current?.abort();
     };
-  }, [generate]);
+  }, [generate, initialText]);
 
   async function handleCopy() {
     if (!text) return;
@@ -147,7 +158,17 @@ export function CareReportPanel({ parentId, elderName, onClose }: Props) {
               </button>
             </div>
           )}
-          {text && <MarkdownContent text={text} />}
+          {text && (
+            <>
+              <MarkdownContent text={text} />
+              {streaming && (
+                <span
+                  className="inline-block h-4 w-0.5 translate-y-0.5 bg-teal-500 animate-cursor-blink ml-0.5"
+                  aria-hidden="true"
+                />
+              )}
+            </>
+          )}
         </div>
 
         {/* 푸터 */}

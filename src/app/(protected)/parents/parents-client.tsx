@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { ParentProfileForm } from "@/components/parents/parent-profile-form";
 import { ParentProfileList } from "@/components/parents/parent-profile-list";
 import type { ParentProfile } from "@/lib/supabase/parent-profiles-repo";
+import { deleteParentProfile } from "@/lib/supabase/parent-profiles-repo";
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 const REDIRECT_DELAY_MS = 1200;
 
@@ -16,6 +18,12 @@ export function ParentsClient({ initialProfiles }: Props) {
   const router = useRouter();
   const [profiles, setProfiles] = useState<ParentProfile[]>(initialProfiles);
   const [editingProfile, setEditingProfile] = useState<ParentProfile | null>(null);
+
+  async function handleDelete(id: string) {
+    const supabase = createSupabaseBrowserClient();
+    await deleteParentProfile(supabase, id);
+    setProfiles((prev) => prev.filter((p) => p.id !== id));
+  }
 
   return (
     <div className="flex flex-1 flex-col items-center bg-slate-50 px-4 py-10 sm:py-16">
@@ -34,6 +42,7 @@ export function ParentsClient({ initialProfiles }: Props) {
             loading={false}
             onSelect={setEditingProfile}
             selectedId={undefined}
+            onDelete={handleDelete}
           />
         </div>
 

@@ -33,6 +33,7 @@ export function CaseworkerClient({ elders, currentUserId, orgRole, orgId }: Prop
   const [filter, setFilter] = useState<FilterType>("all");
   const [mineOnly, setMineOnly] = useState(false);
   const [reportTarget, setReportTarget] = useState<{ id: string; name: string } | null>(null);
+  const [reportCache, setReportCache] = useState<Record<string, string>>({});
   const [batchStatus, setBatchStatus] = useState<"idle" | "running" | "done" | "error">("idle");
 
   const runBatchReport = useCallback(async () => {
@@ -94,6 +95,10 @@ export function CaseworkerClient({ elders, currentUserId, orgRole, orgId }: Prop
         parentId={reportTarget.id}
         elderName={reportTarget.name}
         onClose={() => setReportTarget(null)}
+        initialText={reportCache[reportTarget.id]}
+        onGenerated={(text) =>
+          setReportCache((prev) => ({ ...prev, [reportTarget.id]: text }))
+        }
       />
     )}
     <div className="space-y-5">

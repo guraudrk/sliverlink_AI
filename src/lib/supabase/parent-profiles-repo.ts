@@ -58,6 +58,11 @@ export async function createParentProfile(
   return data as ParentProfile;
 }
 
+export async function deleteParentProfile(supabase: SupabaseClient, id: string): Promise<void> {
+  const { error } = await supabase.from("parent_profiles").delete().eq("id", id);
+  if (error) throw error;
+}
+
 // owner_user_id는 절대 update 대상에 포함하지 않는다 — RLS의 update policy(`auth.uid() = owner_user_id`)가
 // 남의 행이면 0건을 갱신하도록 막아주므로, 그 결과(.single()이 못 찾으면 에러)로 소유권 위반을 자연히 거부한다.
 export async function updateParentProfile(
