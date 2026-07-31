@@ -54,6 +54,15 @@ export type RagDeliveryAttemptRow = {
   attempted_at: string;
 };
 
+export type RagCallRecordingRow = {
+  id: string;
+  parent_id: string;
+  transcript: string | null;
+  ai_summary: string | null;
+  risk_level: string | null;
+  recorded_at: string;
+};
+
 export type RagEvidenceSourceRows = {
   parentProfiles: RagParentProfileRow[];
   careTasks: RagCareTaskRow[];
@@ -61,6 +70,7 @@ export type RagEvidenceSourceRows = {
   notificationQueue: RagNotificationQueueRow[];
   careCallAttempts: RagCareCallAttemptRow[];
   deliveryAttempts: RagDeliveryAttemptRow[];
+  callRecordings: RagCallRecordingRow[];
 };
 
 function cutoffIso(timeWindowDays: number): string {
@@ -113,16 +123,27 @@ export async function fetchRagEvidenceSourceRows(
     .gte("attempted_at", cutoff);
   if (parentId) deliveryAttemptQuery = deliveryAttemptQuery.eq("parent_id", parentId);
 
-  const [profiles, careTasks, messageLogs, queue, callAttempts, deliveryAttempts] = await Promise.all([
-    profileQuery,
-    careTaskQuery,
-    messageLogQuery,
-    queueQuery,
-    callAttemptQuery,
-    deliveryAttemptQuery,
-  ]);
+  // analyzed 상태(AI 분석 완료)인 통화 녹음만 RAG 소스로 포함한다 — transcript 또는 ai_summary가
+  // 있어야 의미있는 근거가 되므로, status 필터로 미분석 항목을 제외한다.
+  let callRecordingQuery = supabase
+    .from("call_recordings")
+    .select("id, parent_id, transcript, ai_summary, risk_level, recorded_at")
+    .eq("status", "analyzed")
+    .gte("recorded_at", cutoff);
+  if (parentId) callRecordingQuery = callRecordingQuery.eq("parent_id", parentId);
 
-  for (const result of [profiles, careTasks, messageLogs, queue, callAttempts, deliveryAttempts]) {
+  const [profiles, careTasks, messageLogs, queue, callAttempts, deliveryAttempts, callRecordings] =
+    await Promise.all([
+      profileQuery,
+      careTaskQuery,
+      messageLogQuery,
+      queueQuery,
+      callAttemptQuery,
+      deliveryAttemptQuery,
+      callRecordingQuery,
+    ]);
+
+  for (const result of [profiles, careTasks, messageLogs, queue, callAttempts, deliveryAttempts, callRecordings]) {
     if (result.error) throw result.error;
   }
 
@@ -133,5 +154,6 @@ export async function fetchRagEvidenceSourceRows(
     notificationQueue: (queue.data ?? []) as RagNotificationQueueRow[],
     careCallAttempts: (callAttempts.data ?? []) as RagCareCallAttemptRow[],
     deliveryAttempts: (deliveryAttempts.data ?? []) as RagDeliveryAttemptRow[],
+    callRecordings: (callRecordings.data ?? []) as RagCallRecordingRow[],
   };
 }

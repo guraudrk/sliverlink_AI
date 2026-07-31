@@ -10,6 +10,7 @@ function emptyRows(): RagEvidenceSourceRows {
     notificationQueue: [],
     careCallAttempts: [],
     deliveryAttempts: [],
+    callRecordings: [],
   };
 }
 

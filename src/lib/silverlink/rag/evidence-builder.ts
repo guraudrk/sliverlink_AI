@@ -114,6 +114,24 @@ function buildEvidenceFromRows(rows: RagEvidenceSourceRows): RagEvidence[] {
     });
   }
 
+  for (const rec of rows.callRecordings) {
+    // ai_summary를 우선 쓰고, 없으면 transcript의 앞 300자를 요약으로 사용
+    const content = rec.ai_summary ?? (rec.transcript ? rec.transcript.slice(0, 300) : null);
+    if (!content) continue;
+    const risk = rec.risk_level ?? "none";
+    evidence.push({
+      id: `call_recording:${rec.id}`,
+      sourceType: "call_recording",
+      parentId: rec.parent_id,
+      title: "통화 녹음 분석",
+      summary: content,
+      rawText: [rec.ai_summary, rec.transcript].filter(Boolean).join("\n\n"),
+      createdAt: rec.recorded_at,
+      importance: risk === "high" ? "high" : risk === "medium" ? "medium" : "low",
+      safetyFlags: risk !== "none" ? [`risk:${risk}`] : [],
+    });
+  }
+
   return evidence;
 }
 
