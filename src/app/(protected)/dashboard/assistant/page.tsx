@@ -21,6 +21,15 @@ export default function DashboardAssistantPage() {
         if (active) setLoading(false);
       });
 
+    // 세션당 1회 RAG 재인덱싱 — call_recordings 등 새 데이터를 AI 비서가 바로 참조하도록
+    const REINDEX_KEY = "sl_rag_reindex_at";
+    const SIX_HOURS = 6 * 60 * 60 * 1000;
+    const lastReindex = Number(sessionStorage.getItem(REINDEX_KEY) ?? 0);
+    if (Date.now() - lastReindex > SIX_HOURS) {
+      sessionStorage.setItem(REINDEX_KEY, String(Date.now()));
+      fetch("/api/rag/reindex", { method: "POST", body: JSON.stringify({}) }).catch(() => {});
+    }
+
     return () => {
       active = false;
     };

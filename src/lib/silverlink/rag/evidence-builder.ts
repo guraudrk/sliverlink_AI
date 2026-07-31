@@ -115,8 +115,17 @@ function buildEvidenceFromRows(rows: RagEvidenceSourceRows): RagEvidence[] {
   }
 
   for (const rec of rows.callRecordings) {
-    // ai_summary를 우선 쓰고, 없으면 transcript의 앞 300자를 요약으로 사용
-    const content = rec.ai_summary ?? (rec.transcript ? rec.transcript.slice(0, 300) : null);
+    // ai_summary는 JSON 문자열 {"summary":"...", "signals":[...]} 형태로 저장됨
+    let summaryText: string | null = null;
+    if (rec.ai_summary) {
+      try {
+        const parsed = JSON.parse(rec.ai_summary) as { summary?: string };
+        summaryText = parsed.summary ?? null;
+      } catch {
+        summaryText = rec.ai_summary; // JSON이 아닌 경우 raw 사용
+      }
+    }
+    const content = summaryText ?? (rec.transcript ? rec.transcript.slice(0, 300) : null);
     if (!content) continue;
     const risk = rec.risk_level ?? "none";
     evidence.push({
@@ -125,7 +134,7 @@ function buildEvidenceFromRows(rows: RagEvidenceSourceRows): RagEvidence[] {
       parentId: rec.parent_id,
       title: "통화 녹음 분석",
       summary: content,
-      rawText: [rec.ai_summary, rec.transcript].filter(Boolean).join("\n\n"),
+      rawText: [summaryText, rec.transcript].filter(Boolean).join("\n\n"),
       createdAt: rec.recorded_at,
       importance: risk === "high" ? "high" : risk === "medium" ? "medium" : "low",
       safetyFlags: risk !== "none" ? [`risk:${risk}`] : [],

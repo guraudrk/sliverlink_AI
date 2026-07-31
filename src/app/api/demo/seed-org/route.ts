@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { indexRagDocuments } from "@/lib/silverlink/rag/indexer";
 
 export async function POST() {
   const supabase = await createSupabaseServerClient();
@@ -17,6 +18,10 @@ export async function POST() {
     .eq("user_id", user.id)
     .limit(1)
     .maybeSingle();
+
+  // 데모 데이터 삽입 후 RAG 벡터 인덱스 갱신 (AI 비서가 바로 참조 가능하도록)
+  // 실패해도 seed 응답에는 영향 없음
+  indexRagDocuments(supabase, user.id, {}).catch(() => {});
 
   return NextResponse.json({ elderCount: 30, orgId: membership?.org_id ?? null });
 }

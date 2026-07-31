@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { indexRagDocuments } from "@/lib/silverlink/rag/indexer";
 
 const SEED_RECORDINGS = [
   {
@@ -120,6 +121,12 @@ export async function POST() {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  // 삽입한 녹음들을 즉시 RAG 벡터 인덱스에 반영 (AI 비서가 바로 참조 가능하도록)
+  const uniqueParentIds = [...new Set(rows.map((r) => r.parent_id))];
+  await Promise.allSettled(
+    uniqueParentIds.map((pid) => indexRagDocuments(supabase, user.id, { parentId: pid }))
+  );
 
   return NextResponse.json({ ok: true, count: rows.length });
 }
