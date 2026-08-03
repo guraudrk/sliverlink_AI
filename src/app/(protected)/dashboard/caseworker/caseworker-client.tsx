@@ -35,6 +35,7 @@ export function CaseworkerClient({ elders, currentUserId, orgRole, orgId }: Prop
   const [reportTarget, setReportTarget] = useState<{ id: string; name: string } | null>(null);
   const [reportCache, setReportCache] = useState<Record<string, string>>({});
   const [batchStatus, setBatchStatus] = useState<"idle" | "running" | "done" | "error">("idle");
+  const [batchReportSetId, setBatchReportSetId] = useState<string | null>(null);
 
   const runBatchReport = useCallback(async () => {
     if (!orgId) return;
@@ -49,7 +50,13 @@ export function CaseworkerClient({ elders, currentUserId, orgRole, orgId }: Prop
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orgId, periodStart, periodEnd }),
       });
-      setBatchStatus(res.ok ? "done" : "error");
+      if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (data.reportSetId) setBatchReportSetId(data.reportSetId as string);
+        setBatchStatus("done");
+      } else {
+        setBatchStatus("error");
+      }
     } catch {
       setBatchStatus("error");
     }
@@ -166,22 +173,33 @@ export function CaseworkerClient({ elders, currentUserId, orgRole, orgId }: Prop
         </p>
         {orgId && (
           <div className="flex items-center gap-2">
-            <button
-              onClick={runBatchReport}
-              disabled={batchStatus === "running"}
-              className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm hover:border-indigo-300 hover:text-indigo-700 transition-colors disabled:opacity-50"
-            >
-              <svg viewBox="0 0 16 16" fill="currentColor" className="h-3.5 w-3.5" aria-hidden="true">
-                <path d="M8 1a7 7 0 100 14A7 7 0 008 1zM6.5 5.5a.75.75 0 011.5 0v3.44l1.22-1.22a.75.75 0 111.06 1.06l-2.5 2.5a.75.75 0 01-1.06 0l-2.5-2.5a.75.75 0 111.06-1.06L6.5 8.94V5.5z"/>
-              </svg>
-              {batchStatus === "running"
-                ? "생성 중…"
-                : batchStatus === "done"
-                ? "생성 완료 ✓"
-                : batchStatus === "error"
-                ? "오류 재시도"
-                : "전체 리포트 생성"}
-            </button>
+            {batchStatus === "done" ? (
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-semibold text-emerald-700">✓ 생성 완료</span>
+                <a
+                  href={`/api/reports/csv?orgId=${orgId}${batchReportSetId ? `&reportSetId=${encodeURIComponent(batchReportSetId)}` : ""}`}
+                  download
+                  onClick={() => setBatchStatus("idle")}
+                  className="flex items-center gap-1 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 shadow-sm hover:bg-indigo-100 transition-colors"
+                >
+                  <svg viewBox="0 0 16 16" fill="currentColor" className="h-3.5 w-3.5" aria-hidden="true">
+                    <path d="M8 1a.75.75 0 01.75.75v5.69l1.97-1.97a.75.75 0 111.06 1.06l-3.25 3.25a.75.75 0 01-1.06 0L4.22 6.53a.75.75 0 011.06-1.06L7.25 7.44V1.75A.75.75 0 018 1zM1.5 10.75a.75.75 0 011.5 0v1.5a.5.5 0 00.5.5h9a.5.5 0 00.5-.5v-1.5a.75.75 0 011.5 0v1.5A2 2 0 0113 14.5H3A2 2 0 011 12.25v-1.5z"/>
+                  </svg>
+                  CSV 받기
+                </a>
+              </div>
+            ) : (
+              <button
+                onClick={runBatchReport}
+                disabled={batchStatus === "running"}
+                className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm hover:border-indigo-300 hover:text-indigo-700 transition-colors disabled:opacity-50"
+              >
+                <svg viewBox="0 0 16 16" fill="currentColor" className="h-3.5 w-3.5" aria-hidden="true">
+                  <path d="M8 1a7 7 0 100 14A7 7 0 008 1zM6.5 5.5a.75.75 0 011.5 0v3.44l1.22-1.22a.75.75 0 111.06 1.06l-2.5 2.5a.75.75 0 01-1.06 0l-2.5-2.5a.75.75 0 111.06-1.06L6.5 8.94V5.5z"/>
+                </svg>
+                {batchStatus === "running" ? "생성 중…" : batchStatus === "error" ? "오류 재시도" : "전체 리포트 생성"}
+              </button>
+            )}
             <a
               href={`/api/reports/csv?orgId=${orgId}`}
               download

@@ -254,7 +254,8 @@ export function CareAssistantPanel({ parentProfiles }: { parentProfiles: ParentP
             id="parent_id"
             value={parentId}
             onChange={(event) => setParentId(event.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base text-slate-800 shadow-sm transition-colors focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-200"
+            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-base shadow-sm transition-colors focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-200"
+            style={{ colorScheme: "light", backgroundColor: "#f8fafc", color: "#101828" }}
           >
             <option value="">통합 (등록된 모든 어르신)</option>
             {parentProfiles.map((profile) => (
@@ -344,12 +345,13 @@ export function CareAssistantPanel({ parentProfiles }: { parentProfiles: ParentP
             onKeyDown={handleTextareaKeyDown}
             placeholder="무엇이든 물어보세요 (Shift+Enter로 줄바꿈)"
             rows={1}
-            className="max-h-[140px] flex-1 resize-none overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-base text-slate-800 shadow-sm transition-colors focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-200"
+            className="max-h-[140px] flex-1 resize-none overflow-y-auto rounded-xl border border-slate-200 px-4 py-2 text-base shadow-sm transition-colors focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-200"
+            style={{ colorScheme: "light", backgroundColor: "#f8fafc", color: "#101828" }}
           />
           <button
             type="submit"
             disabled={busy || !query.trim()}
-            className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-6 py-3 text-base font-semibold text-white shadow-sm shadow-blue-200 transition-all hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-md disabled:cursor-not-allowed disabled:translate-y-0 disabled:bg-slate-300 disabled:shadow-none"
+            className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white shadow-sm shadow-blue-200 transition-all hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-md disabled:cursor-not-allowed disabled:translate-y-0 disabled:bg-slate-300 disabled:shadow-none"
           >
             물어보기
           </button>

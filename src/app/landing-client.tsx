@@ -295,7 +295,7 @@ export function LandingClient() {
       <div style={contentStyle}>
 
         {/* ── Hero ── */}
-        <section id="기능" style={{ background: "linear-gradient(180deg,#FFF 0%,#F5F8FF 100%)", padding: "80px 0" }}>
+        <section id="기능" className="py-10 md:py-20" style={{ background: "linear-gradient(180deg,#FFF 0%,#F5F8FF 100%)" }}>
           <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-6 md:grid-cols-[1fr_1.05fr] md:gap-16 md:px-12 md:py-4">
             <div>
               <div className="mb-6 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5" style={{ backgroundColor: "#EEF2FF", border: "1px solid #DCE4FF" }}>
@@ -361,7 +361,7 @@ export function LandingClient() {
         </section>
 
         {/* ── Value Props ── */}
-        <section id="이용방식" style={{ padding: "80px 0", backgroundColor: "#fff" }}>
+        <section id="이용방식" className="py-10 md:py-20" style={{ backgroundColor: "#fff" }}>
           <div className="mx-auto max-w-6xl px-6 md:px-12">
             <div className="mb-12 text-center">
               <h2 style={{ fontSize: 40, fontWeight: 800, color: "#101828", margin: "0 0 12px" }}>왜 SilverLink인가요?</h2>
@@ -386,7 +386,7 @@ export function LandingClient() {
         </section>
 
         {/* ── Comparison ── */}
-        <section id="차별점" style={{ padding: "80px 0", backgroundColor: "#F5F7FB" }}>
+        <section id="차별점" className="py-10 md:py-20" style={{ backgroundColor: "#F5F7FB" }}>
           <div className="mx-auto max-w-6xl px-6 md:px-12">
             <div className="mb-12 text-center">
               <h2 style={{ fontSize: 40, fontWeight: 800, color: "#101828", margin: "0 0 12px" }}>
@@ -398,9 +398,9 @@ export function LandingClient() {
                   : "클로바 노트, Google Recorder는 회의·메모용입니다. SilverLink는 처음부터 어르신 돌봄을 위해 만들었습니다."}
               </p>
             </div>
-            <div style={{ borderRadius: 16, overflow: "hidden", border: "1px solid #E7EBF3", backgroundColor: "#fff" }}>
+            <div style={{ borderRadius: 16, overflow: "clip", border: "1px solid #E7EBF3", backgroundColor: "#fff" }}>
               <div className="overflow-x-auto">
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+                <table style={{ width: "100%", minWidth: 460, borderCollapse: "collapse", fontSize: 14 }}>
                   {isOrg ? (
                     <colgroup>
                       <col style={{ width: "60%" }} />
@@ -417,14 +417,14 @@ export function LandingClient() {
                   )}
                   <thead>
                     <tr style={{ borderBottom: "1px solid #E7EBF3", backgroundColor: "#F9FAFD" }}>
-                      <th style={{ padding: "14px 20px", textAlign: "left", fontWeight: 600, color: "#667085" }}>기능</th>
-                      <th style={{ padding: "14px 20px", textAlign: "center", fontWeight: 700, color: "#2E5BFF", backgroundColor: "#EEF2FF" }}>SilverLink</th>
+                      <th style={{ padding: "14px 20px", textAlign: "left", fontWeight: 600, color: "#667085", whiteSpace: "nowrap" }}>기능</th>
+                      <th style={{ padding: "14px 20px", textAlign: "center", fontWeight: 700, color: "#2E5BFF", backgroundColor: "#EEF2FF", whiteSpace: "nowrap" }}>SilverLink</th>
                       {isOrg ? (
-                        <th style={{ padding: "14px 20px", textAlign: "center", fontWeight: 500, color: "#98A2B3" }}>클로바 케어콜</th>
+                        <th style={{ padding: "14px 20px", textAlign: "center", fontWeight: 500, color: "#98A2B3", whiteSpace: "nowrap" }}>클로바 케어콜</th>
                       ) : (
                         <>
-                          <th style={{ padding: "14px 20px", textAlign: "center", fontWeight: 500, color: "#98A2B3" }}>클로바 노트</th>
-                          <th style={{ padding: "14px 20px", textAlign: "center", fontWeight: 500, color: "#98A2B3" }}>Google Recorder</th>
+                          <th style={{ padding: "14px 20px", textAlign: "center", fontWeight: 500, color: "#98A2B3", whiteSpace: "nowrap" }}>클로바 노트</th>
+                          <th style={{ padding: "14px 20px", textAlign: "center", fontWeight: 500, color: "#98A2B3", whiteSpace: "nowrap" }}>Google Rec.</th>
                         </>
                       )}
                     </tr>
@@ -446,7 +446,7 @@ export function LandingClient() {
         </section>
 
         {/* ── CTA / 요금 ── */}
-        <section id="요금" style={{ padding: "80px 24px", backgroundColor: "#F5F7FB" }}>
+        <section id="요금" className="py-10 md:py-20 px-6" style={{ backgroundColor: "#F5F7FB" }}>
           <div className="mx-auto max-w-6xl">
             <div className="relative overflow-hidden rounded-3xl px-8 py-16 text-center md:px-16" style={{ background: "linear-gradient(135deg,#12183F,#1B2660)" }}>
               <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.04)" }} />
