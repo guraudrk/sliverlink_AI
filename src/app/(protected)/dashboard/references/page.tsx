@@ -23,6 +23,35 @@ export default function ReferencesPage() {
         {/* 아코디언 */}
         <ReferenceAccordion />
 
+        {/* AI 며느리 홍보 카드 */}
+        <div className="animate-rag-fade-in-up rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-purple-50 p-6 shadow-sm">
+          <div className="flex items-start gap-4">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-violet-600 text-2xl shadow">
+              👩‍👧
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-violet-400">
+                SilverLink 패밀리 앱
+              </p>
+              <h2 className="mt-0.5 text-lg font-bold text-violet-900">AI 며느리</h2>
+              <p className="mt-1.5 text-sm leading-relaxed text-violet-700">
+                어르신과 매일 대화하는 AI 말동무예요.
+                전화번호 검색, 일정 알림, 날씨 안내까지 음성 하나로 해결해 드려요.
+                <br />
+                <span className="text-violet-500">가족이나 어르신 스스로 설치하면 하루 생활이 훨씬 편해져요.</span>
+              </p>
+              <a
+                href="https://play.google.com/store/apps/details?id=com.leejanghan.aimyeoneuri"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-4 inline-flex items-center gap-2 rounded-full bg-violet-600 px-5 py-2 text-sm font-semibold text-white shadow hover:bg-violet-700 active:scale-95 transition-all"
+              >
+                <span>▶</span> Play Store에서 무료 설치
+              </a>
+            </div>
+          </div>
+        </div>
+
         {/* 푸터 */}
         <p className="pb-4 text-center text-xs text-slate-400 animate-rag-fade-in-up">
           모든 논문은 공개된 학술 저널·학회에서 발표된 연구입니다.
