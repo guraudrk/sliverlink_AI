@@ -74,6 +74,7 @@ export async function POST(request: NextRequest) {
       ai_summary: JSON.stringify({
         summary: result.summary,
         signals: result.signals,
+        speaker_split_ok: result.speaker_split_ok,
       }),
       risk_level: result.risk_level,
     });

@@ -156,7 +156,7 @@ export function CallsClient({ initialRecordings, parents, initialParentId, fromC
     }
   }
 
-  function parseAiSummary(raw: string | null): { summary: string; signals: SafetySignal[] } | null {
+  function parseAiSummary(raw: string | null): { summary: string; signals: SafetySignal[]; speaker_split_ok?: boolean } | null {
     if (!raw) return null;
     try { return JSON.parse(raw); } catch { return null; }
   }
@@ -359,6 +359,11 @@ export function CallsClient({ initialRecordings, parents, initialParentId, fromC
                     {rec.transcript && (
                       <div>
                         <p className="mb-1 text-xs font-bold uppercase tracking-widest" style={{ color: "#98A2B3" }}>전사</p>
+                        {parsed?.speaker_split_ok === false && (
+                          <p className="mb-1 rounded-lg px-3 py-1.5 text-xs" style={{ backgroundColor: "#FFF3CD", color: "#856404" }}>
+                            ⚠️ 화자 구분이 불확실합니다. 전사 내용을 직접 확인해 주세요.
+                          </p>
+                        )}
                         <p className="max-h-40 overflow-y-auto whitespace-pre-wrap rounded-xl p-3 text-xs leading-relaxed" style={{ backgroundColor: "#fff", border: "1px solid #E7EBF3", color: "#475467" }}>
                           {rec.transcript}
                         </p>
