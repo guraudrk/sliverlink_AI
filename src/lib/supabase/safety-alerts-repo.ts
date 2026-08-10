@@ -3,7 +3,7 @@ import type { SafetyAlertCategory, SafetyAlertSeverity, SafetyAlertItem } from "
 
 export type SafetyAlert = {
   id: string;
-  call_id: string;
+  call_id: string | null;
   elder_id: string;
   owner_user_id: string;
   category: SafetyAlertCategory;
@@ -13,12 +13,14 @@ export type SafetyAlert = {
   suggestion: string | null;
   acknowledged_at: string | null;
   generated_at: string;
+  source: "call_recording" | "ai_myeoneuri";
 };
 
 type SafetyAlertInsert = {
-  call_id: string;
+  call_id?: string | null;
   elder_id: string;
   owner_user_id: string;
+  source?: "call_recording" | "ai_myeoneuri";
 } & SafetyAlertItem;
 
 export async function createSafetyAlerts(
