@@ -201,7 +201,7 @@ function OrgMockUI() {
 // ─── 메인 컴포넌트 ────────────────────────────────────────────────────────────
 
 export function LandingClient() {
-  const [audience, setAudience] = useState<Audience>("individual");
+  const [audience, setAudience] = useState<Audience>("org");
   const [visible, setVisible] = useState(true);
 
   function switchAudience(next: Audience) {
@@ -246,8 +246,8 @@ export function LandingClient() {
           <div className="flex items-center gap-3">
             <Link href="/login" style={{ fontSize: 14, fontWeight: 500, color: "#667085", textDecoration: "none" }}>로그인</Link>
             {isOrg ? (
-              <Link href="/demo" style={{ padding: "10px 20px", borderRadius: 10, backgroundColor: "#2E5BFF", color: "#fff", fontSize: 14, fontWeight: 700, textDecoration: "none", display: "inline-block" }}>
-                데모 보기
+              <Link href="/login" style={{ padding: "10px 20px", borderRadius: 10, backgroundColor: "#2E5BFF", color: "#fff", fontSize: 14, fontWeight: 700, textDecoration: "none", display: "inline-block" }}>
+                지금 써보기
               </Link>
             ) : (
               <Link href="/signup" style={{ padding: "10px 20px", borderRadius: 10, backgroundColor: "#2E5BFF", color: "#fff", fontSize: 14, fontWeight: 700, textDecoration: "none", display: "inline-block" }}>
@@ -327,8 +327,8 @@ export function LandingClient() {
               <div className="flex flex-col gap-3 sm:flex-row">
                 {isOrg ? (
                   <>
-                    <Link href="/demo" style={{ padding: "15px 28px", borderRadius: 12, backgroundColor: "#2E5BFF", color: "#fff", fontSize: 16, fontWeight: 700, textDecoration: "none", textAlign: "center", boxShadow: "0 4px 14px rgba(46,91,255,0.35)", display: "inline-block" }}>
-                      3분 데모 보기 →
+                    <Link href="/login" style={{ padding: "15px 28px", borderRadius: 12, backgroundColor: "#2E5BFF", color: "#fff", fontSize: 16, fontWeight: 700, textDecoration: "none", textAlign: "center", boxShadow: "0 4px 14px rgba(46,91,255,0.35)", display: "inline-block" }}>
+                      지금 써보기 →
                     </Link>
                     <Link href="/login" style={{ padding: "15px 28px", borderRadius: 12, backgroundColor: "#fff", color: "#344054", fontSize: 16, fontWeight: 600, textDecoration: "none", textAlign: "center", border: "1px solid #E7EBF3", display: "inline-block" }}>
                       로그인
@@ -459,8 +459,8 @@ export function LandingClient() {
                     </div>
                     <h2 style={{ fontSize: 40, fontWeight: 800, color: "#fff", margin: "0 0 12px" }}>3분 데모로 먼저 확인하세요</h2>
                     <p style={{ fontSize: 17, color: "#A7B4E8", margin: "0 0 36px" }}>실제 데이터로 대시보드·보고서·복사 기능을 직접 눌러볼 수 있습니다.</p>
-                    <Link href="/demo" style={{ display: "inline-block", padding: "16px 36px", borderRadius: 12, backgroundColor: "#fff", color: "#2E5BFF", fontSize: 16, fontWeight: 700, textDecoration: "none" }}>
-                      데모 보기 →
+                    <Link href="/login" style={{ display: "inline-block", padding: "16px 36px", borderRadius: 12, backgroundColor: "#fff", color: "#2E5BFF", fontSize: 16, fontWeight: 700, textDecoration: "none" }}>
+                      지금 써보기 →
                     </Link>
                   </>
                 ) : (
