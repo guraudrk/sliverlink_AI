@@ -12,23 +12,23 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 export async function POST(request: Request) {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return new NextResponse("unauthenticated", { status: 401 });
+  if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
 
   const body = await request.json().catch(() => ({})) as {
     orgId?: string; email?: string; role?: string;
   };
   const { orgId, email, role = "social_worker" } = body;
 
-  if (!orgId || !email) return new NextResponse("orgId and email required", { status: 400 });
-  if (!email.includes("@")) return new NextResponse("invalid email", { status: 400 });
+  if (!orgId || !email) return NextResponse.json({ error: "orgId and email required" }, { status: 400 });
+  if (!email.includes("@")) return NextResponse.json({ error: "invalid email" }, { status: 400 });
   if (!["admin", "social_worker", "field_worker"].includes(role)) {
-    return new NextResponse("invalid role", { status: 400 });
+    return NextResponse.json({ error: "invalid role" }, { status: 400 });
   }
 
   // 관리자 확인
   const { data: member } = await supabase
     .from("org_members").select("role").eq("org_id", orgId).eq("user_id", user.id).maybeSingle();
-  if (member?.role !== "admin") return new NextResponse("forbidden", { status: 403 });
+  if (member?.role !== "admin") return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
   // 기관 이름 조회
   const { data: org } = await supabase
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
     .select("token")
     .single();
 
-  if (error) return new NextResponse(error.message, { status: 500 });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const joinUrl = buildJoinUrl(invite.token);
 

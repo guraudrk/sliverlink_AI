@@ -19,11 +19,17 @@ export function ParentsClient({ initialProfiles }: Props) {
   const [profiles, setProfiles] = useState<ParentProfile[]>(initialProfiles);
   const [editingProfile, setEditingProfile] = useState<ParentProfile | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   async function handleDelete(id: string) {
     const supabase = createSupabaseBrowserClient();
-    await deleteParentProfile(supabase, id);
-    setProfiles((prev) => prev.filter((p) => p.id !== id));
+    try {
+      await deleteParentProfile(supabase, id);
+      setProfiles((prev) => prev.filter((p) => p.id !== id));
+      setDeleteError(null);
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : "삭제에 실패했습니다.");
+    }
   }
 
   return (
@@ -31,6 +37,9 @@ export function ParentsClient({ initialProfiles }: Props) {
       <div className="w-full max-w-xl space-y-6">
         <div className="space-y-1 animate-rag-fade-in-up">
           <p className="text-sm font-semibold uppercase tracking-widest text-blue-600">SilverLink AI</p>
+          {deleteError && (
+            <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-600">{deleteError}</p>
+          )}
           <div className="flex items-center justify-between gap-3">
             <h1 className="text-2xl font-bold text-slate-900">부모님/어르신 관리</h1>
             <button

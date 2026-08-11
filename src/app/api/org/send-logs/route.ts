@@ -9,13 +9,13 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 export async function GET(request: Request) {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return new NextResponse("unauthenticated", { status: 401 });
+  if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
 
   const url    = new URL(request.url);
   const orgId  = url.searchParams.get("orgId");
   const limit  = Math.min(parseInt(url.searchParams.get("limit") ?? "20", 10), 100);
 
-  if (!orgId) return new NextResponse("orgId required", { status: 400 });
+  if (!orgId) return NextResponse.json({ error: "orgId required" }, { status: 400 });
 
   const { data: member } = await supabase
     .from("org_members")
@@ -23,7 +23,7 @@ export async function GET(request: Request) {
     .eq("org_id", orgId)
     .eq("user_id", user.id)
     .maybeSingle();
-  if (!member) return new NextResponse("forbidden", { status: 403 });
+  if (!member) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
   const { data, error } = await supabase
     .from("report_send_logs")
@@ -32,7 +32,7 @@ export async function GET(request: Request) {
     .order("sent_at", { ascending: false })
     .limit(limit);
 
-  if (error) return new NextResponse(error.message, { status: 500 });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   return NextResponse.json(data ?? []);
 }

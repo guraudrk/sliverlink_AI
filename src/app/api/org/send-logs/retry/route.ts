@@ -12,11 +12,11 @@ import { sendReportEmail } from "@/lib/caseworker/email-sender";
 export async function POST(request: Request) {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return new NextResponse("unauthenticated", { status: 401 });
+  if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
 
   const body  = await request.json().catch(() => ({})) as { logId?: string };
   const logId = body.logId;
-  if (!logId) return new NextResponse("logId required", { status: 400 });
+  if (!logId) return NextResponse.json({ error: "logId required" }, { status: 400 });
 
   // 이력 조회
   const { data: log, error: logErr } = await supabase
@@ -25,8 +25,8 @@ export async function POST(request: Request) {
     .eq("id", logId)
     .maybeSingle();
 
-  if (logErr) return new NextResponse(logErr.message, { status: 500 });
-  if (!log)   return new NextResponse("not_found", { status: 404 });
+  if (logErr) return NextResponse.json({ error: logErr.message }, { status: 500 });
+  if (!log)   return NextResponse.json({ error: "not_found" }, { status: 404 });
 
   // admin 권한 확인
   const { data: member } = await supabase
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     .eq("org_id", log.org_id)
     .eq("user_id", user.id)
     .maybeSingle();
-  if (member?.role !== "admin") return new NextResponse("forbidden", { status: 403 });
+  if (member?.role !== "admin") return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
   // 기관 이름 조회
   const { data: org } = await supabase
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
 
   const { data: reports, error: rErr } = await query.order("period_end", { ascending: false }).limit(100);
   if (rErr) return new NextResponse(rErr.message, { status: 500 });
-  if (!reports?.length) return new NextResponse("no_reports_for_period", { status: 404 });
+  if (!reports?.length) return NextResponse.json({ error: "no_reports_for_period" }, { status: 404 });
 
   const seen = new Set<string>();
   const latest = reports.filter((r) => {
@@ -92,6 +92,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "알 수 없는 오류";
-    return new NextResponse(msg, { status: 500 });
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

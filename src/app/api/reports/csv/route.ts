@@ -9,13 +9,13 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 export async function GET(request: Request) {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return new NextResponse("unauthenticated", { status: 401 });
+  if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
 
   const url        = new URL(request.url);
   const orgId      = url.searchParams.get("orgId");
   const reportSetId = url.searchParams.get("reportSetId");
 
-  if (!orgId) return new NextResponse("orgId required", { status: 400 });
+  if (!orgId) return NextResponse.json({ error: "orgId required" }, { status: 400 });
 
   // 기관 멤버 확인
   const { data: member } = await supabase
@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     .eq("org_id", orgId)
     .eq("user_id", user.id)
     .maybeSingle();
-  if (!member) return new NextResponse("forbidden", { status: 403 });
+  if (!member) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
   // 보고서 조회
   let query = supabase
@@ -42,7 +42,7 @@ export async function GET(request: Request) {
   }
 
   const { data: rows, error } = await query.order("period_end", { ascending: false });
-  if (error) return new NextResponse(error.message, { status: 500 });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const allRows = (rows ?? []).map((r) => ({
     ...r,
@@ -57,7 +57,7 @@ export async function GET(request: Request) {
     : dedupByParent(allRows);
 
   if (deduped.length === 0) {
-    return new NextResponse("no_reports", { status: 404 });
+    return NextResponse.json({ error: "no_reports" }, { status: 404 });
   }
 
   // CSV 생성

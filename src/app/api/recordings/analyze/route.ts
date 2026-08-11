@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCallRecordingById, updateCallRecordingAnalysis } from "@/lib/supabase/call-recordings-repo";
 import { analyzeAudio } from "@/lib/silverlink/audio/audio-analyzer";
@@ -8,38 +9,38 @@ import { createAlertsFromAnalysis, indexTranscriptToRag, updateSocialScoreFromRe
 export async function POST(request: NextRequest) {
   // 웹(쿠키) + 모바일(Bearer 토큰) 모두 지원
   const authHeader = request.headers.get("authorization");
-  let supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>;
+  let supabase: SupabaseClient;
 
   if (authHeader?.startsWith("Bearer ")) {
     supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       { global: { headers: { Authorization: authHeader } } }
-    ) as any;
+    );
   } else {
-    supabase = await createSupabaseServerClient();
+    supabase = await createSupabaseServerClient() as unknown as SupabaseClient;
   }
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
+    return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   }
 
   const body = await request.json().catch(() => null);
   const recordingId: string | undefined = body?.recording_id;
   if (!recordingId) {
-    return NextResponse.json({ error: "recording_id가 필요합니다." }, { status: 400 });
+    return NextResponse.json({ error: "recording_id_required" }, { status: 400 });
   }
 
   const recording = await getCallRecordingById(supabase, recordingId);
   if (!recording) {
-    return NextResponse.json({ error: "녹음을 찾을 수 없습니다." }, { status: 404 });
+    return NextResponse.json({ error: "recording_not_found" }, { status: 404 });
   }
   if (recording.owner_user_id !== user.id) {
-    return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 });
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
   if (!recording.storage_path) {
-    return NextResponse.json({ error: "오디오 파일이 없습니다." }, { status: 400 });
+    return NextResponse.json({ error: "no_audio_file" }, { status: 400 });
   }
 
   await updateCallRecordingAnalysis(supabase, recordingId, { status: "transcribing" });

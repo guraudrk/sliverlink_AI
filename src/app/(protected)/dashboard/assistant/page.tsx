@@ -7,15 +7,22 @@ import type { ParentProfile } from "@/lib/supabase/parent-profiles-repo";
 export default function DashboardAssistantPage() {
   const [parentProfiles, setParentProfiles] = useState<ParentProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
 
   useEffect(() => {
     let active = true;
 
     fetch("/api/parents")
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error("fetch_failed");
+        return res.json();
+      })
       .then((data) => {
         if (!active) return;
         if (data.ok) setParentProfiles(data.profiles as ParentProfile[]);
+      })
+      .catch(() => {
+        if (active) setFetchError(true);
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -39,6 +46,14 @@ export default function DashboardAssistantPage() {
     return (
       <div className="flex flex-1 items-center justify-center bg-slate-50 px-4 py-16">
         <p className="text-slate-400">불러오는 중...</p>
+      </div>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <div className="flex flex-1 items-center justify-center bg-slate-50 px-4 py-16">
+        <p className="text-slate-500">프로필을 불러오지 못했습니다. 페이지를 새로고침해 주세요.</p>
       </div>
     );
   }

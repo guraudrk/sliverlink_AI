@@ -46,6 +46,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "report_set_not_found" }, { status: 404 });
     }
 
+    const { data: membership } = await supabase
+      .from("org_members")
+      .select("role")
+      .eq("org_id", sample.org_id as string)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (!membership) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+
     // retryErrors: error 행을 pending으로 리셋해서 다음 processChunk에서 재처리
     if (retryErrors) {
       await supabase

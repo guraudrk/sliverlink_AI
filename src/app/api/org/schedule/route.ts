@@ -10,10 +10,10 @@ export const DEFAULT_CRON_EXPR = "0 23 * * 0"; // 일 23:00 UTC = 월 08:00 KST
 export async function GET(request: Request) {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return new NextResponse("unauthenticated", { status: 401 });
+  if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
 
   const orgId = new URL(request.url).searchParams.get("orgId");
-  if (!orgId) return new NextResponse("orgId required", { status: 400 });
+  if (!orgId) return NextResponse.json({ error: "orgId required" }, { status: 400 });
 
   const { data: member } = await supabase
     .from("org_members")
@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     .eq("org_id", orgId)
     .eq("user_id", user.id)
     .maybeSingle();
-  if (!member) return new NextResponse("forbidden", { status: 403 });
+  if (!member) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
   const { data } = await supabase
     .from("report_schedules")
@@ -42,7 +42,7 @@ export async function GET(request: Request) {
 export async function PUT(request: Request) {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return new NextResponse("unauthenticated", { status: 401 });
+  if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
 
   const body = await request.json().catch(() => ({})) as {
     orgId?: string;
@@ -51,7 +51,7 @@ export async function PUT(request: Request) {
   };
 
   const { orgId, enabled, recipient_emails } = body;
-  if (!orgId) return new NextResponse("orgId required", { status: 400 });
+  if (!orgId) return NextResponse.json({ error: "orgId required" }, { status: 400 });
 
   const { data: member } = await supabase
     .from("org_members")
@@ -59,7 +59,7 @@ export async function PUT(request: Request) {
     .eq("org_id", orgId)
     .eq("user_id", user.id)
     .maybeSingle();
-  if (member?.role !== "admin") return new NextResponse("forbidden", { status: 403 });
+  if (member?.role !== "admin") return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
   // 이메일 형식 간단 검증
   const emails = (recipient_emails ?? []).filter((e) => e.includes("@")).slice(0, 10);
@@ -77,6 +77,6 @@ export async function PUT(request: Request) {
       { onConflict: "org_id" }
     );
 
-  if (error) return new NextResponse(error.message, { status: 500 });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }

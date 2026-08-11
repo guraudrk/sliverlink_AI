@@ -20,6 +20,7 @@ export type ParentProfileInput = z.infer<typeof parentProfileInputSchema>;
 export type ParentProfile = ParentProfileInput & {
   id: string;
   owner_user_id: string;
+  org_id?: string | null;
   created_at: string;
   updated_at: string;
 };

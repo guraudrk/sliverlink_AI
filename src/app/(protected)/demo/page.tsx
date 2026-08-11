@@ -70,7 +70,7 @@ export default function DemoSetupPage() {
             <li>① KPI 헤더에서 즉시확인 수 확인</li>
             <li>② 🔴 어르신 카드 → 플래그 사유 확인</li>
             <li>③ 카드 오른쪽 보고서 버튼 → AI 리포트 생성</li>
-            <li>④ (Day 38 이후) 기록 복사 버튼 → 클립보드</li>
+            <li>④ 기록 복사 버튼 → 클립보드</li>
           </ol>
         </div>
 
