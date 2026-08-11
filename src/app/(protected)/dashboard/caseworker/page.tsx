@@ -63,10 +63,13 @@ export default async function CaseworkerPage() {
           <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 shadow-md shadow-emerald-200/60">
             <CaseworkerIcon />
           </div>
-          <div>
+          <div className="flex-1">
             <p className="text-sm font-semibold uppercase tracking-widest text-teal-600">SilverLink AI</p>
             <h1 className="mt-0.5 text-2xl font-bold text-slate-900 sm:text-3xl">케어 관리</h1>
           </div>
+          <Link href="/dashboard" className="shrink-0 text-sm text-slate-400 hover:text-slate-600">
+            개인 대시보드 →
+          </Link>
         </div>
         <p className="mb-8 text-slate-500 animate-rag-fade-in-up">
           담당 어르신을 위험도 순으로 한눈에 파악해요. 자동 플래그로 즉시 확인이 필요한 분을 놓치지 않아요.

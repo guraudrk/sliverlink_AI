@@ -61,6 +61,16 @@ export default async function DashboardPage() {
   if (!user) redirect("/login");
 
   const supabase = await createSupabaseServerClient();
+
+  // 기관 소속 멤버는 기관 대시보드로 자동 이동
+  const { data: orgMembership } = await supabase
+    .from("org_members")
+    .select("org_id")
+    .eq("user_id", user.id)
+    .limit(1)
+    .maybeSingle();
+  if (orgMembership) redirect("/dashboard/caseworker");
+
   const [parents, alertCount] = await Promise.all([
     listParentProfiles(supabase),
     countUnacknowledgedAlerts(supabase),
