@@ -1,11 +1,33 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { NavPageGuide } from "./nav-page-guide";
 import { ThemeToggle } from "./theme-toggle";
 import type { UserRole } from "@/app/api/user/role/route";
 
 type Props = { role?: UserRole };
+
+function SettingsButton() {
+  const router = useRouter();
+  function handleClick() {
+    if (typeof window !== "undefined" && (window as any).ReactNativeWebView) {
+      (window as any).ReactNativeWebView.postMessage(JSON.stringify({ type: "OPEN_NATIVE_SETTINGS" }));
+    } else {
+      router.push("/dashboard/settings");
+    }
+  }
+  return (
+    <button
+      onClick={handleClick}
+      className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+      title="설정"
+      aria-label="설정"
+    >
+      <GearIcon className="h-4 w-4" />
+    </button>
+  );
+}
 
 export function DashboardNavBar({ role }: Props) {
   return (
@@ -30,14 +52,7 @@ export function DashboardNavBar({ role }: Props) {
         )}
         <div className="ml-auto flex items-center gap-2">
           <ThemeToggle />
-          <Link
-            href="/dashboard/settings"
-            className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
-            title="설정"
-            aria-label="설정"
-          >
-            <GearIcon className="h-4 w-4" />
-          </Link>
+          <SettingsButton />
           <Link
             href="/dashboard/references"
             className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-400 ring-1 ring-slate-200 transition-colors hover:bg-slate-50 hover:text-slate-600 dark:ring-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-300"
