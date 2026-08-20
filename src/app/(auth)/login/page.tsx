@@ -13,7 +13,7 @@ export default async function LoginPage({
       <div className="mb-8 max-w-sm text-center animate-rag-fade-in-up">
         <p className="text-sm font-semibold uppercase tracking-widest text-blue-600">SilverLink AI</p>
         <h1 className="mt-2 text-3xl font-bold text-slate-900">다시 만나서 반가워요</h1>
-        <p className="mt-2 text-slate-500">로그인하고 부모님 돌봄을 이어가요.</p>
+        <p className="mt-2 text-slate-500">통화 기록 자동 완성으로 돌봄 업무를 이어가세요.</p>
       </div>
 
       <div className="w-full max-w-sm animate-rag-fade-in-up" style={{ animationDelay: "80ms" }}>
